@@ -1,0 +1,8 @@
+{
+  "capability_key": "qb.query",
+  "org_id": "test_org",
+  "user_id": "te",
+  "args": {
+    "query": "SELECT * FROM CompanyInfo"
+  }
+}

@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  stargate-lite:
+    build: .
+    container_name: stargate-lite
+    ports:
+      - "8001:8001"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8001
+      - DATABASE_URL=postgresql://stargate:stargate_pass@postgres:5432/stargate_lite
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+    volumes:
+      - ./app:/app/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+    restart: unless-stopped
+    networks:
+      - stargate-network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: stargate-postgres
+    environment:
+      - POSTGRES_USER=stargate
+      - POSTGRES_PASSWORD=stargate_pass
+      - POSTGRES_DB=stargate_lite
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - stargate-network
+
+volumes:
+  postgres-data:
+
+networks:
+  stargate-network:
+    driver: bridge

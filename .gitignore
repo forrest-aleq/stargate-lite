@@ -1,0 +1,432 @@
+# ========================================
+# AiFW News Pipeline - Comprehensive .gitignore
+# ========================================
+
+# ========================================
+# 🔐 SECRETS & CREDENTIALS (NEVER COMMIT)
+# ========================================
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+secrets/
+credentials/
+*.credentials.json
+auth.json
+token.json
+
+# API Keys (belt and suspenders)
+*api_key*
+*API_KEY*
+*anthropic_key*
+*gemini_key*
+*openai_key*
+
+# ========================================
+# 🐍 PYTHON
+# ========================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+.virtualenv/
+pythonenv*/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+test-results/
+junit.xml
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# ========================================
+# 🗄️ DATABASES & DATA
+# ========================================
+# SQLite
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# PostgreSQL
+*.dump
+*.sql.gz
+postgres_data/
+pgdata/
+
+# Data directories
+data/raw/
+data/processed/
+data/temp/
+data/cache/
+*.csv.gz
+*.parquet
+
+# LangGraph checkpoints (can be large)
+checkpoints/
+.langgraph/
+
+# ========================================
+# 📓 JUPYTER NOTEBOOKS
+# ========================================
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+*.ipynb_checkpoints
+
+# Jupyter Notebook metadata
+.virtual_documents/
+
+# ========================================
+# 🐳 DOCKER
+# ========================================
+# Don't ignore Dockerfile, but ignore runtime
+docker-compose.override.yml
+.docker/
+*.dockerignore.local
+
+# ========================================
+# 💻 IDEs & EDITORS
+# ========================================
+# VSCode
+.vscode/
+!.vscode/settings.json.example
+!.vscode/extensions.json
+*.code-workspace
+.history/
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+.idea_modules/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+.vim/
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# JetBrains (comprehensive)
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+.idea_modules/
+
+# Eclipse
+.project
+.pydevproject
+.settings/
+
+# ========================================
+# 🖥️ OPERATING SYSTEMS
+# ========================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+.directory
+.Trash-*
+.nfs*
+
+# ========================================
+# 📦 NODE_MODULES (if any JS tooling)
+# ========================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+.yarn/
+package-lock.json
+yarn.lock
+
+# ========================================
+# 📝 LOGS & TEMPORARY FILES
+# ========================================
+# Application logs
+logs/
+*.log
+*.log.*
+log/
+*.out
+
+# Temp files
+tmp/
+temp/
+*.tmp
+*.temp
+*.swp
+*.bak
+*.pid
+*.seed
+*.pid.lock
+
+# ========================================
+# 🧪 TESTING & DEBUGGING
+# ========================================
+# Test databases
+test.db
+test.sqlite
+aifw_news_test
+
+# Debug files
+*.dmp
+*.stackdump
+debug.log
+debug/
+
+# Profiling
+*.prof
+*.lprof
+.profdata/
+
+# ========================================
+# 🚀 BUILD & DEPLOYMENT
+# ========================================
+# Build artifacts
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+dist/
+*.egg-info/
+
+# Terraform (if using IaC)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!terraform.tfvars.example
+
+# Kubernetes secrets
+*-secret.yaml
+*-secrets.yaml
+!*-secret.yaml.example
+
+# ========================================
+# 📊 AI/ML SPECIFIC
+# ========================================
+# Model checkpoints
+models/
+*.ckpt
+*.h5
+*.pt
+*.pth
+*.onnx
+*.pb
+*.tflite
+
+# Training outputs
+runs/
+outputs/
+checkpoints/
+wandb/
+mlruns/
+.tensorboard/
+
+# Embeddings/vectors
+*.npy
+*.npz
+embeddings/
+
+# ========================================
+# 📄 GENERATED DOCUMENTATION
+# ========================================
+docs/_build/
+docs/.doctrees/
+site/
+.mkdocs_cache/
+htmldoc/
+
+# ========================================
+# 🔧 TOOL-SPECIFIC
+# ========================================
+# Ruff cache
+.ruff_cache/
+
+# Black
+.black/
+
+# isort
+.isort.cfg
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# pyenv
+.python-version
+
+# celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath
+*.sage.py
+
+# ========================================
+# 📦 PROJECT-SPECIFIC
+# ========================================
+# Large generated files
+ideas.md.backup
+*_backup_*
+*.draft
+
+# Screenshot/image dumps
+screenshots/
+*.screenshot.png
+
+# Research/experimental
+experiments/
+playground/
+scratch/
+
+# RSS feed cache
+feed_cache/
+.cache/
+
+# WordPress uploads (if testing locally)
+wp-content/uploads/
+
+# Generated assets
+generated_assets/
+assets/generated/
+
+# ========================================
+# 🎨 MEDIA FILES (optional - uncomment if needed)
+# ========================================
+# Uncomment these if you don't want to version media
+# *.jpg
+# *.jpeg
+# *.png
+# *.gif
+# *.svg
+# *.mp4
+# *.mov
+# *.avi
+# *.mp3
+# *.wav
+
+# ========================================
+# ✅ EXCEPTIONS (DO COMMIT THESE)
+# ========================================
+# Force-include certain files
+!.gitkeep
+!.env.example
+!.vscode/settings.json.example
+!Dockerfile
+!docker-compose.yml
+!requirements.txt
+!README.md
+
+# ========================================
+# 🔍 DEBUGGING HELPERS
+# ========================================
+# If you accidentally commit secrets, use:
+# git filter-branch --force --index-filter \
+#   "git rm --cached --ignore-unmatch path/to/secret/file" \
+#   --prune-empty --tag-name-filter cat -- --all
+#
+# Then force push: git push --force --all
+# ========================================

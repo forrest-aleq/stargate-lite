@@ -1,0 +1,64 @@
+# Ruff - fast Python linter
+# These rules catch real bugs without being annoying.
+
+target-version = "py312"
+line-length = 100
+
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+]
+
+[lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear - real bugs
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade - modern Python
+    "SIM",    # flake8-simplify
+    "RUF",    # ruff-specific
+    "PERF",   # performance
+    "ASYNC",  # async issues
+    "S",      # security basics
+    "PTH",    # use pathlib
+    "T20",    # no print()
+]
+
+ignore = [
+    "S101",   # assert is fine
+    "S603",   # subprocess - guardian handles this better
+    "S607",   # partial path - often fine
+    "S105",   # hardcoded-password-string - false positives on field names
+    "S106",   # hardcoded-password-func-arg - false positives
+    "S608",   # hardcoded-sql-expression - parameterized queries are fine
+    "S104",   # hardcoded-bind-all-interfaces - 0.0.0.0 is intentional for containers
+    "E402",   # module-import-not-at-top - needed for ddtrace patching
+    "ASYNC210",  # blocking-http-call-in-async - OAuth callbacks need sync requests
+    "SIM102", # collapsible-if - style preference, readability matters more
+    "SIM108", # if-else-block-instead-of-if-exp - ternary not always clearer
+]
+
+fixable = ["ALL"]
+
+[lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "T20", "PLR2004"]
+"scripts/**/*.py" = ["T20", "PTH123", "PERF401"]
+"add_credentials.py" = ["T20", "PTH123"]
+"add_credential_types.py" = ["T20", "PTH123"]
+"store_test_creds.py" = ["T20"]
+"*_example.py" = ["T20", "S113", "RUF013"]
+"test_integration_contract.py" = ["T20", "S113"]
+
+[lint.isort]
+force-single-line = false
+combine-as-imports = true
+
+[format]
+quote-style = "double"
+indent-style = "space"

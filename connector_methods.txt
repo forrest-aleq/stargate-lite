@@ -1,0 +1,371 @@
+Scanning all connectors...
+
+================================================================================
+
+asana.py (AsanaConnector)
+--------------------------------------------------------------------------------
+  - create_task
+  - update_task
+  - get_task
+  - list_tasks
+  - create_project
+  - get_project
+  - list_projects
+  - add_custom_field_to_project
+  - update_task_custom_field
+  - create_section
+  - add_task_to_section
+  - upload_attachment
+
+bill_com.py (BillComConnector)
+--------------------------------------------------------------------------------
+  - create_vendor
+  - create_bill
+  - create_payment
+  - create_bulk_payment
+  - list_bills
+  - list_vendors
+  - get_payment_status
+  - create_vendor_credit
+  - approve_bill
+
+blandai.py (BlandAIConnector)
+--------------------------------------------------------------------------------
+  - send_call
+  - send_batch_calls
+  - get_call_status
+  - get_call_transcript
+  - get_call_recording
+  - list_calls
+  - create_phone_number
+
+brex.py (BrexConnector)
+--------------------------------------------------------------------------------
+  - list_transactions
+  - list_expenses
+  - create_virtual_card
+  - lock_card
+  - unlock_card
+  - update_card_limit
+  - create_payment
+  - get_account_balance
+
+chase.py (ChaseConnector)
+--------------------------------------------------------------------------------
+  - list_accounts
+  - get_account_balance
+  - get_transactions
+  - create_ach_payment
+  - create_wire_payment
+  - get_payment_status
+  - list_payments
+  - create_recipient
+
+gmail.py (GmailConnector)
+--------------------------------------------------------------------------------
+  - send_email
+  - read_emails
+  - create_draft
+
+google_calendar.py (GoogleCalendarConnector)
+--------------------------------------------------------------------------------
+  - create_event
+  - check_availability
+  - update_event
+  - list_events
+  - cancel_event
+
+google_drive.py (GoogleDriveConnector)
+--------------------------------------------------------------------------------
+  - upload_file
+  - download_file
+  - list_files
+  - create_folder
+  - get_file_metadata
+
+google_sheets.py (GoogleSheetsConnector)
+--------------------------------------------------------------------------------
+  - get_range
+  - update_range
+  - append_row
+  - create_sheet
+  - batch_update
+  - clear_range
+  - get_sheet_metadata
+
+hubspot.py (HubSpotConnector)
+--------------------------------------------------------------------------------
+  - create_contact
+  - create_deal
+  - create_company
+  - get_contact
+
+ibkr.py (IBKRConnector)
+--------------------------------------------------------------------------------
+  - authenticate_session
+  - get_accounts
+  - get_account_summary
+  - get_positions
+  - get_pnl
+  - get_market_data
+  - place_order
+  - modify_order
+  - cancel_order
+  - get_orders
+  - get_trades
+  - get_executions
+  - search_contract
+  - get_contract_details
+  - get_portfolio_allocation
+
+mercury.py (MercuryConnector)
+--------------------------------------------------------------------------------
+  - list_accounts
+  - get_transactions
+  - create_payment
+  - create_recipient
+  - list_recipients
+  - create_wire
+
+microsoft_excel.py (MicrosoftExcelConnector)
+--------------------------------------------------------------------------------
+  - get_range
+  - update_range
+  - append_row
+  - create_worksheet
+  - get_worksheets
+  - create_table
+
+microsoft_onedrive.py (MicrosoftOneDriveConnector)
+--------------------------------------------------------------------------------
+  - upload_file
+  - download_file
+  - list_files
+  - create_folder
+  - get_file_metadata
+
+microsoft_outlook_calendar.py (MicrosoftOutlookCalendarConnector)
+--------------------------------------------------------------------------------
+  - create_event
+  - check_availability
+  - update_event
+  - list_events
+  - cancel_event
+
+netsuite.py (NetSuiteConnector)
+--------------------------------------------------------------------------------
+  - create_journal_entry
+  - create_vendor_bill
+  - create_purchase_order
+  - get_vendor
+  - create_vendor
+  - query_records
+  - get_subsidiary_list
+  - reconcile_bank_statement
+  - create_custom_record
+  - update_vendor
+  - query_vendor_by_name
+  - approve_vendor_bill
+  - create_vendor_payment
+  - batch_vendor_payments
+  - upload_vendor_document
+
+notion.py (NotionConnector)
+--------------------------------------------------------------------------------
+  - query_database
+  - create_page
+  - update_page
+  - get_page
+  - append_block_children
+  - get_block_children
+  - get_database
+  - get_data_sources
+  - create_database
+  - search
+
+ocr_utility.py (OCRUtility)
+--------------------------------------------------------------------------------
+  - extract_text
+  - parse_w9
+  - parse_invoice
+  - parse_bank_statement
+
+plaid.py (PlaidConnector)
+--------------------------------------------------------------------------------
+  - create_link_token
+  - exchange_public_token
+  - get_transactions_sync
+  - get_auth
+  - create_transfer
+  - get_transfer
+  - get_identity
+  - get_balance
+  - get_accounts
+  - create_processor_token
+
+powerbi.py (PowerBIConnector)
+--------------------------------------------------------------------------------
+  - list_datasets
+  - get_dataset
+  - refresh_dataset
+  - list_reports
+  - get_report
+  - export_report
+  - list_dashboards
+  - get_dashboard
+  - generate_embed_token
+  - create_workspace
+
+quickbooks.py (QuickBooksConnector)
+--------------------------------------------------------------------------------
+  - create_vendor
+  - get_vendor
+  - create_bill
+  - create_journal_entry
+  - query_entities
+  - get_profit_loss_report
+  - create_purchase_order
+  - create_bill_payment
+  - create_expense
+  - get_chart_of_accounts
+  - list_vendors
+  - create_customer
+  - get_customer
+  - update_customer
+  - list_customers
+  - create_invoice
+  - get_invoice
+  - send_invoice
+  - void_invoice
+  - list_invoices
+  - create_item
+  - get_item
+  - list_items
+  - create_payment
+  - get_payment
+  - create_estimate
+  - get_estimate
+  - create_sales_receipt
+  - create_credit_memo
+  - create_time_activity
+  - get_balance_sheet
+
+ramp.py (RampConnector)
+--------------------------------------------------------------------------------
+  - list_transactions
+  - create_card
+  - create_reimbursement
+  - get_users
+
+recurly.py (RecurlyConnector)
+--------------------------------------------------------------------------------
+  - create_account
+  - create_subscription
+  - cancel_subscription
+  - pause_subscription
+  - resume_subscription
+  - list_invoices
+  - get_invoice
+  - create_plan
+  - list_subscriptions
+
+schwab.py (SchwabConnector)
+--------------------------------------------------------------------------------
+  - get_accounts
+  - get_account
+  - get_positions
+  - place_order
+  - get_orders
+  - cancel_order
+  - replace_order
+  - get_quote
+  - get_quotes
+  - get_price_history
+  - get_option_chain
+  - get_transactions
+
+slack.py (SlackConnector)
+--------------------------------------------------------------------------------
+  - send_message
+  - send_direct_message
+  - upload_file
+  - create_channel
+  - invite_to_channel
+  - get_channel_history
+
+stripe_connector.py (StripeConnector)
+--------------------------------------------------------------------------------
+  - create_payment_intent
+  - create_customer
+  - create_invoice
+  - create_subscription
+  - refund_payment
+  - get_balance
+  - list_payouts
+  - retrieve_payout
+  - list_balance_transactions
+  - create_transfer
+  - list_transfers
+  - retrieve_payment_intent
+  - list_payment_methods
+  - attach_payment_method
+  - search_customers
+  - retrieve_customer
+  - update_customer
+  - list_customers
+  - delete_customer
+  - create_product
+  - retrieve_product
+  - update_product
+  - list_products
+  - delete_product
+  - search_products
+  - create_price
+  - retrieve_price
+  - update_price
+  - list_prices
+  - search_prices
+  - create_checkout_session
+  - retrieve_checkout_session
+  - expire_checkout_session
+  - list_checkout_sessions
+  - list_checkout_line_items
+  - retrieve_invoice
+  - update_invoice
+  - finalize_invoice
+  - pay_invoice
+  - send_invoice
+  - void_invoice
+  - list_invoices
+  - delete_invoice
+  - create_payment_method
+  - retrieve_payment_method
+  - update_payment_method
+  - detach_payment_method
+  - retrieve_refund
+  - update_refund
+  - cancel_refund
+  - list_refunds
+  - retrieve_dispute
+  - update_dispute
+  - close_dispute
+  - list_disputes
+  - retrieve_charge
+  - list_charges
+  - retrieve_subscription
+  - update_subscription
+  - cancel_subscription
+  - list_subscriptions
+
+twilio_sms.py (TwilioSMSConnector)
+--------------------------------------------------------------------------------
+  - send_sms
+  - get_message
+  - list_messages
+  - delete_message
+  - get_incoming_messages
+  - send_mms
+  - schedule_message
+
+================================================================================
+Total connectors scanned: 27

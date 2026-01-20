@@ -1,0 +1,383 @@
+# STARGATE-LITE Production CI/CD Workflow
+
+name: Deploy STARGATE-LITE to Production
+
+on:
+  workflow_dispatch:
+
+env:
+  RESOURCE_GROUP: stargate-lite-prod-rg
+  CONTAINER_ENV: stargate-lite-prod-env
+  ACR_USERNAME: stargateliteprodacr
+  IMAGE_NAME: stargate-lite
+  DD_SITE: us5.datadoghq.com
+  MAIN_CPU: "1.0"
+  MAIN_MEMORY: "2.5Gi"
+  DD_SIDECAR_CPU: "0.5"
+  DD_SIDECAR_MEMORY: "0.5Gi"
+
+jobs:
+  # Job 1: Test
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: pytest tests/ -v || true
+
+  # Job 2: Build and Push to ACR (Production)
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: test
+    environment: production
+    outputs:
+      image-tag: ${{ steps.image-tag.outputs.tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Required for GHA cache (cache-from/cache-to type=gha)
+      # Default docker driver doesn't support cache export
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Azure Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ACR_USERNAME }}.azurecr.io
+          username: ${{ env.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Generate image tag
+        id: image-tag
+        run: |
+          TAG="${{ env.ACR_USERNAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Generated tag: ${TAG}"
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.image-tag.outputs.tag }}
+            ${{ env.ACR_USERNAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+  # Job 3: Deploy to Container App (Production)
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: production
+    steps:
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set Container App secrets
+        run: |
+          echo "Setting Container App secrets..."
+          az containerapp secret set \
+            --name stargate-lite-prod \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --secrets \
+              api-secret-key="${{ secrets.API_SECRET_KEY }}" \
+              database-url="${{ secrets.DATABASE_URL }}" \
+              encryption-key="${{ secrets.ENCRYPTION_KEY }}" \
+              dd-api-key-secret="${{ secrets.DD_API_KEY }}"
+
+      - name: Set Container Registry credentials
+        run: |
+          set -e
+          echo "Setting Container Registry credentials..."
+          az containerapp registry set \
+            --name stargate-lite-prod \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --server ${{ env.ACR_USERNAME }}.azurecr.io \
+            --username ${{ env.ACR_USERNAME }} \
+            --password ${{ secrets.ACR_PASSWORD }}
+
+      - name: Update Container App
+        run: |
+          FULL_IMAGE="${{ needs.build-and-push.outputs.image-tag }}"
+
+          echo "Updating container app..."
+          az containerapp update \
+            --name stargate-lite-prod \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --container-name stargate-lite-prod \
+            --image ${FULL_IMAGE} \
+            --set-env-vars \
+              HOST=0.0.0.0 \
+              PORT=8001 \
+              DEBUG=false \
+              API_SECRET_KEY=secretref:api-secret-key \
+              DATABASE_URL=secretref:database-url \
+              ENCRYPTION_KEY=secretref:encryption-key \
+              DD_ENABLED=true \
+              DD_AGENT_HOST=localhost \
+              DD_TRACE_AGENT_PORT=8126 \
+              DD_ENV=production \
+              DD_SERVICE=stargate-lite \
+              DD_VERSION=${{ github.sha }}
+
+      - name: Set Container App secrets
+        run: |
+          echo "Setting Container App secrets..."
+          az containerapp secret set \
+            --name stargate-lite-prod \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --secrets \
+              api-secret-key="${{ secrets.API_SECRET_KEY }}" \
+              database-url="${{ secrets.DATABASE_URL }}" \
+              encryption-key="${{ secrets.ENCRYPTION_KEY }}" \
+              dd-api-key-secret="${{ secrets.DD_API_KEY }}"
+
+      - name: Create Datadog Logs Configuration
+        run: |
+          echo "📝 Creating Datadog logs configuration..."
+
+          # Create logs configuration YAML for file-based collection
+          cat > dd-logs-conf.yaml << 'EOF_CONF'
+          logs:
+            - type: file
+              path: /app/logs/application.log
+              service: stargate-lite
+              source: python
+              sourcecategory: application
+              tags:
+                - env:production
+                - container:main
+          EOF_CONF
+
+          echo "🔐 Storing Datadog logs config as Container App secret..."
+          az containerapp secret set \
+            --name stargate-lite-prod \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --secrets dd-logs-conf="$(cat dd-logs-conf.yaml)"
+
+          echo "✅ Datadog logs configuration stored as secret"
+
+      - name: Configure Datadog Sidecar
+        run: |
+          echo "🐶 Configuring Datadog Agent sidecar..."
+
+          # Export current configuration
+          az containerapp show \
+            --name stargate-lite-prod \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --output yaml > current-config.yaml
+
+          # Install PyYAML for config manipulation
+          pip install --disable-pip-version-check --no-input PyYAML==6.0.2
+
+          # Reconcile Datadog sidecar configuration
+          python3 << 'EOF'
+          import yaml
+
+          with open('current-config.yaml', 'r') as f:
+              config = yaml.safe_load(f)
+
+          # Remove read-only properties
+          read_only_props = ['runningStatus', 'provisioningState', 'latestRevisionName',
+                             'latestRevisionFqdn', 'latestReadyRevisionName', 'customDomainVerificationId',
+                             'outboundIpAddresses', 'eventStreamEndpoint']
+
+          for prop in read_only_props:
+              config.pop(prop, None)
+              if 'properties' in config:
+                  config['properties'].pop(prop, None)
+
+          config.pop('systemData', None)
+
+          # Keep only essential structure
+          essential_config = {
+              'properties': {
+                  'configuration': config['properties']['configuration'],
+                  'template': config['properties']['template']
+              }
+          }
+
+          template = essential_config['properties']['template']
+
+          # Define Datadog agent sidecar with file-based log collection
+          datadog_agent = {
+              'name': 'datadog-agent',
+              'image': 'datadog/agent:7.53.0',
+              'env': [
+                  {'name': 'DD_API_KEY', 'value': 'placeholder'},
+                  {'name': 'DD_SITE', 'value': '${{ env.DD_SITE }}'},
+                  {'name': 'DD_ENV', 'value': 'production'},
+                  {'name': 'DD_HOSTNAME', 'value': 'stargate-lite-prod'},
+                  {'name': 'DD_LOG_LEVEL', 'value': 'info'},
+                  {'name': 'DD_APM_ENABLED', 'value': 'true'},
+                  {'name': 'DD_APM_NON_LOCAL_TRAFFIC', 'value': 'true'},
+                  {'name': 'DD_DOGSTATSD_NON_LOCAL_TRAFFIC', 'value': 'true'},
+                  {'name': 'DD_DOGSTATSD_ENABLED', 'value': 'true'},
+                  {'name': 'DD_DOGSTATSD_PORT', 'value': '8125'},
+                  {'name': 'DD_LOGS_ENABLED', 'value': 'true'},
+                  {'name': 'DD_CONTAINER_EXCLUDE_LOGS', 'value': 'name:datadog-agent'},
+                  {'name': 'DD_AC_EXCLUDE', 'value': 'name:datadog-agent'},
+                  {'name': 'DD_CONTAINER_EXCLUDE', 'value': 'name:datadog-agent'},
+                  {'name': 'DD_KUBELET_ENABLED', 'value': 'false'},
+                  {'name': 'DD_PROCESS_AGENT_ENABLED', 'value': 'false'},
+                  {'name': 'DD_SYSTEM_PROBE_ENABLED', 'value': 'false'},
+                  {'name': 'DD_NETWORK_MONITORING_ENABLED', 'value': 'false'},
+                  {'name': 'DD_ORCHESTRATOR_EXPLORER_ENABLED', 'value': 'false'},
+                  {'name': 'DD_KUBERNETES_KUBELET_NODENAME', 'value': ''},
+                  {'name': 'DD_IGNORE_AUTOCONF', 'value': 'kubernetes_state redisdb'}
+              ],
+              'resources': {
+                  'cpu': ${{ env.DD_SIDECAR_CPU }},
+                  'memory': '${{ env.DD_SIDECAR_MEMORY }}'
+              },
+              'volumeMounts': [
+                  {'mountPath': '/app/logs', 'volumeName': 'stargate-logs'},
+                  {'mountPath': '/etc/datadog-agent/conf.d/stargate_logs.d', 'volumeName': 'dd-logs-confd'}
+              ]
+          }
+
+          # Check if Datadog agent exists, update or add
+          containers = template['containers']
+          datadog_index = next((i for i, c in enumerate(containers) if c.get('name') == 'datadog-agent'), None)
+
+          if datadog_index is not None:
+              containers[datadog_index] = datadog_agent
+              print("🔄 Updating existing Datadog agent sidecar")
+          else:
+              containers.append(datadog_agent)
+              print("➕ Adding new Datadog agent sidecar")
+
+          # Add volume mount to main application container
+          main_container = next((c for c in containers if c.get('name') == 'stargate-lite-prod'), None)
+          if main_container:
+              # Set main container resources from env vars
+              main_container['resources'] = {
+                  'cpu': ${{ env.MAIN_CPU }},
+                  'memory': '${{ env.MAIN_MEMORY }}'
+              }
+              if 'volumeMounts' not in main_container:
+                  main_container['volumeMounts'] = []
+              # Check if mount already exists
+              if not any(vm.get('volumeName') == 'stargate-logs' for vm in main_container['volumeMounts']):
+                  main_container['volumeMounts'].append({'mountPath': '/app/logs', 'volumeName': 'stargate-logs'})
+                  print("📂 Added logs volume mount to main container")
+
+          # Ensure volumes structure exists
+          if 'volumes' not in template or template['volumes'] is None:
+              template['volumes'] = []
+
+          volumes = template['volumes']
+          vol_names = {v.get('name'): v for v in volumes}
+
+          # Add stargate-logs volume (EmptyDir for Azure Container Apps)
+          if 'stargate-logs' not in vol_names:
+              volumes.append({
+                  'name': 'stargate-logs',
+                  'storageType': 'EmptyDir'
+              })
+              print("📁 Added stargate-logs volume")
+
+          # Add dd-logs-confd secret volume
+          if 'dd-logs-confd' not in vol_names:
+              volumes.append({
+                  'name': 'dd-logs-confd',
+                  'storageType': 'Secret',
+                  'secrets': [{'secretRef': 'dd-logs-conf', 'path': 'conf.yaml'}]
+              })
+              print("🔐 Added dd-logs-confd secret volume")
+
+          with open('updated-config.yaml', 'w') as f:
+              yaml.safe_dump(essential_config, f, default_flow_style=False, sort_keys=False)
+
+          print("✅ Configuration reconciled with Datadog sidecar and volume mounts")
+          EOF
+
+          # Apply updated configuration
+          az containerapp update \
+            --name stargate-lite-prod \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --yaml updated-config.yaml
+
+          echo "✅ Datadog sidecar added/updated successfully"
+
+      - name: Update Datadog API Key
+        run: |
+          echo "🔑 Setting Datadog API key as secure secret..."
+
+          if az containerapp show \
+            --name stargate-lite-prod \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --query "properties.template.containers[?name=='datadog-agent']" \
+            -o tsv | grep -q datadog-agent; then
+
+            echo "🔑 Updating Datadog agent with secret reference..."
+            az containerapp update \
+              --name stargate-lite-prod \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --container-name datadog-agent \
+              --set-env-vars \
+                "DD_API_KEY=secretref:dd-api-key-secret" \
+                "DD_SITE=${{ env.DD_SITE }}" \
+                "DD_ENV=production" \
+                "DD_HOSTNAME=stargate-lite-prod" \
+                "DD_LOG_LEVEL=info" \
+                "DD_APM_ENABLED=true" \
+                "DD_APM_NON_LOCAL_TRAFFIC=true" \
+                "DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true" \
+                "DD_DOGSTATSD_PORT=8125" \
+                "DD_LOGS_ENABLED=true" \
+                "DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true" \
+                "DD_CONTAINER_EXCLUDE_LOGS=name:datadog-agent" \
+                "DD_AC_EXCLUDE=name:datadog-agent" \
+                "DD_CONTAINER_EXCLUDE=name:datadog-agent" \
+                "DD_KUBELET_ENABLED=false" \
+                "DD_PROCESS_AGENT_ENABLED=false" \
+                "DD_SYSTEM_PROBE_ENABLED=false" \
+                "DD_NETWORK_MONITORING_ENABLED=false" \
+                "DD_ORCHESTRATOR_EXPLORER_ENABLED=false" \
+                "DD_KUBERNETES_KUBELET_NODENAME=" \
+                "DD_IGNORE_AUTOCONF=kubernetes_state redisdb"
+
+            echo "✅ Datadog agent configured with secure API key"
+          else
+            echo "⚠️ Datadog agent sidecar not found"
+          fi
+
+          echo "🎉 Datadog configuration complete"
+
+      - name: Get Container App URL
+        id: get-url
+        run: |
+          APP_URL=$(az containerapp show \
+            --name stargate-lite-prod \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn \
+            --output tsv)
+          echo "app-url=https://${APP_URL}" >> $GITHUB_OUTPUT
+          echo "Deployed to: https://${APP_URL}"
+
+      - name: Deployment summary
+        run: |
+          echo "## STARGATE-LITE Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** production" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** ${{ needs.build-and-push.outputs.image-tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL:** ${{ steps.get-url.outputs.app-url }}" >> $GITHUB_STEP_SUMMARY

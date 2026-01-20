@@ -1,0 +1,66 @@
+# Pre-commit hooks - catches real bugs, doesn't block flow
+# Install: pip install pre-commit && pre-commit install
+
+repos:
+  # Guardian suite
+  - repo: local
+    hooks:
+      - id: check-file-size
+        name: Check file size
+        entry: python scripts/check_file_size.py
+        language: python
+        types: [python]
+        pass_filenames: true
+        exclude: ^tests/
+
+      - id: check-function-size
+        name: Check function size
+        entry: python scripts/check_function_size.py
+        language: python
+        types: [python]
+        pass_filenames: true
+        exclude: ^tests/
+
+      - id: guardian
+        name: Guardian
+        entry: python scripts/guardian.py
+        language: python
+        pass_filenames: false
+        always_run: true
+
+  # Ruff - lint + format
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  # mypy - type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.14.1
+    hooks:
+      - id: mypy
+        args: [--strict, --ignore-missing-imports, --disable-error-code=misc]
+        exclude: ^(tests/|add_credentials\.py|add_credential_types\.py|store_test_creds\.py|test_integration_contract\.py|pattern_detector_integration_example\.py|scripts/|app/connectors/(ibkr|schwab)\.py)
+        additional_dependencies:
+          - pydantic>=2.0
+          - sqlalchemy>=2.0
+          - types-requests
+          - types-redis
+          - types-python-dateutil
+          - fastapi
+          - starlette
+
+  # Basic hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+      - id: check-merge-conflict
+      - id: debug-statements

@@ -1,0 +1,92 @@
+# Guardian Configuration
+# Catches real bugs without blocking your flow.
+
+[project]
+src_root = "app"
+exclude_dirs = ["tests", "scripts", "migrations", "__pycache__"]
+
+[limits]
+max_file_lines = 500
+max_function_lines = 100  # Many functions contain GraphQL queries or API logic
+
+[limits.custom_file_limits]
+# Schema files - auto-generated, pending split
+"app/schemas/asana/__init__.py" = 900
+"app/schemas/billcom/__init__.py" = 700
+"app/schemas/chase/__init__.py" = 750
+"app/schemas/clickup/__init__.py" = 800
+"app/schemas/monday/__init__.py" = 750
+# Xero connector - pending split into smaller modules
+"app/connectors/xero/reports.py" = 800
+"app/connectors/xero/bank.py" = 600
+"app/connectors/xero/invoices.py" = 550
+# Sage Intacct connector - pending split
+"app/connectors/sage_intacct/ar.py" = 550
+"app/connectors/sage_intacct/cash.py" = 550
+
+[async]
+# Optional: enforce async in I/O-heavy directories
+async_only_dirs = []
+sync_allowed_modules = []
+blocking_calls = [
+    "time.sleep",
+    "subprocess.run",
+    "subprocess.call",
+    "subprocess.check_output",
+    "os.system",
+]
+
+[imports]
+# Optional: restrict network libs to specific dirs
+blocked_network_libs = []
+network_allowed_dirs = []
+
+[typing]
+ban_type_ignore = false  # mypy strict mode requires some type: ignore
+any_allowed_paths = ["app/"]  # Any is intentionally used for JSON/dict data
+require_return_types = false  # Let mypy handle this
+
+[quality]
+ban_print = false  # Use logging, but allow print in string literals
+ban_bare_except = true
+ban_mutable_defaults = true
+ban_star_imports = true
+ban_assert = false
+ban_global = false
+banned_markers = []  # TODOs are allowed during development
+
+# Mock/fake data detection
+# Disabled - too many false positives from docstrings/comments
+ban_mock_data = false
+mock_patterns = [
+    "mock_", "_mock", "fake_", "_fake", "dummy_", "_dummy",
+    "test_user", "test_email", "test_password",
+    "placeholder", "hardcoded",
+    "changeme", "replace_me",
+    "lorem ipsum", "asdf",
+]
+
+# CodeRabbit-inspired checks (from common review findings)
+# These catch issues that static analysis can deterministically detect:
+# - datetime.now() without timezone, datetime.utcnow() deprecated
+# - Thread-unsafe singleton patterns (global + if None without lock)
+# - next() without default value (StopIteration risk)
+# - f-string/format() in SQL/GraphQL queries (injection risk)
+ban_naive_datetime = false       # TODO: Enable after fixing 70+ datetime issues
+ban_unsafe_singleton = false     # TODO: Enable after adding locks to utilities
+ban_next_without_default = true  # Low volume, high impact
+ban_fstring_injection = true     # Security critical
+
+[security]
+require_subprocess_check = true
+ban_subprocess_shell = true
+ban_eval_exec = true
+ban_pickle = false      # Fine for internal use
+secret_patterns = []    # Enable if needed
+
+[prompts]
+# Optional: keep LLM prompts in dedicated modules
+enabled = false
+dirs = []
+keywords = ["you are", "system:", "user:"]
+max_inline_length = 100

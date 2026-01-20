@@ -1,0 +1,176 @@
+"""
+Stripe connector - Balance module
+
+Handles balance, payouts, and transfers.
+"""
+
+from typing import Any
+
+import stripe
+
+from app.logging_config import get_logger
+
+logger = get_logger(__name__)
+
+
+class StripeBalanceMixin:
+    """Stripe balance and payout operations mixin"""
+
+    def get_balance(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Get current Stripe balance"""
+        logger.info("Retrieving balance", service="stripe", log_event="stripe_balance_retrieve")
+
+        balance = stripe.Balance.retrieve()
+
+        total_available = sum(bal.amount for bal in balance.available)
+        total_pending = sum(bal.amount for bal in balance.pending)
+
+        logger.info(
+            "Balance retrieved",
+            service="stripe",
+            total_available=total_available,
+            total_pending=total_pending,
+            log_event="stripe_balance_retrieved",
+        )
+
+        return {
+            "available": [
+                {"amount": bal.amount, "currency": bal.currency} for bal in balance.available
+            ],
+            "pending": [
+                {"amount": bal.amount, "currency": bal.currency} for bal in balance.pending
+            ],
+            "connect_reserved": balance.get("connect_reserved", []),
+        }
+
+    def list_payouts(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """List Stripe payouts"""
+        limit = args.get("limit", 10)
+        status = args.get("status")
+
+        params: dict[str, Any] = {"limit": limit}
+        if status:
+            params["status"] = status
+
+        payouts = stripe.Payout.list(**params)
+        return {
+            "payouts": [
+                {
+                    "payout_id": p.id,
+                    "amount": p.amount,
+                    "currency": p.currency,
+                    "status": p.status,
+                    "arrival_date": p.arrival_date,
+                }
+                for p in payouts.data
+            ],
+            "has_more": payouts.has_more,
+        }
+
+    def retrieve_payout(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Retrieve a specific payout"""
+        payout_id = args.get("payout_id")
+        payout = stripe.Payout.retrieve(payout_id)
+        return {
+            "payout_id": payout.id,
+            "amount": payout.amount,
+            "currency": payout.currency,
+            "status": payout.status,
+            "arrival_date": payout.arrival_date,
+            "destination": payout.destination,
+        }
+
+    def list_balance_transactions(
+        self, org_id: str, user_id: str, args: dict[str, Any]
+    ) -> dict[str, Any]:
+        """List balance transactions"""
+        limit = args.get("limit", 10)
+        payout = args.get("payout_id")
+        type_ = args.get("type")
+
+        params: dict[str, Any] = {"limit": limit}
+        if payout:
+            params["payout"] = payout
+        if type_:
+            params["type"] = type_
+
+        transactions = stripe.BalanceTransaction.list(**params)
+        return {
+            "transactions": [
+                {
+                    "id": t.id,
+                    "amount": t.amount,
+                    "currency": t.currency,
+                    "type": t.type,
+                    "net": t.net,
+                    "created": t.created,
+                }
+                for t in transactions.data
+            ],
+            "has_more": transactions.has_more,
+        }
+
+    def create_transfer(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Create a transfer (Connect accounts)"""
+        amount = args.get("amount")
+        currency = args.get("currency", "usd")
+        destination = args.get("destination")  # Connected account ID
+        description = args.get("description")
+        metadata = args.get("metadata", {})
+
+        logger.info(
+            "Creating transfer",
+            service="stripe",
+            amount=amount,
+            destination=destination,
+            log_event="stripe_transfer_create",
+        )
+
+        metadata.update({"org_id": org_id, "user_id": user_id})
+
+        transfer = stripe.Transfer.create(
+            amount=amount,
+            currency=currency,
+            destination=destination,
+            description=description,
+            metadata=metadata,
+        )
+
+        logger.info(
+            "Transfer created",
+            service="stripe",
+            transfer_id=transfer.id,
+            amount=transfer.amount,
+            log_event="stripe_transfer_created",
+        )
+
+        return {
+            "transfer_id": transfer.id,
+            "amount": transfer.amount,
+            "currency": transfer.currency,
+            "destination": transfer.destination,
+        }
+
+    def list_transfers(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """List transfers"""
+        limit = args.get("limit", 10)
+        destination = args.get("destination")
+
+        params: dict[str, Any] = {"limit": limit}
+        if destination:
+            params["destination"] = destination
+
+        transfers = stripe.Transfer.list(**params)
+        return {
+            "transfers": [
+                {
+                    "transfer_id": t.id,
+                    "amount": t.amount,
+                    "currency": t.currency,
+                    "destination": t.destination,
+                    "created": t.created,
+                }
+                for t in transfers.data
+            ],
+            "has_more": transfers.has_more,
+        }

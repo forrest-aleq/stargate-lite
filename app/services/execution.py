@@ -1,0 +1,140 @@
+"""
+Execution service - Helper functions for tool execution.
+"""
+
+import time
+from datetime import datetime
+from typing import Any
+
+from app.errors import CapabilityNotFoundError, StargateError, classify_exception
+from app.logging_config import get_logger
+from app.models import ToolExecutionRequest
+from app.redis_client import redis_client
+
+logger = get_logger(__name__)
+
+
+def check_idempotency_cache(turn_id: str, capability_key: str) -> dict[str, Any] | None:
+    """Check Redis cache for existing response. Returns cached response or None."""
+    cached = redis_client.get_cached_response(turn_id=turn_id, capability_key=capability_key)
+    if cached:
+        logger.info("Returning cached response", log_event="cache_hit")
+    return cached
+
+
+def handle_capability_not_found(request: ToolExecutionRequest) -> dict[str, Any]:
+    """Build and cache error response for missing capability."""
+    logger.warning("Capability not found in registry", log_event="capability_not_found")
+    error = CapabilityNotFoundError(request.capability_key)
+    response: dict[str, Any] = {
+        **error.to_dict(),
+        "logs": [f"Capability '{request.capability_key}' not found in registry"],
+    }
+    redis_client.cache_response(request.turn_id, request.capability_key, response)
+    return response
+
+
+def execute_handler(
+    capability: dict[str, Any], request: ToolExecutionRequest, logs: list[str]
+) -> tuple[dict[str, Any], float]:
+    """Execute the capability handler and return outputs with duration."""
+    handler = capability["handler"]
+    tool_name = capability["tool_name"]
+    service = capability["service"]
+
+    logger.info(
+        "Executing handler", tool_name=tool_name, service=service, log_event="handler_start"
+    )
+    logs.append(f"Executing {tool_name} for org_id={request.org_id}, user_id={request.user_id}")
+
+    handler_start = time.time()
+    outputs = handler(org_id=request.org_id, user_id=request.user_id, args=request.args)
+    handler_duration_ms = (time.time() - handler_start) * 1000
+
+    logs.append(f"Successfully executed {tool_name}")
+    logger.info(
+        "Handler execution successful",
+        tool_name=tool_name,
+        service=service,
+        handler_duration_ms=round(handler_duration_ms, 2),
+        log_event="handler_success",
+    )
+    return outputs, handler_duration_ms
+
+
+def build_success_response(
+    request: ToolExecutionRequest,
+    capability: dict[str, Any],
+    outputs: dict[str, Any],
+    logs: list[str],
+) -> dict[str, Any]:
+    """Build success response dictionary."""
+    return {
+        "status": "success",
+        "capability_key": request.capability_key,
+        "tool_used": capability["tool_name"],
+        "outputs": outputs,
+        "logs": logs,
+        "credential_type": capability.get("credential_type"),
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+
+
+def handle_stargate_error(
+    e: StargateError,
+    request: ToolExecutionRequest,
+    capability: dict[str, Any] | None,
+    logs: list[str],
+    start_time: float,
+) -> dict[str, Any]:
+    """Handle StargateError and return error response."""
+    logs.append(f"Stargate error: {e.message}")
+    error_dict = e.to_dict()
+    error_dict["logs"] = logs
+    error_dict["capability_key"] = request.capability_key
+    error_dict["tool_used"] = capability["tool_name"] if capability else "unknown"
+    error_dict["credential_type"] = capability.get("credential_type") if capability else None
+    error_dict["timestamp"] = datetime.utcnow().isoformat()
+
+    total_duration_ms = (time.time() - start_time) * 1000
+    logger.error(
+        "Execute request failed with StargateError",
+        error_code=e.error_code.value if hasattr(e.error_code, "value") else str(e.error_code),
+        error_message=e.message,
+        total_duration_ms=round(total_duration_ms, 2),
+        log_event="execute_error",
+    )
+    redis_client.cache_response(request.turn_id, request.capability_key, error_dict)
+    return error_dict
+
+
+def handle_unexpected_error(
+    e: Exception,
+    request: ToolExecutionRequest,
+    capability: dict[str, Any] | None,
+    logs: list[str],
+    start_time: float,
+) -> dict[str, Any]:
+    """Handle unexpected exceptions and return classified error response."""
+    logs.append(f"Unexpected error: {e!s}")
+    service = capability["service"] if capability else "unknown"
+    classified_error = classify_exception(e, service)
+
+    error_dict = classified_error.to_dict()
+    error_dict["logs"] = logs
+    error_dict["capability_key"] = request.capability_key
+    error_dict["tool_used"] = capability["tool_name"] if capability else "unknown"
+    error_dict["credential_type"] = capability.get("credential_type") if capability else None
+    error_dict["timestamp"] = datetime.utcnow().isoformat()
+
+    total_duration_ms = (time.time() - start_time) * 1000
+    logger.error(
+        "Execute request failed with unexpected error",
+        error_type=type(e).__name__,
+        error_message=str(e)[:200],
+        total_duration_ms=round(total_duration_ms, 2),
+        log_event="execute_unexpected_error",
+        exc_info=True,
+    )
+    redis_client.cache_response(request.turn_id, request.capability_key, error_dict)
+    return error_dict

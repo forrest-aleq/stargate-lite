@@ -1,0 +1,168 @@
+"""
+Shopify Capability Registry
+E-commerce: shop, orders, customers, products, fulfillment, payouts
+"""
+
+from app.connectors.shopify import shopify_connector
+
+SHOPIFY_CAPABILITIES = {
+    # ========== SHOP ==========
+    "shopify.shop.get": {
+        "handler": shopify_connector.get_shop,
+        "tool_name": "shopify.get_shop",
+        "description": "Get shop details from Shopify",
+        "requires_oauth": True,
+        "service": "shopify",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    # ========== ORDERS ==========
+    "shopify.orders.list": {
+        "handler": shopify_connector.list_orders,
+        "tool_name": "shopify.list_orders",
+        "description": "List orders from Shopify",
+        "requires_oauth": True,
+        "service": "shopify",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "shopify.order.get": {
+        "handler": shopify_connector.get_order,
+        "tool_name": "shopify.get_order",
+        "description": "Get order details",
+        "requires_oauth": True,
+        "service": "shopify",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "shopify.order.create": {
+        "handler": shopify_connector.create_order,
+        "tool_name": "shopify.create_order",
+        "description": "Create a new order",
+        "requires_oauth": True,
+        "service": "shopify",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "shopify.order.update": {
+        "handler": shopify_connector.update_order,
+        "tool_name": "shopify.update_order",
+        "description": "Update an order",
+        "requires_oauth": True,
+        "service": "shopify",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "shopify.order.cancel": {
+        "handler": shopify_connector.cancel_order,
+        "tool_name": "shopify.cancel_order",
+        "description": "Cancel an order",
+        "requires_oauth": True,
+        "service": "shopify",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    # ========== CUSTOMERS ==========
+    "shopify.customers.list": {
+        "handler": shopify_connector.list_customers,
+        "tool_name": "shopify.list_customers",
+        "description": "List customers from Shopify",
+        "requires_oauth": True,
+        "service": "shopify",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "shopify.customer.get": {
+        "handler": shopify_connector.get_customer,
+        "tool_name": "shopify.get_customer",
+        "description": "Get customer details",
+        "requires_oauth": True,
+        "service": "shopify",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "shopify.customer.create": {
+        "handler": shopify_connector.create_customer,
+        "tool_name": "shopify.create_customer",
+        "description": "Create a new customer",
+        "requires_oauth": True,
+        "service": "shopify",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    # ========== PRODUCTS ==========
+    "shopify.products.list": {
+        "handler": shopify_connector.list_products,
+        "tool_name": "shopify.list_products",
+        "description": "List products from Shopify",
+        "requires_oauth": True,
+        "service": "shopify",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "shopify.product.get": {
+        "handler": shopify_connector.get_product,
+        "tool_name": "shopify.get_product",
+        "description": "Get product details",
+        "requires_oauth": True,
+        "service": "shopify",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "shopify.product.create": {
+        "handler": shopify_connector.create_product,
+        "tool_name": "shopify.create_product",
+        "description": "Create a new product",
+        "requires_oauth": True,
+        "service": "shopify",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "shopify.inventory.list": {
+        "handler": shopify_connector.list_inventory,
+        "tool_name": "shopify.list_inventory",
+        "description": "List inventory levels",
+        "requires_oauth": True,
+        "service": "shopify",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    # ========== FULFILLMENT ==========
+    "shopify.fulfillments.list": {
+        "handler": shopify_connector.list_fulfillments,
+        "tool_name": "shopify.list_fulfillments",
+        "description": "List fulfillments for an order",
+        "requires_oauth": True,
+        "service": "shopify",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "shopify.fulfillment.create": {
+        "handler": shopify_connector.create_fulfillment,
+        "tool_name": "shopify.create_fulfillment",
+        "description": "Create a fulfillment",
+        "requires_oauth": True,
+        "service": "shopify",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    # ========== PAYOUTS ==========
+    "shopify.payouts.list": {
+        "handler": shopify_connector.list_payouts,
+        "tool_name": "shopify.list_payouts",
+        "description": "List Shopify Payments payouts",
+        "requires_oauth": True,
+        "service": "shopify",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "shopify.payout.get": {
+        "handler": shopify_connector.get_payout,
+        "tool_name": "shopify.get_payout",
+        "description": "Get payout details",
+        "requires_oauth": True,
+        "service": "shopify",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+}

@@ -1,0 +1,179 @@
+"""
+Redis client for idempotency caching
+Prevents duplicate tool executions on retries (critical for production safety)
+"""
+
+import json
+import os
+from typing import Any, cast
+
+import redis
+
+from app.logging_config import get_logger
+
+# Initialize logger
+logger = get_logger(__name__)
+
+
+class RedisClient:
+    """Redis client singleton for idempotency caching"""
+
+    _instance: "RedisClient | None" = None
+    _redis_client: "redis.Redis[str] | None" = None
+
+    def __new__(cls) -> "RedisClient":
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialize()
+        return cls._instance
+
+    def _initialize(self) -> None:
+        """Initialize Redis connection"""
+        redis_host = os.getenv("REDIS_HOST", "localhost")
+        redis_port = int(os.getenv("REDIS_PORT", "6379"))
+        redis_db = int(os.getenv("REDIS_DB", "0"))
+        redis_password = os.getenv("REDIS_PASSWORD", None)
+
+        logger.info(
+            "Initializing Redis connection",
+            redis_host=redis_host,
+            redis_port=redis_port,
+            redis_db=redis_db,
+            log_event="redis_init_start",
+        )
+
+        try:
+            self._redis_client = redis.Redis(
+                host=redis_host,
+                port=redis_port,
+                db=redis_db,
+                password=redis_password,
+                decode_responses=True,  # Return strings instead of bytes
+                socket_connect_timeout=5,
+                socket_timeout=5,
+            )
+            # Test connection
+            self._redis_client.ping()
+            logger.info(
+                "Redis connected successfully",
+                redis_host=redis_host,
+                redis_port=redis_port,
+                log_event="redis_init_success",
+            )
+        except (redis.ConnectionError, redis.TimeoutError) as e:
+            # CRITICAL: Redis is REQUIRED for idempotency (Stargate Command Contract v1.0)
+            # Cannot silently continue - would violate contract and risk duplicate executions
+            logger.error(
+                "Redis connection FAILED - CRITICAL for idempotency",
+                redis_host=redis_host,
+                redis_port=redis_port,
+                error_type=type(e).__name__,
+                log_event="redis_init_error",
+                exc_info=True,
+            )
+            raise RuntimeError(
+                f"Redis connection REQUIRED but failed: {e}\n"
+                f"Attempted connection: {redis_host}:{redis_port}\n"
+                f"Idempotency caching is mandatory per Stargate Command Contract.\n"
+                "Fix: Ensure Redis is running and accessible, or set "
+                "REDIS_HOST/REDIS_PORT environment variables."
+            ) from e
+
+    def get_cached_response(self, turn_id: str, capability_key: str) -> dict[str, Any] | None:
+        """
+        Get cached response for a turn_id + capability_key combination
+
+        Args:
+            turn_id: Turn ID from MARS
+            capability_key: Capability being executed
+
+        Returns:
+            Cached response dict or None if not found
+        """
+        if not self._redis_client:
+            return None
+
+        try:
+            # Cache key includes capability_key to handle turn_id reuse edge case
+            cache_key = f"stargate:idempotency:{turn_id}:{capability_key}"
+            cached_data = self._redis_client.get(cache_key)
+
+            if cached_data:
+                logger.info(
+                    "Cache hit - returning cached response",
+                    turn_id=turn_id,
+                    capability_key=capability_key,
+                    log_event="cache_hit",
+                )
+                return cast(dict[str, Any], json.loads(cached_data))
+
+            logger.debug(
+                "Cache miss", turn_id=turn_id, capability_key=capability_key, log_event="cache_miss"
+            )
+            return None
+        except Exception as e:
+            logger.error(
+                "Redis get error",
+                turn_id=turn_id,
+                capability_key=capability_key,
+                error_type=type(e).__name__,
+                log_event="cache_get_error",
+                exc_info=True,
+            )
+            return None
+
+    def cache_response(
+        self,
+        turn_id: str,
+        capability_key: str,
+        response: dict[str, Any],
+        ttl_seconds: int = 86400,  # 24 hours default
+    ) -> bool:
+        """
+        Cache a response for a turn_id + capability_key combination
+
+        Args:
+            turn_id: Turn ID from MARS
+            capability_key: Capability that was executed
+            response: Response dict to cache
+            ttl_seconds: Time to live in seconds (default 24 hours)
+
+        Returns:
+            True if cached successfully, False otherwise
+        """
+        if not self._redis_client:
+            return False
+
+        try:
+            cache_key = f"stargate:idempotency:{turn_id}:{capability_key}"
+            serialized = json.dumps(response)
+
+            self._redis_client.setex(name=cache_key, time=ttl_seconds, value=serialized)
+
+            logger.info(
+                "Response cached successfully",
+                turn_id=turn_id,
+                capability_key=capability_key,
+                ttl_seconds=ttl_seconds,
+                response_size_bytes=len(serialized),
+                log_event="cache_set_success",
+            )
+            return True
+        except Exception as e:
+            logger.error(
+                "Redis set error",
+                turn_id=turn_id,
+                capability_key=capability_key,
+                error_type=type(e).__name__,
+                log_event="cache_set_error",
+                exc_info=True,
+            )
+            return False
+
+    def is_available(self) -> bool:
+        """Check if Redis is available"""
+        return self._redis_client is not None
+
+
+# Global singleton instance
+redis_client = RedisClient()
