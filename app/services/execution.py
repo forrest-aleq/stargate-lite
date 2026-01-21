@@ -10,6 +10,12 @@ from app.errors import CapabilityNotFoundError, StargateError, classify_exceptio
 from app.logging_config import get_logger
 from app.models import ToolExecutionRequest
 from app.redis_client import redis_client
+from app.sentry_config import (
+    add_breadcrumb,
+    capture_connector_error,
+    set_capability_context,
+    set_user_context,
+)
 
 logger = get_logger(__name__)
 
@@ -41,6 +47,17 @@ def execute_handler(
     handler = capability["handler"]
     tool_name = capability["tool_name"]
     service = capability["service"]
+
+    # Set Sentry context for this execution
+    set_user_context(request.org_id, request.user_id)
+    set_capability_context(request.capability_key, service, tool_name)
+
+    # Add breadcrumb for debugging
+    add_breadcrumb(
+        f"Executing {tool_name}",
+        category="execution",
+        data={"service": service, "capability": request.capability_key},
+    )
 
     logger.info(
         "Executing handler", tool_name=tool_name, service=service, log_event="handler_start"
@@ -97,6 +114,23 @@ def handle_stargate_error(
     error_dict["timestamp"] = datetime.utcnow().isoformat()
 
     total_duration_ms = (time.time() - start_time) * 1000
+
+    # Capture to Sentry with full context
+    service = capability["service"] if capability else "unknown"
+    capture_connector_error(
+        error=e,
+        service=service,
+        operation=request.capability_key,
+        org_id=request.org_id,
+        user_id=request.user_id,
+        extra={
+            "error_code": (
+                e.error_code.value if hasattr(e.error_code, "value") else str(e.error_code)
+            ),
+            "duration_ms": round(total_duration_ms, 2),
+        },
+    )
+
     logger.error(
         "Execute request failed with StargateError",
         error_code=e.error_code.value if hasattr(e.error_code, "value") else str(e.error_code),
@@ -128,6 +162,23 @@ def handle_unexpected_error(
     error_dict["timestamp"] = datetime.utcnow().isoformat()
 
     total_duration_ms = (time.time() - start_time) * 1000
+
+    # Capture to Sentry with full context - unexpected errors are high priority
+    capture_connector_error(
+        error=e,
+        service=service,
+        operation=request.capability_key,
+        org_id=request.org_id,
+        user_id=request.user_id,
+        extra={
+            "error_type": type(e).__name__,
+            "classified_code": classified_error.error_code.value
+            if hasattr(classified_error.error_code, "value")
+            else str(classified_error.error_code),
+            "duration_ms": round(total_duration_ms, 2),
+        },
+    )
+
     logger.error(
         "Execute request failed with unexpected error",
         error_type=type(e).__name__,

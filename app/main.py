@@ -9,7 +9,7 @@ from datadog import statsd
 
 # DataDog APM - import and patch early
 from ddtrace import patch_all
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # Patch all supported libraries for automatic instrumentation (includes logging)
@@ -20,6 +20,7 @@ from app.logging_config import get_logger
 from app.observability import setup_logging
 from app.routers import connectors, credentials, execute, health, schemas
 from app.routers.oauth import router as oauth_router
+from app.sentry_config import init_sentry
 
 # Initialize structured logger
 logger = get_logger(__name__)
@@ -58,15 +59,23 @@ statsd.host = os.getenv("DD_AGENT_HOST", "localhost")
 statsd.port = int(os.getenv("DD_DOGSTATSD_PORT", "8125"))
 
 # Re-export verify_api_key for backwards compatibility (now lives in app.auth)
-from app.auth import verify_api_key  # noqa: E402, F401
+from app.auth import verify_api_key  # noqa: F401
 
 
 @app.on_event("startup")
 async def startup_event() -> None:
-    """Initialize database and logging on startup"""
+    """Initialize database, logging, and error tracking on startup"""
+    # Initialize Sentry first to catch any startup errors
+    sentry_enabled = init_sentry()
+
     init_db()
     setup_logging()  # Configure file logging AFTER uvicorn starts
-    logger.info("Stargate Lite is ready to execute!")
+
+    logger.info(
+        "Stargate Lite is ready to execute!",
+        sentry_enabled=sentry_enabled,
+        log_event="startup_complete",
+    )
 
 
 if __name__ == "__main__":

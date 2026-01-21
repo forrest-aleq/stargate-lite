@@ -26,6 +26,7 @@ from app.errors import (
     PermissionDeniedError,
     RateLimitError,
 )
+from app.sentry_config import capture_api_error
 
 logger = logging.getLogger("stargate.http_client")
 
@@ -256,6 +257,16 @@ class StargateHTTPClient:
                 "error_message": error_message[:500],
             },
         )
+
+        # Capture to Sentry for API error tracking (skip 404s - too noisy)
+        if status_code != 404:
+            capture_api_error(
+                error=ExecutionError(f"HTTP {status_code} from {service}"),
+                service=service,
+                endpoint=response.url,
+                status_code=status_code,
+                response_body=error_message,
+            )
 
         # Classify error by status code
         if status_code == 401:
