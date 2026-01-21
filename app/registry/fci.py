@@ -5,22 +5,48 @@ Registers all FCI primitives, reports, and entity lookup capabilities.
 These are registered with lazy loading to avoid circular imports.
 """
 
+import time
 from collections.abc import Callable
 from typing import Any
 
 
 def _lazy_fci_handler(method_name: str) -> Callable[..., dict[str, Any]]:
     """
-    Create a lazy handler for FCI methods.
+    Create a lazy handler for FCI methods with PostHog tracking.
 
     This avoids importing FCI at module load time, which would cause
     circular imports with connectors.
     """
     def handler(org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        from structlog.contextvars import get_contextvars
+
+        from app.posthog_client import track_fci_aggregation
         from app.utilities.fci import get_fci_utility
+
+        # Get session_id from logging context (bound in execute router)
+        context = get_contextvars()
+        session_id = context.get("session_id")
+
+        start_time = time.time()
+
         fci = get_fci_utility()
         method = getattr(fci, method_name)
-        return method(org_id, user_id, args)
+        result = method(org_id, user_id, args)
+
+        duration_ms = (time.time() - start_time) * 1000
+
+        # Track FCI aggregation to PostHog
+        track_fci_aggregation(
+            user_id=user_id,
+            org_id=org_id,
+            fci_type=method_name.replace("get_", "").replace("lookup_", ""),
+            sources=result.get("sources", []),
+            session_id=session_id,
+            duration_ms=duration_ms,
+            partial=result.get("status") == "partial",
+        )
+
+        return result
 
     return handler
 

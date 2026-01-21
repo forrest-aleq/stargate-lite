@@ -12,6 +12,7 @@ from app.database import CredentialManager
 from app.errors import CredentialMissingError
 from app.http_client import http_client
 from app.logging_config import get_logger
+from app.posthog_client import track_token_refreshed
 
 logger = get_logger(__name__)
 
@@ -52,34 +53,52 @@ class AirtableConnector:
         client_id = os.getenv("AIRTABLE_CLIENT_ID")
         client_secret = os.getenv("AIRTABLE_CLIENT_SECRET")
 
-        token_data = http_client.post(
-            url="https://airtable.com/oauth2/v1/token",
-            service="airtable",
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-            data={
-                "grant_type": "refresh_token",
-                "refresh_token": refresh_token,
-                "client_id": client_id,
-                "client_secret": client_secret,
-            },
-        )
+        try:
+            token_data = http_client.post(
+                url="https://airtable.com/oauth2/v1/token",
+                service="airtable",
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                data={
+                    "grant_type": "refresh_token",
+                    "refresh_token": refresh_token,
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                },
+            )
 
-        new_expiry = datetime.utcnow() + timedelta(seconds=token_data.get("expires_in", 3600))
+            new_expiry = datetime.utcnow() + timedelta(seconds=token_data.get("expires_in", 3600))
 
-        CredentialManager.store_credential(
-            org_id=org_id,
-            user_id=user_id,
-            service="airtable",
-            access_token=token_data["access_token"],
-            refresh_token=token_data.get("refresh_token", refresh_token),
-            token_expiry=new_expiry,
-        )
+            CredentialManager.store_credential(
+                org_id=org_id,
+                user_id=user_id,
+                service="airtable",
+                access_token=token_data["access_token"],
+                refresh_token=token_data.get("refresh_token", refresh_token),
+                token_expiry=new_expiry,
+            )
 
-        return {
-            "access_token": token_data["access_token"],
-            "refresh_token": token_data.get("refresh_token", refresh_token),
-            "token_expiry": new_expiry,
-        }
+            # Track successful token refresh to PostHog
+            track_token_refreshed(
+                user_id=user_id,
+                org_id=org_id,
+                service="airtable",
+                success=True,
+            )
+
+            return {
+                "access_token": token_data["access_token"],
+                "refresh_token": token_data.get("refresh_token", refresh_token),
+                "token_expiry": new_expiry,
+            }
+        except Exception:
+            # Track failed token refresh to PostHog
+            track_token_refreshed(
+                user_id=user_id,
+                org_id=org_id,
+                service="airtable",
+                success=False,
+            )
+            raise
 
     # ============ BASES ============
 

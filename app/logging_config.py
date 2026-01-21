@@ -126,7 +126,11 @@ def set_correlation_id(correlation_id: str) -> None:
 
 
 def bind_request_context(
-    org_id: str, user_id: str, capability_key: str, turn_id: str | None = None
+    org_id: str,
+    user_id: str,
+    capability_key: str,
+    turn_id: str | None = None,
+    session_id: str | None = None,
 ) -> None:
     """
     Bind request-specific context to all logs
@@ -136,6 +140,7 @@ def bind_request_context(
         user_id: User ID
         capability_key: Capability being executed
         turn_id: Optional turn ID for idempotency tracking
+        session_id: Optional session ID for cross-service event correlation
     """
     context = {"org_id": org_id, "user_id": user_id, "capability_key": capability_key}
 
@@ -143,6 +148,9 @@ def bind_request_context(
         context["turn_id"] = turn_id
         # Use turn_id as correlation_id for request tracking
         context["correlation_id"] = turn_id
+
+    if session_id:
+        context["session_id"] = session_id
 
     structlog.contextvars.bind_contextvars(**context)
 

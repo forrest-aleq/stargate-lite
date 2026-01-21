@@ -16,6 +16,7 @@ from app.database import CredentialManager
 from app.errors import CredentialMissingError, ExternalAPIError, ValidationError
 from app.http_client import http_client
 from app.logging_config import get_logger
+from app.posthog_client import track_token_refreshed
 
 logger = get_logger(__name__)
 
@@ -114,6 +115,14 @@ class XeroBase:
                 log_event="token_refresh_success",
             )
 
+            # Track successful token refresh to PostHog
+            track_token_refreshed(
+                user_id=user_id,
+                org_id=org_id,
+                service="xero",
+                success=True,
+            )
+
             return {
                 "access_token": token_data["access_token"],
                 "refresh_token": token_data["refresh_token"],
@@ -130,6 +139,13 @@ class XeroBase:
                 error_type=type(e).__name__,
                 log_event="token_refresh_error",
                 exc_info=True,
+            )
+            # Track failed token refresh to PostHog
+            track_token_refreshed(
+                user_id=user_id,
+                org_id=org_id,
+                service="xero",
+                success=False,
             )
             raise
 

@@ -26,6 +26,10 @@ class ToolExecutionRequest(BaseModel):
         default=False,
         description="For agent credentials: prefer delegated access over system credentials",
     )
+    session_id: str | None = Field(
+        default=None,
+        description="Session ID for event correlation (passed via X-Session-ID header or body)",
+    )
 
     class Config:
         json_schema_extra: ClassVar[dict[str, Any]] = {
@@ -36,6 +40,7 @@ class ToolExecutionRequest(BaseModel):
                 "turn_id": "turn_01HZ8Y3K5G4N2M6X9W7Q",
                 "args": {"vendor_name": "Acme Inc.", "email": "[email protected]"},
                 "use_delegation": False,
+                "session_id": "01936b3a-4f2e-7000-8000-abc123def456",
             }
         }
 

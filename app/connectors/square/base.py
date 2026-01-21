@@ -10,6 +10,7 @@ from app.database import CredentialManager
 from app.errors import CredentialMissingError
 from app.http_client import http_client
 from app.logging_config import get_logger
+from app.posthog_client import track_token_refreshed
 
 logger = get_logger(__name__)
 
@@ -50,31 +51,49 @@ class SquareBase:
 
     def _refresh_token(self, org_id: str, user_id: str, refresh_token: str) -> dict[str, Any]:
         """Refresh the access token"""
-        token_data = http_client.post(
-            url=self.AUTH_URL,
-            service="square",
-            headers={"Content-Type": "application/json"},
-            json={
-                "client_id": self.client_id,
-                "client_secret": self.client_secret,
-                "grant_type": "refresh_token",
-                "refresh_token": refresh_token,
-            },
-        )
+        try:
+            token_data = http_client.post(
+                url=self.AUTH_URL,
+                service="square",
+                headers={"Content-Type": "application/json"},
+                json={
+                    "client_id": self.client_id,
+                    "client_secret": self.client_secret,
+                    "grant_type": "refresh_token",
+                    "refresh_token": refresh_token,
+                },
+            )
 
-        new_expiry = datetime.utcnow() + timedelta(seconds=token_data.get("expires_in", 2592000))
+            new_expiry = datetime.utcnow() + timedelta(seconds=token_data.get("expires_in", 2592000))
 
-        CredentialManager.store_credential(
-            org_id=org_id,
-            user_id=user_id,
-            service="square",
-            access_token=token_data["access_token"],
-            refresh_token=token_data["refresh_token"],
-            token_expiry=new_expiry,
-        )
+            CredentialManager.store_credential(
+                org_id=org_id,
+                user_id=user_id,
+                service="square",
+                access_token=token_data["access_token"],
+                refresh_token=token_data["refresh_token"],
+                token_expiry=new_expiry,
+            )
 
-        return {
-            "access_token": token_data["access_token"],
-            "refresh_token": token_data["refresh_token"],
-            "token_expiry": new_expiry,
-        }
+            # Track successful token refresh to PostHog
+            track_token_refreshed(
+                user_id=user_id,
+                org_id=org_id,
+                service="square",
+                success=True,
+            )
+
+            return {
+                "access_token": token_data["access_token"],
+                "refresh_token": token_data["refresh_token"],
+                "token_expiry": new_expiry,
+            }
+        except Exception:
+            # Track failed token refresh to PostHog
+            track_token_refreshed(
+                user_id=user_id,
+                org_id=org_id,
+                service="square",
+                success=False,
+            )
+            raise

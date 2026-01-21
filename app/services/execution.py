@@ -9,10 +9,11 @@ from typing import Any
 from app.errors import CapabilityNotFoundError, StargateError, classify_exception
 from app.logging_config import get_logger
 from app.models import ToolExecutionRequest
+from app.posthog_client import track_capability_called, track_connector_error
 from app.redis_client import redis_client
 from app.sentry_config import (
     add_breadcrumb,
-    capture_connector_error,
+    capture_connector_error as sentry_capture_connector_error,
     set_capability_context,
     set_user_context,
 )
@@ -41,7 +42,10 @@ def handle_capability_not_found(request: ToolExecutionRequest) -> dict[str, Any]
 
 
 def execute_handler(
-    capability: dict[str, Any], request: ToolExecutionRequest, logs: list[str]
+    capability: dict[str, Any],
+    request: ToolExecutionRequest,
+    logs: list[str],
+    session_id: str | None = None,
 ) -> tuple[dict[str, Any], float]:
     """Execute the capability handler and return outputs with duration."""
     handler = capability["handler"]
@@ -76,6 +80,19 @@ def execute_handler(
         handler_duration_ms=round(handler_duration_ms, 2),
         log_event="handler_success",
     )
+
+    # Track successful capability execution to PostHog
+    track_capability_called(
+        user_id=request.user_id,
+        org_id=request.org_id,
+        capability_key=request.capability_key,
+        service=service,
+        tool_name=tool_name,
+        session_id=session_id,
+        duration_ms=handler_duration_ms,
+        success=True,
+    )
+
     return outputs, handler_duration_ms
 
 
@@ -103,6 +120,7 @@ def handle_stargate_error(
     capability: dict[str, Any] | None,
     logs: list[str],
     start_time: float,
+    session_id: str | None = None,
 ) -> dict[str, Any]:
     """Handle StargateError and return error response."""
     logs.append(f"Stargate error: {e.message}")
@@ -117,7 +135,7 @@ def handle_stargate_error(
 
     # Capture to Sentry with full context
     service = capability["service"] if capability else "unknown"
-    capture_connector_error(
+    sentry_capture_connector_error(
         error=e,
         service=service,
         operation=request.capability_key,
@@ -131,9 +149,21 @@ def handle_stargate_error(
         },
     )
 
+    # Track error to PostHog
+    error_code_str = e.error_code.value if hasattr(e.error_code, "value") else str(e.error_code)
+    track_connector_error(
+        user_id=request.user_id,
+        org_id=request.org_id,
+        service=service,
+        error_code=error_code_str,
+        error_message=e.message,
+        session_id=session_id,
+        capability_key=request.capability_key,
+    )
+
     logger.error(
         "Execute request failed with StargateError",
-        error_code=e.error_code.value if hasattr(e.error_code, "value") else str(e.error_code),
+        error_code=error_code_str,
         error_message=e.message,
         total_duration_ms=round(total_duration_ms, 2),
         log_event="execute_error",
@@ -148,6 +178,7 @@ def handle_unexpected_error(
     capability: dict[str, Any] | None,
     logs: list[str],
     start_time: float,
+    session_id: str | None = None,
 ) -> dict[str, Any]:
     """Handle unexpected exceptions and return classified error response."""
     logs.append(f"Unexpected error: {e!s}")
@@ -164,7 +195,7 @@ def handle_unexpected_error(
     total_duration_ms = (time.time() - start_time) * 1000
 
     # Capture to Sentry with full context - unexpected errors are high priority
-    capture_connector_error(
+    sentry_capture_connector_error(
         error=e,
         service=service,
         operation=request.capability_key,
@@ -177,6 +208,22 @@ def handle_unexpected_error(
             else str(classified_error.error_code),
             "duration_ms": round(total_duration_ms, 2),
         },
+    )
+
+    # Track error to PostHog
+    error_code_str = (
+        classified_error.error_code.value
+        if hasattr(classified_error.error_code, "value")
+        else str(classified_error.error_code)
+    )
+    track_connector_error(
+        user_id=request.user_id,
+        org_id=request.org_id,
+        service=service,
+        error_code=error_code_str,
+        error_message=str(e)[:200],
+        session_id=session_id,
+        capability_key=request.capability_key,
     )
 
     logger.error(

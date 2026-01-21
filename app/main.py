@@ -18,6 +18,7 @@ patch_all(logging=True)
 from app.database import init_db
 from app.logging_config import get_logger
 from app.observability import setup_logging
+from app.posthog_client import init_posthog
 from app.routers import connectors, credentials, execute, health, schemas
 from app.routers.oauth import router as oauth_router
 from app.sentry_config import init_sentry
@@ -43,7 +44,7 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-API-Key", "X-Request-ID"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key", "X-Request-ID", "X-Session-ID"],
 )
 
 # Include routers
@@ -64,9 +65,12 @@ from app.auth import verify_api_key  # noqa: F401
 
 @app.on_event("startup")
 async def startup_event() -> None:
-    """Initialize database, logging, and error tracking on startup"""
+    """Initialize database, logging, analytics, and error tracking on startup"""
     # Initialize Sentry first to catch any startup errors
     sentry_enabled = init_sentry()
+
+    # Initialize PostHog for analytics
+    posthog_enabled = init_posthog()
 
     init_db()
     setup_logging()  # Configure file logging AFTER uvicorn starts
@@ -74,6 +78,7 @@ async def startup_event() -> None:
     logger.info(
         "Stargate Lite is ready to execute!",
         sentry_enabled=sentry_enabled,
+        posthog_enabled=posthog_enabled,
         log_event="startup_complete",
     )
 

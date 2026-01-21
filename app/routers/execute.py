@@ -5,7 +5,7 @@ Tool execution routes for Stargate Lite.
 import time
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 
 from app.auth import verify_api_key
 from app.errors import StargateError
@@ -28,23 +28,30 @@ router = APIRouter(prefix="/api/v1", tags=["execute"])
 
 @router.post("/execute")
 async def execute_tool(
-    request: ToolExecutionRequest, _: bool = Depends(verify_api_key)
+    request: ToolExecutionRequest,
+    _: bool = Depends(verify_api_key),
+    x_session_id: str | None = Header(None, alias="X-Session-ID"),
 ) -> dict[str, Any]:
     """
     Execute a tool based on capability_key.
 
     This is the MAIN endpoint that the Brain (MARS) calls.
     Supports idempotency via turn_id with 24-hour cache.
+    Session ID can be passed via X-Session-ID header or session_id body field.
     """
     logs: list[str] = []
     capability: dict[str, Any] | None = None
     start_time = time.time()
+
+    # Use header if provided, else fall back to body field
+    session_id = x_session_id or request.session_id
 
     bind_request_context(
         org_id=request.org_id,
         user_id=request.user_id,
         capability_key=request.capability_key,
         turn_id=request.turn_id,
+        session_id=session_id,
     )
     logger.info("Execute request received", log_event="execute_start")
 
@@ -61,7 +68,7 @@ async def execute_tool(
             f"Resolved capability '{request.capability_key}' to tool '{capability['tool_name']}'"
         )
 
-        outputs, _duration = execute_handler(capability, request, logs)
+        outputs, _duration = execute_handler(capability, request, logs, session_id)
         response = build_success_response(request, capability, outputs, logs)
 
         redis_client.cache_response(request.turn_id, request.capability_key, response)
@@ -76,8 +83,8 @@ async def execute_tool(
         return response
 
     except StargateError as e:
-        return handle_stargate_error(e, request, capability, logs, start_time)
+        return handle_stargate_error(e, request, capability, logs, start_time, session_id)
     except Exception as e:
-        return handle_unexpected_error(e, request, capability, logs, start_time)
+        return handle_unexpected_error(e, request, capability, logs, start_time, session_id)
     finally:
         clear_request_context()
