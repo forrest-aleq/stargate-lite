@@ -2,11 +2,11 @@
 Connector status routes for Stargate Lite.
 """
 
-from collections.abc import Callable
 from datetime import datetime
 
 from fastapi import APIRouter, Depends
 
+from app.auth import verify_api_key
 from app.models import ConnectorStatusRequest, ConnectorStatusResponse
 from app.services.connector_health import (
     aggregate_connector_status,
@@ -16,16 +16,9 @@ from app.services.connector_health import (
 router = APIRouter(prefix="/api/v1", tags=["connectors"])
 
 
-def _get_api_key_verifier() -> Callable[..., bool]:
-    """Import verify_api_key lazily to avoid circular imports."""
-    from app.main import verify_api_key
-
-    return verify_api_key
-
-
 @router.post("/connectors/status", response_model=ConnectorStatusResponse)
 async def check_workflow_connector_status(
-    request: ConnectorStatusRequest, _: bool = Depends(_get_api_key_verifier())
+    request: ConnectorStatusRequest, _: bool = Depends(verify_api_key)
 ) -> ConnectorStatusResponse:
     """
     Check connector authentication status for specific services (workflow context).

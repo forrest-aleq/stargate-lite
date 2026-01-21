@@ -9,14 +9,11 @@ from datadog import statsd
 
 # DataDog APM - import and patch early
 from ddtrace import patch_all
-from ddtrace.contrib.logging import patch as patch_logging
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-# Patch all supported libraries for automatic instrumentation
-patch_all()
-# Patch logging to correlate logs with traces
-patch_logging()
+# Patch all supported libraries for automatic instrumentation (includes logging)
+patch_all(logging=True)
 
 from app.database import init_db
 from app.logging_config import get_logger
@@ -60,21 +57,8 @@ app.include_router(schemas.router)
 statsd.host = os.getenv("DD_AGENT_HOST", "localhost")
 statsd.port = int(os.getenv("DD_DOGSTATSD_PORT", "8125"))
 
-# API Key for internal authentication
-API_SECRET_KEY = os.getenv("API_SECRET_KEY")
-if not API_SECRET_KEY:
-    raise RuntimeError(
-        "API_SECRET_KEY environment variable is required!\n"
-        "Generate a secure random key and add it to your .env file:\n"
-        "API_SECRET_KEY=<your-secure-random-key>"
-    )
-
-
-def verify_api_key(x_api_key: str | None = Header(None)) -> bool:
-    """Verify the internal API key"""
-    if x_api_key != API_SECRET_KEY:
-        raise HTTPException(status_code=403, detail="Invalid API Key")
-    return True
+# Re-export verify_api_key for backwards compatibility (now lives in app.auth)
+from app.auth import verify_api_key  # noqa: E402, F401
 
 
 @app.on_event("startup")

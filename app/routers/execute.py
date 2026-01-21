@@ -3,11 +3,11 @@ Tool execution routes for Stargate Lite.
 """
 
 import time
-from collections.abc import Callable
 from typing import Any
 
 from fastapi import APIRouter, Depends
 
+from app.auth import verify_api_key
 from app.errors import StargateError
 from app.logging_config import bind_request_context, clear_request_context, get_logger
 from app.models import ToolExecutionRequest
@@ -26,16 +26,9 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["execute"])
 
 
-def _get_api_key_verifier() -> Callable[..., bool]:
-    """Import verify_api_key lazily to avoid circular imports."""
-    from app.main import verify_api_key
-
-    return verify_api_key
-
-
 @router.post("/execute")
 async def execute_tool(
-    request: ToolExecutionRequest, _: bool = Depends(_get_api_key_verifier())
+    request: ToolExecutionRequest, _: bool = Depends(verify_api_key)
 ) -> dict[str, Any]:
     """
     Execute a tool based on capability_key.

@@ -2,26 +2,19 @@
 Credentials and capabilities routes for Stargate Lite.
 """
 
-from collections.abc import Callable
 from typing import Any
 
 from fastapi import APIRouter, Depends
 
+from app.auth import verify_api_key
 from app.database import CredentialManager
 from app.registry import get_capability, list_capabilities
 
 router = APIRouter(prefix="/api/v1", tags=["credentials"])
 
 
-def _get_api_key_verifier() -> Callable[..., bool]:
-    """Import verify_api_key lazily to avoid circular imports."""
-    from app.main import verify_api_key
-
-    return verify_api_key
-
-
 @router.get("/capabilities")
-async def get_capabilities(_: bool = Depends(_get_api_key_verifier())) -> dict[str, Any]:
+async def get_capabilities(_: bool = Depends(verify_api_key)) -> dict[str, Any]:
     """List all available capabilities"""
     return {
         "capabilities": list_capabilities(),
@@ -31,7 +24,7 @@ async def get_capabilities(_: bool = Depends(_get_api_key_verifier())) -> dict[s
 
 @router.post("/credentials/status")
 async def check_credential_status(
-    request: dict[str, Any], _: bool = Depends(_get_api_key_verifier())
+    request: dict[str, Any], _: bool = Depends(verify_api_key)
 ) -> dict[str, Any]:
     """
     Check if credentials exist for a capability before execution
@@ -122,7 +115,7 @@ async def get_credential_metadata(
     user_id: str,
     service: str,
     credential_type: str = "customer",
-    _: bool = Depends(_get_api_key_verifier()),
+    _: bool = Depends(verify_api_key),
 ) -> dict[str, Any]:
     """
     Get metadata about a stored credential (without exposing tokens)

@@ -4,28 +4,21 @@ Schema API routes for Stargate Lite.
 Provides endpoints for AI agents to discover rich capability metadata.
 """
 
-from collections.abc import Callable
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.auth import verify_api_key
 from app.registry import CAPABILITY_REGISTRY
 from app.schemas import get_schema, get_services_with_schemas, has_schema, list_schemas
 
 router = APIRouter(prefix="/api/v1", tags=["schemas"])
 
 
-def _get_api_key_verifier() -> Callable[..., bool]:
-    """Import verify_api_key lazily to avoid circular imports."""
-    from app.main import verify_api_key
-
-    return verify_api_key
-
-
 @router.get("/schemas")
 async def list_capability_schemas(
     service: str | None = Query(None, description="Filter schemas by service name"),
-    _: bool = Depends(_get_api_key_verifier()),
+    _: bool = Depends(verify_api_key),
 ) -> dict[str, Any]:
     """
     List all available capability schemas.
@@ -56,7 +49,7 @@ async def list_capability_schemas(
 @router.get("/schemas/{capability_key:path}")
 async def get_capability_schema(
     capability_key: str,
-    _: bool = Depends(_get_api_key_verifier()),
+    _: bool = Depends(verify_api_key),
 ) -> dict[str, Any]:
     """
     Get detailed schema for a specific capability.
@@ -108,7 +101,7 @@ async def get_capability_schema(
 
 @router.get("/services")
 async def list_services_with_schemas(
-    _: bool = Depends(_get_api_key_verifier()),
+    _: bool = Depends(verify_api_key),
 ) -> dict[str, Any]:
     """
     Get summary of services that have capability schemas defined.
@@ -143,7 +136,7 @@ async def list_services_with_schemas(
 async def list_capabilities_enhanced(
     service: str | None = Query(None, description="Filter by service name"),
     schema_only: bool = Query(False, description="Only return capabilities with schemas"),
-    _: bool = Depends(_get_api_key_verifier()),
+    _: bool = Depends(verify_api_key),
 ) -> dict[str, Any]:
     """
     List capabilities with schema availability indicator.
