@@ -12,6 +12,7 @@ from typing import Any
 
 from app.registry.banking import BANKING_CAPABILITIES
 from app.registry.communication import COMMUNICATION_CAPABILITIES
+from app.registry.fci import FCI_CAPABILITIES
 from app.registry.financial import FINANCIAL_CAPABILITIES
 from app.registry.financial_ops import FINANCIAL_OPS_CAPABILITIES
 from app.registry.google_microsoft import GOOGLE_MICROSOFT_CAPABILITIES
@@ -27,6 +28,7 @@ from app.schemas import has_schema
 CAPABILITY_REGISTRY = {
     **FINANCIAL_CAPABILITIES,
     **FINANCIAL_OPS_CAPABILITIES,
+    **FCI_CAPABILITIES,
     **BANKING_CAPABILITIES,
     **PRODUCTIVITY_CAPABILITIES,
     **COMMUNICATION_CAPABILITIES,

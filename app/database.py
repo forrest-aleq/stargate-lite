@@ -497,3 +497,39 @@ class CredentialManager:
             ]
         finally:
             db.close()
+
+    @staticmethod
+    def get_services_for_org(
+        org_id: str,
+        user_id: str,
+        credential_type: str = "customer",
+    ) -> list[str]:
+        """
+        Return list of services with active credentials for org/user.
+
+        Used by FCI utilities to discover which connectors are available
+        for aggregation without needing to know in advance.
+        """
+        db = SessionLocal()
+        try:
+            credentials = (
+                db.query(CredentialStore.service)
+                .filter(
+                    CredentialStore.org_id == org_id,
+                    CredentialStore.user_id == user_id,
+                    CredentialStore.credential_type == credential_type,
+                )
+                .distinct()
+                .all()
+            )
+            services = [cred.service for cred in credentials]
+            logger.debug(
+                "Retrieved services for org",
+                org_id=org_id,
+                user_id=user_id,
+                services=services,
+                log_event="get_services_for_org",
+            )
+            return services
+        finally:
+            db.close()
