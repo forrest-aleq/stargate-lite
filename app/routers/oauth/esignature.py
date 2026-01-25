@@ -19,7 +19,12 @@ from fastapi.responses import RedirectResponse
 
 from app.database import CredentialManager
 from app.logging_config import get_logger
-from app.routers.oauth.base import get_env_or_raise, parse_oauth_state_3parts
+from app.routers.oauth.base import (
+    build_oauth_error_redirect,
+    build_oauth_success_redirect,
+    get_env_or_raise,
+    parse_oauth_state_3parts,
+)
 
 logger = get_logger(__name__)
 
@@ -123,53 +128,70 @@ async def docusign_oauth_authorize(
 
 
 @router.get("/oauth/docusign/callback")
-async def docusign_oauth_callback(code: str, state: str) -> dict[str, Any]:
-    """Handle DocuSign OAuth callback and fetch account info."""
-    org_id, user_id, credential_type = parse_oauth_state_3parts(state, "docusign")
+async def docusign_oauth_callback(code: str, state: str) -> RedirectResponse:
+    """Handle DocuSign OAuth callback. Redirects to N3 on completion."""
+    try:
+        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "docusign")
+    except HTTPException:
+        return build_oauth_error_redirect(
+            service="docusign",
+            error="invalid_state",
+            error_description="Invalid OAuth state parameter",
+        )
 
-    client_id = get_env_or_raise("DOCUSIGN_INTEGRATION_KEY", "DocuSign")
-    client_secret = get_env_or_raise("DOCUSIGN_SECRET_KEY", "DocuSign")
-    redirect_uri = get_env_or_raise("DOCUSIGN_REDIRECT_URI", "DocuSign")
+    try:
+        client_id = get_env_or_raise("DOCUSIGN_INTEGRATION_KEY", "DocuSign")
+        client_secret = get_env_or_raise("DOCUSIGN_SECRET_KEY", "DocuSign")
+        redirect_uri = get_env_or_raise("DOCUSIGN_REDIRECT_URI", "DocuSign")
 
-    _, token_url, userinfo_url = _get_docusign_urls()
+        _, token_url, userinfo_url = _get_docusign_urls()
 
-    # Exchange code for tokens (DocuSign uses HTTP Basic Auth)
-    response = requests.post(
-        token_url,
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-        auth=(client_id, client_secret),
-        data={"grant_type": "authorization_code", "code": code, "redirect_uri": redirect_uri},
-        timeout=30,
-    )
+        response = requests.post(
+            token_url,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            auth=(client_id, client_secret),
+            data={"grant_type": "authorization_code", "code": code, "redirect_uri": redirect_uri},
+            timeout=30,
+        )
 
-    if response.status_code != 200:
-        logger.error("DocuSign token exchange failed", status_code=response.status_code)
-        raise HTTPException(status_code=500, detail="Token exchange failed")
+        if response.status_code != 200:
+            logger.error("DocuSign token exchange failed", status_code=response.status_code)
+            return build_oauth_error_redirect(
+                service="docusign",
+                error="token_exchange_failed",
+                error_description="Token exchange with DocuSign failed",
+                org_id=org_id,
+            )
 
-    token_data = response.json()
+        token_data = response.json()
+        account_id, base_uri = _fetch_docusign_account_info(token_data["access_token"], userinfo_url)
 
-    # Fetch account info for API calls
-    account_id, base_uri = _fetch_docusign_account_info(token_data["access_token"], userinfo_url)
+        expires_in = token_data.get("expires_in", 28800)
+        CredentialManager.store_credential(
+            org_id=org_id,
+            user_id=user_id,
+            service="docusign",
+            access_token=token_data["access_token"],
+            refresh_token=token_data.get("refresh_token"),
+            token_expiry=datetime.utcnow() + timedelta(seconds=expires_in),
+            extra_data={"account_id": account_id, "base_uri": base_uri},
+        )
 
-    # Store credentials (tokens expire in 8 hours)
-    expires_in = token_data.get("expires_in", 28800)
-    CredentialManager.store_credential(
-        org_id=org_id,
-        user_id=user_id,
-        service="docusign",
-        access_token=token_data["access_token"],
-        refresh_token=token_data.get("refresh_token"),
-        token_expiry=datetime.utcnow() + timedelta(seconds=expires_in),
-        extra_data={"account_id": account_id, "base_uri": base_uri},
-    )
+        logger.info("DocuSign OAuth completed", org_id=org_id)
+        return build_oauth_success_redirect(service="docusign", org_id=org_id)
 
-    logger.info("DocuSign OAuth completed", org_id=org_id, account_id=account_id)
-    return {
-        "success": True,
-        "message": "DocuSign OAuth completed successfully",
-        "org_id": org_id,
-        "user_id": user_id,
-        "credential_type": credential_type,
-        "service": "docusign",
-        "account_id": account_id,
-    }
+    except HTTPException as e:
+        return build_oauth_error_redirect(
+            service="docusign",
+            error="config_error",
+            error_description=str(e.detail),
+            org_id=org_id,
+        )
+    except Exception as e:
+        logger.error("DocuSign OAuth callback failed", error=str(e), exc_info=True)
+        return build_oauth_error_redirect(
+            service="docusign",
+            error="callback_failed",
+            error_description=str(e),
+            org_id=org_id,
+        )

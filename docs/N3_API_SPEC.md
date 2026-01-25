@@ -447,11 +447,28 @@ X-RateLimit-Reset: 1706097600
 
 ## N3 Integration Checklist
 
-### Environment Variables
+### Environment Variables (N3/Vercel)
 ```bash
-# Add to Vercel
+# Server-side only
 STARGATE_URL=https://stargate.up.railway.app
 STARGATE_API_KEY=<get from Stargate team>
+
+# Client-side (for OAuth redirects)
+NEXT_PUBLIC_STARGATE_URL=https://stargate.up.railway.app
+```
+
+### Environment Variables (Stargate/Railway)
+```bash
+# REQUIRED: N3 frontend URL for OAuth redirects
+N3_FRONTEND_URL=https://console.aleq.com
+
+# REQUIRED: CORS - must include N3 domain
+ALLOWED_ORIGINS=https://console.aleq.com,https://app.aleq.com
+
+# Existing required vars
+API_SECRET_KEY=<same as STARGATE_API_KEY>
+ENCRYPTION_KEY=<fernet key>
+REDIS_URL=<redis connection string>
 ```
 
 ### Code Changes

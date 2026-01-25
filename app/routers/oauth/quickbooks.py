@@ -16,7 +16,11 @@ from fastapi.responses import RedirectResponse
 
 from app.database import CredentialManager
 from app.logging_config import get_logger
-from app.routers.oauth.base import parse_oauth_state_3parts
+from app.routers.oauth.base import (
+    build_oauth_error_redirect,
+    build_oauth_success_redirect,
+    parse_oauth_state_3parts,
+)
 
 logger = get_logger(__name__)
 router = APIRouter(tags=["oauth"])
@@ -178,18 +182,27 @@ async def quickbooks_oauth_authorize(
 
 
 @router.get("/oauth/quickbooks/callback")
-async def quickbooks_oauth_callback(code: str, state: str, realmId: str) -> dict[str, Any]:
+async def quickbooks_oauth_callback(code: str, state: str, realmId: str) -> RedirectResponse:
     """
     Handle QuickBooks OAuth callback
 
-    Exchange authorization code for access/refresh tokens and store them
+    Exchange authorization code for access/refresh tokens and store them.
+    Redirects to N3 frontend on completion.
     """
     logger.info("OAuth callback received", service="quickbooks", log_event="oauth_callback_start")
 
+    # Parse state first to get org_id for error redirects
+    org_id: str | None = None
     try:
-        # Parse and validate state
         org_id, user_id, credential_type = parse_oauth_state_3parts(state, "quickbooks")
+    except HTTPException:
+        return build_oauth_error_redirect(
+            service="quickbooks",
+            error="invalid_state",
+            error_description="Invalid OAuth state parameter",
+        )
 
+    try:
         # Exchange authorization code for tokens
         token_data, token_expiry = _exchange_quickbooks_tokens(code, org_id, user_id)
 
@@ -198,17 +211,15 @@ async def quickbooks_oauth_callback(code: str, state: str, realmId: str) -> dict
             org_id, user_id, token_data, token_expiry, realmId, credential_type
         )
 
-        return {
-            "success": True,
-            "message": "QuickBooks OAuth completed successfully",
-            "org_id": org_id,
-            "user_id": user_id,
-            "realm_id": realmId,
-            "credential_type": credential_type,
-        }
+        return build_oauth_success_redirect(service="quickbooks", org_id=org_id)
 
-    except HTTPException:
-        raise
+    except HTTPException as e:
+        return build_oauth_error_redirect(
+            service="quickbooks",
+            error="token_exchange_failed",
+            error_description=str(e.detail),
+            org_id=org_id,
+        )
     except Exception as e:
         logger.error(
             "OAuth callback failed",
@@ -217,4 +228,9 @@ async def quickbooks_oauth_callback(code: str, state: str, realmId: str) -> dict
             log_event="oauth_callback_error",
             exc_info=True,
         )
-        raise HTTPException(status_code=500, detail=f"OAuth callback failed: {e!s}") from e
+        return build_oauth_error_redirect(
+            service="quickbooks",
+            error="callback_failed",
+            error_description=str(e),
+            org_id=org_id,
+        )

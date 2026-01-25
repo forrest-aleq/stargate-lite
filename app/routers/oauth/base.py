@@ -8,15 +8,98 @@ import os
 import time
 from datetime import datetime, timedelta
 from typing import Any, cast
+from urllib.parse import urlencode
 
 import requests
 from fastapi import HTTPException
+from fastapi.responses import RedirectResponse
 
 from app.database import CredentialManager
 from app.logging_config import get_logger
 
 # Initialize structured logger
 logger = get_logger(__name__)
+
+# Default redirect URLs (should be overridden by environment variables)
+DEFAULT_SUCCESS_PATH = "/settings/integrations"
+DEFAULT_ERROR_PATH = "/settings/integrations"
+
+
+def get_n3_base_url() -> str:
+    """Get N3 frontend base URL from environment."""
+    return os.getenv("N3_FRONTEND_URL", "http://localhost:3000")
+
+
+def build_oauth_success_redirect(
+    service: str,
+    org_id: str | None = None,
+    extra_params: dict[str, str] | None = None,
+) -> RedirectResponse:
+    """Build redirect response for successful OAuth completion.
+
+    Args:
+        service: Service name (e.g., "quickbooks")
+        org_id: Organization ID (optional, for logging)
+        extra_params: Additional query parameters
+
+    Returns:
+        RedirectResponse to N3 success page
+    """
+    base_url = get_n3_base_url()
+    params: dict[str, str] = {"connected": service}
+    if extra_params:
+        params.update(extra_params)
+
+    redirect_url = f"{base_url}{DEFAULT_SUCCESS_PATH}?{urlencode(params)}"
+
+    logger.info(
+        "OAuth success, redirecting to N3",
+        service=service,
+        org_id=org_id,
+        redirect_url=redirect_url,
+        log_event="oauth_redirect_success",
+    )
+
+    return RedirectResponse(url=redirect_url, status_code=302)
+
+
+def build_oauth_error_redirect(
+    service: str,
+    error: str,
+    error_description: str | None = None,
+    org_id: str | None = None,
+) -> RedirectResponse:
+    """Build redirect response for failed OAuth.
+
+    Args:
+        service: Service name (e.g., "quickbooks")
+        error: Error code (e.g., "token_exchange_failed")
+        error_description: Human-readable error description
+        org_id: Organization ID (optional, for logging)
+
+    Returns:
+        RedirectResponse to N3 error page
+    """
+    base_url = get_n3_base_url()
+    params: dict[str, str] = {
+        "error": error,
+        "provider": service,
+    }
+    if error_description:
+        params["error_description"] = error_description
+
+    redirect_url = f"{base_url}{DEFAULT_ERROR_PATH}?{urlencode(params)}"
+
+    logger.warning(
+        "OAuth failed, redirecting to N3 with error",
+        service=service,
+        org_id=org_id,
+        error=error,
+        redirect_url=redirect_url,
+        log_event="oauth_redirect_error",
+    )
+
+    return RedirectResponse(url=redirect_url, status_code=302)
 
 
 def parse_oauth_state_3parts(state: str, service: str) -> tuple[str, str, str]:

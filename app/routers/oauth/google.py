@@ -14,7 +14,13 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
 
 from app.database import CredentialManager
+from app.logging_config import get_logger
+from app.routers.oauth.base import (
+    build_oauth_error_redirect,
+    build_oauth_success_redirect,
+)
 
+logger = get_logger(__name__)
 router = APIRouter(tags=["oauth"])
 
 
@@ -85,32 +91,45 @@ async def google_oauth_authorize(
 
 
 @router.get("/oauth/google/callback")
-async def google_oauth_callback(code: str, state: str) -> dict[str, Any]:
+async def google_oauth_callback(code: str, state: str) -> RedirectResponse:
     """
     Handle Google OAuth callback
 
-    Exchange authorization code for access/refresh tokens and store them
+    Exchange authorization code for access/refresh tokens and store them.
     State format: {org_id}:{user_id}:{credential_type}:{service}
+    Redirects to N3 frontend on completion.
     """
+    # Parse state first
+    parts = state.split(":")
+    if len(parts) != 4:
+        return build_oauth_error_redirect(
+            service="google",
+            error="invalid_state",
+            error_description="Invalid OAuth state parameter",
+        )
+
+    org_id, user_id, credential_type, service = parts
+
+    if not org_id or not user_id or not credential_type or not service:
+        return build_oauth_error_redirect(
+            service="google",
+            error="invalid_state",
+            error_description="Invalid state parameter: empty values",
+        )
+
     try:
-        # Parse state
-        parts = state.split(":")
-        if len(parts) != 4:
-            raise HTTPException(status_code=400, detail="Invalid state parameter")
-
-        org_id, user_id, credential_type, service = parts
-
-        # Validate no empty values
-        if not org_id or not user_id or not credential_type or not service:
-            raise HTTPException(status_code=400, detail="Invalid state parameter: empty values")
-
         # Exchange code for tokens
         client_id = os.getenv("GOOGLE_CLIENT_ID")
         client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
         redirect_uri = os.getenv("GOOGLE_REDIRECT_URI")
 
         if not client_id or not client_secret or not redirect_uri:
-            raise HTTPException(status_code=500, detail="Google OAuth not configured")
+            return build_oauth_error_redirect(
+                service="google",
+                error="not_configured",
+                error_description="Google OAuth not configured",
+                org_id=org_id,
+            )
 
         token_url = "https://oauth2.googleapis.com/token"
 
@@ -128,8 +147,13 @@ async def google_oauth_callback(code: str, state: str) -> dict[str, Any]:
         )
 
         if response.status_code != 200:
-            # Log the error details but don't expose them to the client
-            raise HTTPException(status_code=500, detail="Token exchange with Google failed")
+            logger.error("Google token exchange failed", status_code=response.status_code)
+            return build_oauth_error_redirect(
+                service="google",
+                error="token_exchange_failed",
+                error_description="Token exchange with Google failed",
+                org_id=org_id,
+            )
 
         token_data = response.json()
 
@@ -139,20 +163,17 @@ async def google_oauth_callback(code: str, state: str) -> dict[str, Any]:
             user_id=user_id,
             service="google",
             access_token=token_data["access_token"],
-            refresh_token=token_data.get("refresh_token"),  # May not be present on re-auth
+            refresh_token=token_data.get("refresh_token"),
             token_expiry=datetime.utcnow() + timedelta(seconds=token_data["expires_in"]),
         )
 
-        return {
-            "success": True,
-            "message": f"Google {service} OAuth completed successfully",
-            "org_id": org_id,
-            "user_id": user_id,
-            "credential_type": credential_type,
-            "service": service,
-        }
+        return build_oauth_success_redirect(service="google", org_id=org_id)
 
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"OAuth callback failed: {e!s}") from e
+        logger.error("Google OAuth callback failed", error=str(e), exc_info=True)
+        return build_oauth_error_redirect(
+            service="google",
+            error="callback_failed",
+            error_description=str(e),
+            org_id=org_id,
+        )

@@ -14,7 +14,13 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
 
 from app.database import CredentialManager
+from app.logging_config import get_logger
+from app.routers.oauth.base import (
+    build_oauth_error_redirect,
+    build_oauth_success_redirect,
+)
 
+logger = get_logger(__name__)
 router = APIRouter(tags=["oauth"])
 
 
@@ -51,25 +57,33 @@ async def hubspot_oauth_authorize(
 
 
 @router.get("/oauth/hubspot/callback")
-async def hubspot_oauth_callback(code: str, state: str) -> dict[str, Any]:
+async def hubspot_oauth_callback(code: str, state: str) -> RedirectResponse:
     """
     Handle HubSpot OAuth callback
 
-    Exchange authorization code for access/refresh tokens and store them
+    Exchange authorization code for access/refresh tokens and store them.
     State format: {org_id}:{user_id}:{credential_type}
+    Redirects to N3 frontend on completion.
     """
+    # Parse state first
+    parts = state.split(":")
+    if len(parts) != 3:
+        return build_oauth_error_redirect(
+            service="hubspot",
+            error="invalid_state",
+            error_description="Invalid OAuth state parameter",
+        )
+
+    org_id, user_id, credential_type = parts
+
+    if not org_id or not user_id or not credential_type:
+        return build_oauth_error_redirect(
+            service="hubspot",
+            error="invalid_state",
+            error_description="Invalid state parameter: empty values",
+        )
+
     try:
-        # Parse state
-        parts = state.split(":")
-        if len(parts) != 3:
-            raise HTTPException(status_code=400, detail="Invalid state parameter")
-
-        org_id, user_id, credential_type = parts
-
-        # Validate no empty values
-        if not org_id or not user_id or not credential_type:
-            raise HTTPException(status_code=400, detail="Invalid state parameter: empty values")
-
         # Exchange code for tokens
         client_id = os.getenv("HUBSPOT_CLIENT_ID")
         client_secret = os.getenv("HUBSPOT_CLIENT_SECRET")
@@ -91,7 +105,13 @@ async def hubspot_oauth_callback(code: str, state: str) -> dict[str, Any]:
         )
 
         if response.status_code != 200:
-            raise HTTPException(status_code=500, detail=f"Token exchange failed: {response.text}")
+            logger.error("HubSpot token exchange failed", status_code=response.status_code)
+            return build_oauth_error_redirect(
+                service="hubspot",
+                error="token_exchange_failed",
+                error_description="Token exchange with HubSpot failed",
+                org_id=org_id,
+            )
 
         token_data = response.json()
 
@@ -105,15 +125,13 @@ async def hubspot_oauth_callback(code: str, state: str) -> dict[str, Any]:
             token_expiry=datetime.utcnow() + timedelta(seconds=token_data["expires_in"]),
         )
 
-        return {
-            "success": True,
-            "message": "HubSpot OAuth completed successfully",
-            "org_id": org_id,
-            "user_id": user_id,
-            "credential_type": credential_type,
-        }
+        return build_oauth_success_redirect(service="hubspot", org_id=org_id)
 
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"OAuth callback failed: {e!s}") from e
+        logger.error("HubSpot OAuth callback failed", error=str(e), exc_info=True)
+        return build_oauth_error_redirect(
+            service="hubspot",
+            error="callback_failed",
+            error_description=str(e),
+            org_id=org_id,
+        )

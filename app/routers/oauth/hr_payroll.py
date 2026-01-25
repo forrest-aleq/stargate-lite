@@ -19,7 +19,12 @@ from fastapi.responses import RedirectResponse
 
 from app.database import CredentialManager
 from app.logging_config import get_logger
-from app.routers.oauth.base import get_env_or_raise, parse_oauth_state_3parts
+from app.routers.oauth.base import (
+    build_oauth_error_redirect,
+    build_oauth_success_redirect,
+    get_env_or_raise,
+    parse_oauth_state_3parts,
+)
 
 logger = get_logger(__name__)
 
@@ -87,93 +92,80 @@ async def gusto_oauth_authorize(
 
 
 @router.get("/oauth/gusto/callback")
-async def gusto_oauth_callback(code: str, state: str) -> dict[str, Any]:
+async def gusto_oauth_callback(code: str, state: str) -> RedirectResponse:
     """
     Handle Gusto OAuth callback.
 
     Exchange authorization code for access/refresh tokens and store them.
-    State format: {org_id}:{user_id}:{credential_type}
-
-    Note: Starting from v2023-05-01, Gusto requires "strict access" tokens
-    which are scoped to a single company.
-
-    Args:
-        code: Authorization code from Gusto
-        state: State parameter containing org_id, user_id, credential_type
-
-    Returns:
-        Success response with OAuth completion details
+    Redirects to N3 frontend on completion.
     """
-    org_id, user_id, credential_type = parse_oauth_state_3parts(state, "gusto")
+    # Parse state first
+    try:
+        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "gusto")
+    except HTTPException:
+        return build_oauth_error_redirect(
+            service="gusto",
+            error="invalid_state",
+            error_description="Invalid OAuth state parameter",
+        )
 
-    client_id = get_env_or_raise("GUSTO_CLIENT_ID", "Gusto")
-    client_secret = get_env_or_raise("GUSTO_CLIENT_SECRET", "Gusto")
-    redirect_uri = get_env_or_raise("GUSTO_REDIRECT_URI", "Gusto")
+    try:
+        client_id = get_env_or_raise("GUSTO_CLIENT_ID", "Gusto")
+        client_secret = get_env_or_raise("GUSTO_CLIENT_SECRET", "Gusto")
+        redirect_uri = get_env_or_raise("GUSTO_REDIRECT_URI", "Gusto")
 
-    _, token_url = _get_gusto_urls()
+        _, token_url = _get_gusto_urls()
 
-    logger.info(
-        "Exchanging Gusto authorization code",
-        org_id=org_id,
-        user_id=user_id,
-        log_event="oauth_gusto_token_exchange_start",
-    )
+        response = requests.post(
+            token_url,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            data={
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": redirect_uri,
+                "client_id": client_id,
+                "client_secret": client_secret,
+            },
+            timeout=30,
+        )
 
-    # Exchange code for tokens
-    # Gusto requires POST data in body, not query params
-    # client_secret must NOT be in URL (returns 400)
-    response = requests.post(
-        token_url,
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-        data={
-            "grant_type": "authorization_code",
-            "code": code,
-            "redirect_uri": redirect_uri,
-            "client_id": client_id,
-            "client_secret": client_secret,
-        },
-        timeout=30,
-    )
+        if response.status_code != 200:
+            logger.error("Gusto token exchange failed", status_code=response.status_code)
+            return build_oauth_error_redirect(
+                service="gusto",
+                error="token_exchange_failed",
+                error_description="Token exchange with Gusto failed",
+                org_id=org_id,
+            )
 
-    if response.status_code != 200:
-        logger.error(
-            "Gusto token exchange failed",
+        token_data = response.json()
+        expires_in = token_data.get("expires_in", 7200)
+        token_expiry = datetime.utcnow() + timedelta(seconds=expires_in)
+
+        CredentialManager.store_credential(
             org_id=org_id,
             user_id=user_id,
-            status_code=response.status_code,
-            log_event="oauth_gusto_token_exchange_error",
+            service="gusto",
+            access_token=token_data["access_token"],
+            refresh_token=token_data.get("refresh_token"),
+            token_expiry=token_expiry,
         )
-        raise HTTPException(status_code=500, detail="Token exchange failed")
 
-    token_data = response.json()
+        logger.info("Gusto OAuth completed", org_id=org_id)
+        return build_oauth_success_redirect(service="gusto", org_id=org_id)
 
-    # Gusto tokens typically expire in 2 hours (7200 seconds)
-    expires_in = token_data.get("expires_in", 7200)
-    token_expiry = datetime.utcnow() + timedelta(seconds=expires_in)
-
-    # Store credentials
-    CredentialManager.store_credential(
-        org_id=org_id,
-        user_id=user_id,
-        service="gusto",
-        access_token=token_data["access_token"],
-        refresh_token=token_data.get("refresh_token"),
-        token_expiry=token_expiry,
-    )
-
-    logger.info(
-        "Gusto OAuth completed successfully",
-        org_id=org_id,
-        user_id=user_id,
-        credential_type=credential_type,
-        log_event="oauth_gusto_callback_success",
-    )
-
-    return {
-        "success": True,
-        "message": "Gusto OAuth completed successfully",
-        "org_id": org_id,
-        "user_id": user_id,
-        "credential_type": credential_type,
-        "service": "gusto",
-    }
+    except HTTPException as e:
+        return build_oauth_error_redirect(
+            service="gusto",
+            error="config_error",
+            error_description=str(e.detail),
+            org_id=org_id,
+        )
+    except Exception as e:
+        logger.error("Gusto OAuth callback failed", error=str(e), exc_info=True)
+        return build_oauth_error_redirect(
+            service="gusto",
+            error="callback_failed",
+            error_description=str(e),
+            org_id=org_id,
+        )

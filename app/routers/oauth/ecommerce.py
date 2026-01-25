@@ -25,21 +25,26 @@ from fastapi.responses import RedirectResponse
 
 from app.database import CredentialManager
 from app.logging_config import get_logger
-from app.routers.oauth.base import get_env_or_raise, parse_oauth_state_3parts
+from app.routers.oauth.base import (
+    build_oauth_error_redirect,
+    build_oauth_success_redirect,
+    get_env_or_raise,
+    parse_oauth_state_3parts,
+)
 
 logger = get_logger(__name__)
 
 router = APIRouter(tags=["oauth"])
 
 
-def _parse_shopify_state(state: str) -> tuple[str, str, str, str]:
+def _parse_shopify_state(state: str) -> tuple[str, str, str, str] | None:
     """Parse Shopify OAuth state with format org_id:user_id:credential_type:shop."""
     parts = state.split(":")
     if len(parts) != 4:
-        raise HTTPException(status_code=400, detail="Invalid state parameter")
+        return None
     org_id, user_id, credential_type, shop = parts
     if not all([org_id, user_id, credential_type, shop]):
-        raise HTTPException(status_code=400, detail="Invalid state parameter: empty values")
+        return None
     return org_id, user_id, credential_type, shop
 
 
@@ -159,58 +164,84 @@ async def shopify_oauth_callback(
     shop: str,
     hmac_param: str = Query(alias="hmac"),
     timestamp: str = "",
-) -> dict[str, Any]:
-    """Handle Shopify OAuth callback with HMAC validation."""
-    org_id, user_id, credential_type, state_shop = _parse_shopify_state(state)
+) -> RedirectResponse:
+    """Handle Shopify OAuth callback with HMAC validation. Redirects to N3."""
+    parsed = _parse_shopify_state(state)
+    if not parsed:
+        return build_oauth_error_redirect(
+            service="shopify",
+            error="invalid_state",
+            error_description="Invalid OAuth state parameter",
+        )
+
+    org_id, user_id, credential_type, state_shop = parsed
 
     # Normalize and verify shop name
     callback_shop = shop.replace(".myshopify.com", "")
     if callback_shop != state_shop:
         logger.warning("Shopify shop mismatch", expected=state_shop, received=callback_shop)
-        raise HTTPException(status_code=400, detail="Shop mismatch in callback")
+        return build_oauth_error_redirect(
+            service="shopify",
+            error="shop_mismatch",
+            error_description="Shop mismatch in callback",
+            org_id=org_id,
+        )
 
-    client_id = get_env_or_raise("SHOPIFY_CLIENT_ID", "Shopify")
-    client_secret = get_env_or_raise("SHOPIFY_CLIENT_SECRET", "Shopify")
+    try:
+        client_id = get_env_or_raise("SHOPIFY_CLIENT_ID", "Shopify")
+        client_secret = get_env_or_raise("SHOPIFY_CLIENT_SECRET", "Shopify")
 
-    # Validate HMAC signature
-    _validate_shopify_hmac(code, shop, state, timestamp, hmac_param, client_secret)
+        # Validate HMAC signature
+        _validate_shopify_hmac(code, shop, state, timestamp, hmac_param, client_secret)
 
-    # Exchange code for access token
-    token_url = f"https://{callback_shop}.myshopify.com/admin/oauth/access_token"
-    response = requests.post(
-        token_url,
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-        data={"client_id": client_id, "client_secret": client_secret, "code": code},
-        timeout=30,
-    )
+        # Exchange code for access token
+        token_url = f"https://{callback_shop}.myshopify.com/admin/oauth/access_token"
+        response = requests.post(
+            token_url,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            data={"client_id": client_id, "client_secret": client_secret, "code": code},
+            timeout=30,
+        )
 
-    if response.status_code != 200:
-        logger.error("Shopify token exchange failed", status_code=response.status_code)
-        raise HTTPException(status_code=500, detail="Token exchange failed")
+        if response.status_code != 200:
+            logger.error("Shopify token exchange failed", status_code=response.status_code)
+            return build_oauth_error_redirect(
+                service="shopify",
+                error="token_exchange_failed",
+                error_description="Token exchange with Shopify failed",
+                org_id=org_id,
+            )
 
-    token_data = response.json()
+        token_data = response.json()
 
-    # Store credentials (Shopify offline tokens don't expire - set 10 year expiry)
-    CredentialManager.store_credential(
-        org_id=org_id,
-        user_id=user_id,
-        service="shopify",
-        access_token=token_data["access_token"],
-        refresh_token=None,
-        token_expiry=datetime.utcnow() + timedelta(days=3650),
-        extra_data={"shop": callback_shop},
-    )
+        CredentialManager.store_credential(
+            org_id=org_id,
+            user_id=user_id,
+            service="shopify",
+            access_token=token_data["access_token"],
+            refresh_token=None,
+            token_expiry=datetime.utcnow() + timedelta(days=3650),
+            extra_data={"shop": callback_shop},
+        )
 
-    logger.info("Shopify OAuth completed", org_id=org_id, shop=callback_shop)
-    return {
-        "success": True,
-        "message": "Shopify OAuth completed successfully",
-        "org_id": org_id,
-        "user_id": user_id,
-        "credential_type": credential_type,
-        "service": "shopify",
-        "shop": callback_shop,
-    }
+        logger.info("Shopify OAuth completed", org_id=org_id, shop=callback_shop)
+        return build_oauth_success_redirect(service="shopify", org_id=org_id)
+
+    except HTTPException as e:
+        return build_oauth_error_redirect(
+            service="shopify",
+            error="validation_failed",
+            error_description=str(e.detail),
+            org_id=org_id,
+        )
+    except Exception as e:
+        logger.error("Shopify OAuth callback failed", error=str(e), exc_info=True)
+        return build_oauth_error_redirect(
+            service="shopify",
+            error="callback_failed",
+            error_description=str(e),
+            org_id=org_id,
+        )
 
 
 # =============================================================================
@@ -286,102 +317,82 @@ async def square_oauth_authorize(
 
 
 @router.get("/oauth/square/callback")
-async def square_oauth_callback(code: str, state: str) -> dict[str, Any]:
-    """
-    Handle Square OAuth callback.
+async def square_oauth_callback(code: str, state: str) -> RedirectResponse:
+    """Handle Square OAuth callback. Redirects to N3 on completion."""
+    # Parse state first
+    try:
+        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "square")
+    except HTTPException:
+        return build_oauth_error_redirect(
+            service="square",
+            error="invalid_state",
+            error_description="Invalid OAuth state parameter",
+        )
 
-    Exchange authorization code for access/refresh tokens and store them.
-    State format: {org_id}:{user_id}:{credential_type}
+    try:
+        client_id = get_env_or_raise("SQUARE_APPLICATION_ID", "Square")
+        client_secret = get_env_or_raise("SQUARE_APPLICATION_SECRET", "Square")
+        redirect_uri = get_env_or_raise("SQUARE_REDIRECT_URI", "Square")
 
-    Note: Square access tokens expire in 30 days.
-    Refresh tokens don't expire (for standard code flow).
+        _, token_url = _get_square_urls()
 
-    Args:
-        code: Authorization code from Square
-        state: State parameter containing org_id, user_id, credential_type
+        response = requests.post(
+            token_url,
+            headers={
+                "Content-Type": "application/json",
+                "Square-Version": "2024-01-18",
+            },
+            json={
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "code": code,
+                "grant_type": "authorization_code",
+                "redirect_uri": redirect_uri,
+            },
+            timeout=30,
+        )
 
-    Returns:
-        Success response with OAuth completion details
-    """
-    org_id, user_id, credential_type = parse_oauth_state_3parts(state, "square")
+        if response.status_code != 200:
+            logger.error("Square token exchange failed", status_code=response.status_code)
+            return build_oauth_error_redirect(
+                service="square",
+                error="token_exchange_failed",
+                error_description="Token exchange with Square failed",
+                org_id=org_id,
+            )
 
-    client_id = get_env_or_raise("SQUARE_APPLICATION_ID", "Square")
-    client_secret = get_env_or_raise("SQUARE_APPLICATION_SECRET", "Square")
-    redirect_uri = get_env_or_raise("SQUARE_REDIRECT_URI", "Square")
+        token_data = response.json()
 
-    _, token_url = _get_square_urls()
+        if "expires_at" in token_data:
+            token_expiry = datetime.fromisoformat(token_data["expires_at"].replace("Z", "+00:00"))
+        else:
+            token_expiry = datetime.utcnow() + timedelta(days=30)
 
-    logger.info(
-        "Exchanging Square authorization code",
-        org_id=org_id,
-        user_id=user_id,
-        log_event="oauth_square_token_exchange_start",
-    )
-
-    # Exchange code for tokens using ObtainToken endpoint
-    # https://developer.squareup.com/reference/square/o-auth-api/obtain-token
-    response = requests.post(
-        token_url,
-        headers={
-            "Content-Type": "application/json",
-            "Square-Version": "2024-01-18",
-        },
-        json={
-            "client_id": client_id,
-            "client_secret": client_secret,
-            "code": code,
-            "grant_type": "authorization_code",
-            "redirect_uri": redirect_uri,
-        },
-        timeout=30,
-    )
-
-    if response.status_code != 200:
-        logger.error(
-            "Square token exchange failed",
+        CredentialManager.store_credential(
             org_id=org_id,
             user_id=user_id,
-            status_code=response.status_code,
-            log_event="oauth_square_token_exchange_error",
+            service="square",
+            access_token=token_data["access_token"],
+            refresh_token=token_data.get("refresh_token"),
+            token_expiry=token_expiry,
+            extra_data={"merchant_id": token_data.get("merchant_id")},
         )
-        raise HTTPException(status_code=500, detail="Token exchange failed")
 
-    token_data = response.json()
+        logger.info("Square OAuth completed", org_id=org_id)
+        return build_oauth_success_redirect(service="square", org_id=org_id)
 
-    # Square access tokens expire in 30 days
-    # expires_at is ISO 8601 format
-    if "expires_at" in token_data:
-        token_expiry = datetime.fromisoformat(token_data["expires_at"].replace("Z", "+00:00"))
-    else:
-        # Fallback to 30 days from now
-        token_expiry = datetime.utcnow() + timedelta(days=30)
-
-    # Store credentials
-    CredentialManager.store_credential(
-        org_id=org_id,
-        user_id=user_id,
-        service="square",
-        access_token=token_data["access_token"],
-        refresh_token=token_data.get("refresh_token"),
-        token_expiry=token_expiry,
-        extra_data={"merchant_id": token_data.get("merchant_id")},
-    )
-
-    logger.info(
-        "Square OAuth completed successfully",
-        org_id=org_id,
-        user_id=user_id,
-        credential_type=credential_type,
-        merchant_id=token_data.get("merchant_id"),
-        log_event="oauth_square_callback_success",
-    )
-
-    return {
-        "success": True,
-        "message": "Square OAuth completed successfully",
-        "org_id": org_id,
-        "user_id": user_id,
-        "credential_type": credential_type,
-        "service": "square",
-        "merchant_id": token_data.get("merchant_id"),
-    }
+    except HTTPException as e:
+        return build_oauth_error_redirect(
+            service="square",
+            error="config_error",
+            error_description=str(e.detail),
+            org_id=org_id,
+        )
+    except Exception as e:
+        logger.error("Square OAuth callback failed", error=str(e), exc_info=True)
+        return build_oauth_error_redirect(
+            service="square",
+            error="callback_failed",
+            error_description=str(e),
+            org_id=org_id,
+        )
