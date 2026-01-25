@@ -7,13 +7,12 @@ Small business finance teams use Gusto for payroll, benefits, and compliance.
 API Docs: https://docs.gusto.com/
 """
 
+from app.schemas.base import CapabilitySchema
 from app.schemas.gusto.company import COMPANY_SCHEMAS
 from app.schemas.gusto.contractors import CONTRACTOR_SCHEMAS
 from app.schemas.gusto.employees import EMPLOYEE_SCHEMAS
 from app.schemas.gusto.payroll import PAYROLL_SCHEMAS
 from app.schemas.gusto.tax_forms import TAX_FORMS_SCHEMAS
-
-from app.schemas.base import CapabilitySchema
 
 # Export all schemas
 GUSTO_SCHEMAS: dict[str, CapabilitySchema] = {

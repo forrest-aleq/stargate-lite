@@ -14,6 +14,7 @@ Base URLs:
 Session caching: Uses Redis for horizontal scaling support.
 """
 
+import contextlib
 import json
 import os
 from datetime import datetime, timedelta
@@ -294,9 +295,7 @@ class BillComBase:
 
     def logout(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Explicitly logout and invalidate the session."""
-        try:
+        with contextlib.suppress(Exception):
             self._api_call("POST", "/logout", org_id, user_id, json_data={})
-        except Exception:
-            pass
         self._invalidate_session(org_id, user_id)
         return {"logged_out": True}

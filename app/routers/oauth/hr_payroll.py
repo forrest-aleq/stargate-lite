@@ -10,7 +10,6 @@ https://docs.gusto.com/app-integrations/v2024-03-01/docs/oauth2
 
 import os
 from datetime import datetime, timedelta
-from typing import Any
 from urllib.parse import urlencode
 
 import requests
@@ -101,7 +100,7 @@ async def gusto_oauth_callback(code: str, state: str) -> RedirectResponse:
     """
     # Parse state first
     try:
-        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "gusto")
+        org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "gusto")
     except HTTPException:
         return build_oauth_error_redirect(
             service="gusto",

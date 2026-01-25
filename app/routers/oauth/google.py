@@ -6,7 +6,6 @@ Handles OAuth authorization and callback for Google Workspace (Gmail, Drive, Cal
 
 import os
 from datetime import datetime, timedelta
-from typing import Any
 from urllib.parse import urlencode
 
 import requests

@@ -220,11 +220,10 @@ class AirtableConnector:
         url = f"{self.BASE_URL}/{base_id}/{table_id}"
         if params:
             # Handle array params specially
-            param_parts = []
+            param_parts: list[str] = []
             for k, v in params.items():
                 if isinstance(v, list):
-                    for item in v:
-                        param_parts.append(f"{k}={item}")
+                    param_parts.extend(f"{k}={item}" for item in v)
                 else:
                     param_parts.append(f"{k}={v}")
             url += "?" + "&".join(param_parts)

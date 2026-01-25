@@ -16,7 +16,6 @@ import hashlib
 import hmac
 import os
 from datetime import datetime, timedelta
-from typing import Any
 from urllib.parse import urlencode
 
 import requests
@@ -174,7 +173,7 @@ async def shopify_oauth_callback(
             error_description="Invalid OAuth state parameter",
         )
 
-    org_id, user_id, credential_type, state_shop = parsed
+    org_id, user_id, _credential_type, state_shop = parsed
 
     # Normalize and verify shop name
     callback_shop = shop.replace(".myshopify.com", "")
@@ -321,7 +320,7 @@ async def square_oauth_callback(code: str, state: str) -> RedirectResponse:
     """Handle Square OAuth callback. Redirects to N3 on completion."""
     # Parse state first
     try:
-        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "square")
+        org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "square")
     except HTTPException:
         return build_oauth_error_redirect(
             service="square",

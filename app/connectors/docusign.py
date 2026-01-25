@@ -290,7 +290,7 @@ class DocuSignConnector:
             ]
         }
 
-        result = http_client.put(
+        http_client.put(
             url=f"{base_url}/envelopes/{envelope_id}/recipients",
             service="docusign",
             headers=self._get_headers(cred["access_token"]),

@@ -564,12 +564,13 @@ class TestSummarizerInitialization:
 
     @patch.dict("os.environ", {}, clear=True)
     def test_missing_api_key_raises_error(self, reset_utility_singletons):
-        """Missing ANTHROPIC_API_KEY should raise CredentialMissingError."""
-        from app.errors import CredentialMissingError
+        """Missing ANTHROPIC_API_KEY should raise ExecutionError wrapping CredentialMissingError."""
+        from app.errors import ExecutionError
         from app.utilities.summarizer import SummarizerUtility
 
         utility = SummarizerUtility()
-        with pytest.raises(CredentialMissingError):
+        # CredentialMissingError gets wrapped in ExecutionError by base class
+        with pytest.raises(ExecutionError):
             utility.summarize("org", "user", {"text": "test"})
 
 

@@ -423,9 +423,7 @@ class EntityMixin:
                 if name:
                     sanitized_name = _sanitize_qboql(name)
                     search_args["query"] = (
-                        "SELECT * FROM Customer WHERE DisplayName LIKE '%{}%'".format(
-                            sanitized_name
-                        )
+                        f"SELECT * FROM Customer WHERE DisplayName LIKE '%{sanitized_name}%'"
                     )
                 method = getattr(connector, "query_entities", None)
             elif service == "stripe":
@@ -516,9 +514,7 @@ class EntityMixin:
                 if name:
                     sanitized_name = _sanitize_qboql(name)
                     search_args["query"] = (
-                        "SELECT * FROM Vendor WHERE DisplayName LIKE '%{}%'".format(
-                            sanitized_name
-                        )
+                        f"SELECT * FROM Vendor WHERE DisplayName LIKE '%{sanitized_name}%'"
                     )
                 method = getattr(connector, "query_entities", None)
             else:
@@ -593,7 +589,7 @@ class EntityMixin:
                 if invoice_number:
                     sanitized_num = _sanitize_qboql(invoice_number)
                     search_args["query"] = (
-                        "SELECT * FROM Invoice WHERE DocNumber = '{}'".format(sanitized_num)
+                        f"SELECT * FROM Invoice WHERE DocNumber = '{sanitized_num}'"
                     )
                 method = getattr(connector, "query_entities", None)
             else:

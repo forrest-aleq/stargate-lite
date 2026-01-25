@@ -122,8 +122,8 @@ class TestRequiredFields:
 class TestIdempotency:
     """Test idempotency behavior using turn_id + capability_key."""
 
-    @patch("app.main.get_capability")
-    @patch("app.main.redis_client")
+    @patch("app.routers.execute.get_capability")
+    @patch("app.services.execution.redis_client")
     def test_same_turn_id_returns_cached_response(
         self,
         mock_redis: MagicMock,
@@ -162,8 +162,8 @@ class TestIdempotency:
         # get_capability should NOT be called (cache hit)
         mock_get_cap.assert_not_called()
 
-    @patch("app.main.get_capability")
-    @patch("app.main.redis_client")
+    @patch("app.routers.execute.get_capability")
+    @patch("app.services.execution.redis_client")
     def test_different_turn_id_executes_new_request(
         self,
         mock_redis: MagicMock,
@@ -228,7 +228,7 @@ class TestErrorCodes:
         # Should be CAPABILITY_NOT_FOUND or EXECUTION_ERROR
         assert data["error_code"] in ["CAPABILITY_NOT_FOUND", "EXECUTION_ERROR"]
 
-    @patch("app.main.get_capability")
+    @patch("app.routers.execute.get_capability")
     def test_credentials_missing_error(self, mock_get_cap: MagicMock, client: TestClient) -> None:
         """CREDENTIALS_MISSING: No credentials found for service."""
 
@@ -262,7 +262,7 @@ class TestErrorCodes:
         assert data["status"] == "error"
         assert data["error_code"] == "CREDENTIALS_MISSING"
 
-    @patch("app.main.get_capability")
+    @patch("app.routers.execute.get_capability")
     def test_validation_error(self, mock_get_cap: MagicMock, client: TestClient) -> None:
         """VALIDATION_ERROR: Invalid arguments provided."""
 
@@ -299,7 +299,7 @@ class TestErrorCodes:
 class TestResponseSchema:
     """Test that responses match contract schema exactly."""
 
-    @patch("app.main.get_capability")
+    @patch("app.routers.execute.get_capability")
     def test_success_response_schema(self, mock_get_cap: MagicMock, client: TestClient) -> None:
         """Success response includes all required fields."""
         mock_handler = MagicMock(return_value={"vendor_id": "qb:123", "status": "active"})
@@ -338,7 +338,7 @@ class TestResponseSchema:
         assert "credential_type" in data
         assert "timestamp" in data
 
-    @patch("app.main.get_capability")
+    @patch("app.routers.execute.get_capability")
     def test_error_response_schema(self, mock_get_cap: MagicMock, client: TestClient) -> None:
         """Error response includes status='error', error_code, error_message."""
 

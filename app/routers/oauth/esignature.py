@@ -10,7 +10,6 @@ https://developers.docusign.com/platform/auth/authcode/
 
 import os
 from datetime import datetime, timedelta
-from typing import Any
 from urllib.parse import urlencode
 
 import requests
@@ -131,7 +130,7 @@ async def docusign_oauth_authorize(
 async def docusign_oauth_callback(code: str, state: str) -> RedirectResponse:
     """Handle DocuSign OAuth callback. Redirects to N3 on completion."""
     try:
-        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "docusign")
+        org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "docusign")
     except HTTPException:
         return build_oauth_error_redirect(
             service="docusign",
@@ -164,7 +163,8 @@ async def docusign_oauth_callback(code: str, state: str) -> RedirectResponse:
             )
 
         token_data = response.json()
-        account_id, base_uri = _fetch_docusign_account_info(token_data["access_token"], userinfo_url)
+        access_token = token_data["access_token"]
+        account_id, base_uri = _fetch_docusign_account_info(access_token, userinfo_url)
 
         expires_in = token_data.get("expires_in", 28800)
         CredentialManager.store_credential(

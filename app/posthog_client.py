@@ -12,6 +12,7 @@ Frontend (posthog-js) → Baby MARS (posthog-python) → Stargate (posthog-pytho
 """
 
 import atexit
+import contextlib
 import os
 from typing import Any
 
@@ -237,7 +238,5 @@ def identify_user(
 def flush() -> None:
     """Force flush all pending events. Useful before shutdown."""
     if _initialized:
-        try:
+        with contextlib.suppress(Exception):
             posthog.flush()
-        except Exception:
-            pass
