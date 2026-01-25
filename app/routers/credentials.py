@@ -109,6 +109,64 @@ async def check_credential_status(
         }
 
 
+@router.post("/credentials/revoke")
+async def revoke_credential(
+    request: dict[str, Any], _: bool = Depends(verify_api_key)
+) -> dict[str, Any]:
+    """
+    Revoke/delete a stored credential (disconnect an integration).
+
+    Request body:
+    {
+        "org_id": "org_123",
+        "user_id": "user_456",
+        "service": "quickbooks",
+        "credential_type": "customer"  // optional, defaults to "customer"
+    }
+
+    Returns:
+    - status: "revoked" or "not_found"
+    - service: service name
+    """
+    org_id = request.get("org_id")
+    user_id = request.get("user_id")
+    service = request.get("service")
+    credential_type = request.get("credential_type", "customer")
+
+    if not all([org_id, user_id, service]):
+        return {
+            "status": "error",
+            "error": "Missing required fields: org_id, user_id, service",
+        }
+
+    try:
+        deleted = CredentialManager.delete_credential(
+            org_id=str(org_id),
+            user_id=str(user_id),
+            service=str(service),
+            credential_type=str(credential_type),
+        )
+
+        if deleted:
+            return {
+                "status": "revoked",
+                "service": service,
+            }
+        else:
+            return {
+                "status": "not_found",
+                "service": service,
+                "message": f"No {credential_type} credential found for {service}",
+            }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "service": service,
+            "error": str(e),
+        }
+
+
 @router.get("/credentials/metadata")
 async def get_credential_metadata(
     org_id: str,
