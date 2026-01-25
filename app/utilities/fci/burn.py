@@ -59,9 +59,7 @@ class BurnMixin:
         exclude_categories = args.get("exclude_categories", [])
 
         # Get primary accounting system
-        primary_service = self._get_primary_accounting_service(
-            org_id, user_id, PL_REPORT_SERVICES
-        )
+        primary_service = self._get_primary_accounting_service(org_id, user_id, PL_REPORT_SERVICES)
 
         if not primary_service:
             return self._format_response(
@@ -103,9 +101,7 @@ class BurnMixin:
                 all_sources.extend(sources)
 
             if results:
-                exp_data = self._parse_burn_from_pl(
-                    primary_service, results[0], exclude_categories
-                )
+                exp_data = self._parse_burn_from_pl(primary_service, results[0], exclude_categories)
                 monthly_burns.append(exp_data["expenses"])
 
                 # Accumulate categories
@@ -191,10 +187,13 @@ class BurnMixin:
             # Period is from prev_month start to current start - 1 day
             period_end = current - timedelta(days=1)
 
-            periods.insert(0, {
-                "start": prev_month.strftime("%Y-%m-%d"),
-                "end": period_end.strftime("%Y-%m-%d"),
-            })
+            periods.insert(
+                0,
+                {
+                    "start": prev_month.strftime("%Y-%m-%d"),
+                    "end": period_end.strftime("%Y-%m-%d"),
+                },
+            )
 
             current = prev_month
 
@@ -274,14 +273,12 @@ class BurnMixin:
 
         elif service in ["sage_intacct", "netsuite"]:
             expenses = result.get(
-                "total_expenses",
-                result.get("TOTALEXPENSES", result.get("totalExpenses", 0))
+                "total_expenses", result.get("TOTALEXPENSES", result.get("totalExpenses", 0))
             )
             data["expenses"] = abs(float(expenses))
 
             categories = result.get(
-                "expense_breakdown",
-                result.get("categories", result.get("expenseCategories", []))
+                "expense_breakdown", result.get("categories", result.get("expenseCategories", []))
             )
             for cat in categories:
                 cat_name = cat.get("name", cat.get("NAME", "Other"))

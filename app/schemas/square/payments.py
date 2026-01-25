@@ -25,9 +25,7 @@ SQUARE_PAYMENTS_LIST = CapabilitySchema(
         "sort_order": ParameterSchema(
             type="string", required=False, enum=["ASC", "DESC"], description="Sort order"
         ),
-        "cursor": ParameterSchema(
-            type="string", required=False, description="Pagination cursor"
-        ),
+        "cursor": ParameterSchema(type="string", required=False, description="Pagination cursor"),
         "limit": ParameterSchema(
             type="integer", required=False, description="Maximum payments to return"
         ),
@@ -90,9 +88,7 @@ SQUARE_PAYMENTS_CREATE = CapabilitySchema(
         "idempotency_key": ParameterSchema(
             type="string", required=True, description="Unique key for idempotency"
         ),
-        "location_id": ParameterSchema(
-            type="string", required=False, description="Location ID"
-        ),
+        "location_id": ParameterSchema(type="string", required=False, description="Location ID"),
         "customer_id": ParameterSchema(
             type="string", required=False, description="Customer ID to associate"
         ),
@@ -125,9 +121,7 @@ SQUARE_PAYMENTS_REFUND = CapabilitySchema(
         "amount_money": ParameterSchema(
             type="object", required=True, description="Amount to refund"
         ),
-        "reason": ParameterSchema(
-            type="string", required=False, description="Reason for refund"
-        ),
+        "reason": ParameterSchema(type="string", required=False, description="Reason for refund"),
     },
     returns={
         "refund_id": ReturnFieldSchema(type="string", description="Refund ID"),

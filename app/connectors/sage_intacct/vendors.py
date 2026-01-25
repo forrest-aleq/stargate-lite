@@ -118,9 +118,7 @@ class VendorMixin(GLMixin):
         if args.get("payment_term"):
             vendor_data["paymentTerm"] = {"key": args["payment_term"]}
         if args.get("default_expense_account"):
-            vendor_data["defaultExpenseGLAccount"] = {
-                "accountNo": args["default_expense_account"]
-            }
+            vendor_data["defaultExpenseGLAccount"] = {"accountNo": args["default_expense_account"]}
 
         if args.get("email"):
             vendor_data["primaryContact"] = vendor_data.get("primaryContact", {})
@@ -180,9 +178,7 @@ class VendorMixin(GLMixin):
         if args.get("email"):
             vendor_data["primaryContact"] = {"email1": args["email"]}
 
-        result = self._make_api_call(
-            "PATCH", f"objects/vendor/{vendor_id}", cred, data=vendor_data
-        )
+        result = self._make_api_call("PATCH", f"objects/vendor/{vendor_id}", cred, data=vendor_data)
         updated = result.get("ia::result", {})
 
         logger.info(
@@ -208,9 +204,7 @@ class VendorMixin(GLMixin):
             "vendor_type": vendor.get("vendorType", {}).get("id"),
             "tax_id": vendor.get("taxId"),
             "payment_term": vendor.get("paymentTerm", {}).get("key"),
-            "default_expense_account": vendor.get("defaultExpenseGLAccount", {}).get(
-                "accountNo"
-            ),
+            "default_expense_account": vendor.get("defaultExpenseGLAccount", {}).get("accountNo"),
             "email": contact.get("email1"),
             "phone": contact.get("phone1"),
             "address": {

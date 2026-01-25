@@ -28,9 +28,7 @@ SQUARE_PAYOUTS_LIST = CapabilitySchema(
         "end_time": ParameterSchema(
             type="string", required=False, description="Filter payouts before this time"
         ),
-        "cursor": ParameterSchema(
-            type="string", required=False, description="Pagination cursor"
-        ),
+        "cursor": ParameterSchema(type="string", required=False, description="Pagination cursor"),
         "limit": ParameterSchema(
             type="integer", required=False, description="Maximum payouts to return"
         ),

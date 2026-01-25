@@ -85,9 +85,7 @@ class ReportsMixin(BankMixin):
 
         return {"report": self._format_report(report), "status": "success"}
 
-    def get_balance_sheet(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_balance_sheet(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get Balance Sheet report.
 
         Args:
@@ -132,9 +130,7 @@ class ReportsMixin(BankMixin):
 
         return {"report": self._format_report(report), "status": "success"}
 
-    def get_trial_balance(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_trial_balance(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get Trial Balance report.
 
         Args:
@@ -210,9 +206,7 @@ class ReportsMixin(BankMixin):
 
         return {"report": self._format_report(report), "status": "success"}
 
-    def get_aged_payables(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_aged_payables(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get Aged Payables by Contact report.
 
         Args:
@@ -253,9 +247,7 @@ class ReportsMixin(BankMixin):
 
         return {"report": self._format_report(report), "status": "success"}
 
-    def get_budget_summary(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_budget_summary(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get Budget Summary report.
 
         Args:
@@ -275,9 +267,7 @@ class ReportsMixin(BankMixin):
         if args.get("timeframe"):
             params["timeframe"] = args["timeframe"]
 
-        result = self._make_api_call(
-            "GET", "Reports/BudgetSummary", cred, tenant_id, params=params
-        )
+        result = self._make_api_call("GET", "Reports/BudgetSummary", cred, tenant_id, params=params)
         reports = result.get("Reports", [])
 
         if not reports:
@@ -398,9 +388,7 @@ class ReportsMixin(BankMixin):
             "status": "success",
         }
 
-    def get_manual_journal(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_manual_journal(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get a specific manual journal entry.
 
         Args:

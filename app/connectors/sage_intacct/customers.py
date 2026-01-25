@@ -21,9 +21,7 @@ logger = get_logger(__name__)
 class CustomerMixin(APMixin):
     """Mixin providing Customer management capabilities."""
 
-    def list_customers(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_customers(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List customers.
 
         Args:
@@ -60,9 +58,7 @@ class CustomerMixin(APMixin):
             "status": "success",
         }
 
-    def get_customer(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_customer(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get a specific customer.
 
         Args:
@@ -82,9 +78,7 @@ class CustomerMixin(APMixin):
 
         return {"customer": self._format_customer(customer), "status": "success"}
 
-    def create_customer(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def create_customer(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Create a new customer.
 
         Args:
@@ -123,9 +117,7 @@ class CustomerMixin(APMixin):
         if args.get("parent_id"):
             customer_data["parent"] = {"id": args["parent_id"]}
         if args.get("email"):
-            customer_data["contacts"] = {
-                "primary": {"email": {"email1": args["email"]}}
-            }
+            customer_data["contacts"] = {"primary": {"email": {"email1": args["email"]}}}
         if args.get("phone"):
             if "contacts" not in customer_data:
                 customer_data["contacts"] = {"primary": {}}
@@ -171,9 +163,7 @@ class CustomerMixin(APMixin):
 
         return {"customer": self._format_customer(created), "status": "success"}
 
-    def update_customer(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def update_customer(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Update an existing customer.
 
         Args:

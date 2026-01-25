@@ -13,8 +13,10 @@ from app.schemas.gusto.employees import EMPLOYEE_SCHEMAS
 from app.schemas.gusto.payroll import PAYROLL_SCHEMAS
 from app.schemas.gusto.tax_forms import TAX_FORMS_SCHEMAS
 
+from app.schemas.base import CapabilitySchema
+
 # Export all schemas
-GUSTO_SCHEMAS: dict = {
+GUSTO_SCHEMAS: dict[str, CapabilitySchema] = {
     **COMPANY_SCHEMAS,
     **EMPLOYEE_SCHEMAS,
     **PAYROLL_SCHEMAS,

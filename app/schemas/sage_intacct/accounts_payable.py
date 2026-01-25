@@ -8,9 +8,18 @@ SAGE_VENDORS_LIST = CapabilitySchema(
     category="accounts_payable",
     description="List vendors from Sage Intacct",
     parameters={
-        "status": ParameterSchema(type="string", required=False, description="Filter by status", enum=["active", "inactive"]),
-        "vendor_type": ParameterSchema(type="string", required=False, description="Filter by vendor type"),
-        "page_size": ParameterSchema(type="integer", required=False, description="Number of results per page"),
+        "status": ParameterSchema(
+            type="string",
+            required=False,
+            description="Filter by status",
+            enum=["active", "inactive"],
+        ),
+        "vendor_type": ParameterSchema(
+            type="string", required=False, description="Filter by vendor type"
+        ),
+        "page_size": ParameterSchema(
+            type="integer", required=False, description="Number of results per page"
+        ),
     },
     returns={
         "vendors": ReturnFieldSchema(type="array", description="List of vendors"),
@@ -29,13 +38,21 @@ SAGE_VENDORS_CREATE = CapabilitySchema(
     category="accounts_payable",
     description="Create a vendor in Sage Intacct",
     parameters={
-        "vendor_id": ParameterSchema(type="string", required=True, description="Unique vendor identifier"),
+        "vendor_id": ParameterSchema(
+            type="string", required=True, description="Unique vendor identifier"
+        ),
         "name": ParameterSchema(type="string", required=True, description="Vendor display name"),
         "email": ParameterSchema(type="string", required=False, description="Vendor email address"),
         "phone": ParameterSchema(type="string", required=False, description="Vendor phone number"),
-        "tax_id": ParameterSchema(type="string", required=False, description="Tax identification number"),
-        "payment_term": ParameterSchema(type="string", required=False, description="Payment terms code"),
-        "address": ParameterSchema(type="object", required=False, description="Vendor address object"),
+        "tax_id": ParameterSchema(
+            type="string", required=False, description="Tax identification number"
+        ),
+        "payment_term": ParameterSchema(
+            type="string", required=False, description="Payment terms code"
+        ),
+        "address": ParameterSchema(
+            type="object", required=False, description="Vendor address object"
+        ),
     },
     returns={
         "vendor": ReturnFieldSchema(type="object", description="Created vendor"),
@@ -51,13 +68,24 @@ SAGE_BILLS_LIST = CapabilitySchema(
     category="accounts_payable",
     description="List AP bills from Sage Intacct",
     parameters={
-        "vendor_id": ParameterSchema(type="string", required=False, description="Filter by vendor ID"),
-        "status": ParameterSchema(
-            type="string", required=False, description="Filter by bill status", enum=["open", "paid", "partialPaid"]
+        "vendor_id": ParameterSchema(
+            type="string", required=False, description="Filter by vendor ID"
         ),
-        "date_from": ParameterSchema(type="string", required=False, description="Start date filter (YYYY-MM-DD)"),
-        "date_to": ParameterSchema(type="string", required=False, description="End date filter (YYYY-MM-DD)"),
-        "page_size": ParameterSchema(type="integer", required=False, description="Number of results per page"),
+        "status": ParameterSchema(
+            type="string",
+            required=False,
+            description="Filter by bill status",
+            enum=["open", "paid", "partialPaid"],
+        ),
+        "date_from": ParameterSchema(
+            type="string", required=False, description="Start date filter (YYYY-MM-DD)"
+        ),
+        "date_to": ParameterSchema(
+            type="string", required=False, description="End date filter (YYYY-MM-DD)"
+        ),
+        "page_size": ParameterSchema(
+            type="integer", required=False, description="Number of results per page"
+        ),
     },
     returns={
         "bills": ReturnFieldSchema(type="array", description="AP bills"),
@@ -76,16 +104,26 @@ SAGE_BILLS_CREATE = CapabilitySchema(
     category="accounts_payable",
     description="Create an AP bill in Sage Intacct",
     parameters={
-        "vendor_id": ParameterSchema(type="string", required=True, description="Vendor ID for the bill"),
-        "bill_date": ParameterSchema(type="string", required=True, description="Bill date (YYYY-MM-DD)"),
-        "due_date": ParameterSchema(type="string", required=False, description="Due date (YYYY-MM-DD)"),
-        "bill_number": ParameterSchema(type="string", required=False, description="External bill/invoice number"),
+        "vendor_id": ParameterSchema(
+            type="string", required=True, description="Vendor ID for the bill"
+        ),
+        "bill_date": ParameterSchema(
+            type="string", required=True, description="Bill date (YYYY-MM-DD)"
+        ),
+        "due_date": ParameterSchema(
+            type="string", required=False, description="Due date (YYYY-MM-DD)"
+        ),
+        "bill_number": ParameterSchema(
+            type="string", required=False, description="External bill/invoice number"
+        ),
         "lines": ParameterSchema(
             type="array",
             required=True,
             description="Bill lines with gl_account, amount, memo",
         ),
-        "description": ParameterSchema(type="string", required=False, description="Bill description or memo"),
+        "description": ParameterSchema(
+            type="string", required=False, description="Bill description or memo"
+        ),
     },
     returns={
         "bill": ReturnFieldSchema(type="object", description="Created bill"),
@@ -105,7 +143,9 @@ SAGE_BILLS_POST = CapabilitySchema(
     category="accounts_payable",
     description="Post a draft AP bill in Sage Intacct",
     parameters={
-        "bill_key": ParameterSchema(type="string", required=True, description="Sage Intacct bill record key"),
+        "bill_key": ParameterSchema(
+            type="string", required=True, description="Sage Intacct bill record key"
+        ),
     },
     returns={
         "bill_key": ReturnFieldSchema(type="string", description="Posted bill key"),
@@ -121,15 +161,23 @@ SAGE_BILL_PAYMENTS_CREATE = CapabilitySchema(
     category="accounts_payable",
     description="Create a bill payment in Sage Intacct",
     parameters={
-        "bank_account_id": ParameterSchema(type="string", required=True, description="Bank account ID for payment"),
-        "payment_date": ParameterSchema(type="string", required=True, description="Payment date (YYYY-MM-DD)"),
+        "bank_account_id": ParameterSchema(
+            type="string", required=True, description="Bank account ID for payment"
+        ),
+        "payment_date": ParameterSchema(
+            type="string", required=True, description="Payment date (YYYY-MM-DD)"
+        ),
         "bills": ParameterSchema(
             type="array",
             required=True,
             description="Bills to pay with bill_key and amount",
         ),
-        "payment_method": ParameterSchema(type="string", required=False, description="Payment method (check, ACH, wire)"),
-        "reference_number": ParameterSchema(type="string", required=False, description="Check or reference number"),
+        "payment_method": ParameterSchema(
+            type="string", required=False, description="Payment method (check, ACH, wire)"
+        ),
+        "reference_number": ParameterSchema(
+            type="string", required=False, description="Check or reference number"
+        ),
     },
     returns={
         "payment": ReturnFieldSchema(type="object", description="Created payment"),

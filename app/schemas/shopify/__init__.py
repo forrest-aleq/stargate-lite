@@ -14,8 +14,10 @@ from app.schemas.shopify.payments import PAYMENT_SCHEMAS
 from app.schemas.shopify.products import PRODUCT_SCHEMAS
 from app.schemas.shopify.shop import SHOP_SCHEMAS
 
+from app.schemas.base import CapabilitySchema
+
 # Export all schemas
-SHOPIFY_SCHEMAS: dict = {
+SHOPIFY_SCHEMAS: dict[str, CapabilitySchema] = {
     **SHOP_SCHEMAS,
     **ORDER_SCHEMAS,
     **PAYMENT_SCHEMAS,

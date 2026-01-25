@@ -14,8 +14,10 @@ from app.schemas.square.orders import ORDER_SCHEMAS
 from app.schemas.square.payments import PAYMENT_SCHEMAS
 from app.schemas.square.payouts import PAYOUT_SCHEMAS
 
+from app.schemas.base import CapabilitySchema
+
 # Export all schemas
-SQUARE_SCHEMAS: dict = {
+SQUARE_SCHEMAS: dict[str, CapabilitySchema] = {
     **LOCATION_SCHEMAS,
     **PAYMENT_SCHEMAS,
     **ORDER_SCHEMAS,

@@ -13,12 +13,8 @@ SQUARE_INVOICES_LIST = CapabilitySchema(
     category="invoices",
     description="List invoices from Square",
     parameters={
-        "location_id": ParameterSchema(
-            type="string", required=True, description="Location ID"
-        ),
-        "cursor": ParameterSchema(
-            type="string", required=False, description="Pagination cursor"
-        ),
+        "location_id": ParameterSchema(type="string", required=True, description="Location ID"),
+        "cursor": ParameterSchema(type="string", required=False, description="Pagination cursor"),
         "limit": ParameterSchema(
             type="integer", required=False, description="Maximum invoices to return"
         ),
@@ -65,9 +61,7 @@ SQUARE_INVOICES_CREATE = CapabilitySchema(
         "idempotency_key": ParameterSchema(
             type="string", required=True, description="Unique key for idempotency"
         ),
-        "location_id": ParameterSchema(
-            type="string", required=True, description="Location ID"
-        ),
+        "location_id": ParameterSchema(type="string", required=True, description="Location ID"),
         "order_id": ParameterSchema(
             type="string", required=True, description="Order ID to invoice"
         ),
@@ -138,9 +132,7 @@ SQUARE_INVOICES_PUBLISH = CapabilitySchema(
     },
     returns={
         "invoice_id": ReturnFieldSchema(type="string", description="Published invoice ID"),
-        "status": ReturnFieldSchema(
-            type="string", description="Should be UNPAID or SCHEDULED"
-        ),
+        "status": ReturnFieldSchema(type="string", description="Should be UNPAID or SCHEDULED"),
         "public_url": ReturnFieldSchema(type="string", description="Customer payment URL"),
     },
     workflow=WorkflowHints(

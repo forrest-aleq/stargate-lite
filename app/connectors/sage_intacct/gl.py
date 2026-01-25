@@ -209,9 +209,7 @@ class GLMixin(SageIntacctBase):
             "status": "success",
         }
 
-    def get_journal_entry(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_journal_entry(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get a specific journal entry.
 
         Args:
@@ -262,9 +260,7 @@ class GLMixin(SageIntacctBase):
         lines = args["lines"]
         total = sum(line.get("amount", 0) for line in lines)
         if abs(total) > 0.01:
-            raise ValidationError(
-                "lines", f"Journal does not balance: total={total}"
-            )
+            raise ValidationError("lines", f"Journal does not balance: total={total}")
 
         journal_data: dict[str, Any] = {
             "journal": {"key": args["journal_symbol"]},
@@ -291,9 +287,7 @@ class GLMixin(SageIntacctBase):
 
         return {"journal": self._format_journal_entry(created), "status": "success"}
 
-    def post_journal_entry(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def post_journal_entry(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Post a draft journal entry.
 
         Args:
@@ -306,8 +300,7 @@ class GLMixin(SageIntacctBase):
             raise ValidationError("journal_key", "journal_key is required")
 
         self._make_api_call(
-            "PATCH", f"objects/gl-batch/{journal_key}", cred,
-            data={"state": "posted"}
+            "PATCH", f"objects/gl-batch/{journal_key}", cred, data={"state": "posted"}
         )
 
         logger.info(
@@ -364,9 +357,7 @@ class GLMixin(SageIntacctBase):
 
         return self.create_journal_entry(org_id, user_id, reversal_args)
 
-    def get_trial_balance(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_trial_balance(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get trial balance report.
 
         Args:

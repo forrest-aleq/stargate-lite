@@ -24,9 +24,7 @@ logger = get_logger(__name__)
 class CashManagementMixin(ARMixin):
     """Mixin providing Cash Management capabilities."""
 
-    def list_bank_accounts(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_bank_accounts(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List checking accounts (bank accounts).
 
         Args:
@@ -48,9 +46,7 @@ class CashManagementMixin(ARMixin):
             params["filter"] = " and ".join(filters)
 
         page_size = args.get("page_size", 100)
-        accounts = self._paginate(
-            "objects/checking-account", cred, params, page_size=page_size
-        )
+        accounts = self._paginate("objects/checking-account", cred, params, page_size=page_size)
 
         logger.info(
             "Sage Intacct bank accounts listed",
@@ -65,9 +61,7 @@ class CashManagementMixin(ARMixin):
             "status": "success",
         }
 
-    def get_bank_account(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_bank_account(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get a specific bank account.
 
         Args:
@@ -79,9 +73,7 @@ class CashManagementMixin(ARMixin):
         if not bank_account_id:
             raise ValidationError("bank_account_id", "bank_account_id is required")
 
-        result = self._make_api_call(
-            "GET", f"objects/checking-account/{bank_account_id}", cred
-        )
+        result = self._make_api_call("GET", f"objects/checking-account/{bank_account_id}", cred)
         account = result.get("ia::result", {})
 
         if not account:
@@ -108,9 +100,7 @@ class CashManagementMixin(ARMixin):
         if args.get("as_of_date"):
             params["asOfDate"] = args["as_of_date"]
 
-        result = self._make_api_call(
-            "GET", "services/cash-management/balance", cred, params=params
-        )
+        result = self._make_api_call("GET", "services/cash-management/balance", cred, params=params)
         data = result.get("ia::result", {})
 
         logger.info(
@@ -163,9 +153,7 @@ class CashManagementMixin(ARMixin):
             params["filter"] = " and ".join(filters)
 
         page_size = args.get("page_size", 100)
-        transactions = self._paginate(
-            "objects/other-receipt", cred, params, page_size=page_size
-        )
+        transactions = self._paginate("objects/other-receipt", cred, params, page_size=page_size)
 
         logger.info(
             "Sage Intacct bank transactions listed",
@@ -180,9 +168,7 @@ class CashManagementMixin(ARMixin):
             "status": "success",
         }
 
-    def create_deposit(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def create_deposit(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Create a bank deposit.
 
         Args:
@@ -285,9 +271,7 @@ class CashManagementMixin(ARMixin):
         if args.get("reference_no"):
             transfer_data["referenceNo"] = args["reference_no"]
 
-        result = self._make_api_call(
-            "POST", "objects/fund-transfer", cred, data=transfer_data
-        )
+        result = self._make_api_call("POST", "objects/fund-transfer", cred, data=transfer_data)
         created = result.get("ia::result", {})
 
         logger.info(
@@ -397,18 +381,13 @@ class CashManagementMixin(ARMixin):
 
         clear_data: dict[str, Any] = {
             "checkingAccount": {"id": bank_account_id},
-            "items": [
-                {"key": key, "cleared": True}
-                for key in args["transaction_keys"]
-            ],
+            "items": [{"key": key, "cleared": True} for key in args["transaction_keys"]],
         }
 
         if args.get("clear_date"):
             clear_data["clearedDate"] = args["clear_date"]
 
-        self._make_api_call(
-            "POST", "services/cash-management/mark-cleared", cred, data=clear_data
-        )
+        self._make_api_call("POST", "services/cash-management/mark-cleared", cred, data=clear_data)
 
         logger.info(
             "Sage Intacct transactions marked cleared",
@@ -470,24 +449,18 @@ class CashManagementMixin(ARMixin):
                 "changes_in_working_capital": data.get("operatingActivities", {}).get(
                     "changesInWorkingCapital"
                 ),
-                "net_cash_from_operating": data.get("operatingActivities", {}).get(
-                    "netCash"
-                ),
+                "net_cash_from_operating": data.get("operatingActivities", {}).get("netCash"),
             },
             "investing_activities": {
                 "purchases": data.get("investingActivities", {}).get("purchases"),
                 "sales": data.get("investingActivities", {}).get("sales"),
-                "net_cash_from_investing": data.get("investingActivities", {}).get(
-                    "netCash"
-                ),
+                "net_cash_from_investing": data.get("investingActivities", {}).get("netCash"),
             },
             "financing_activities": {
                 "debt_proceeds": data.get("financingActivities", {}).get("debtProceeds"),
                 "debt_payments": data.get("financingActivities", {}).get("debtPayments"),
                 "dividends_paid": data.get("financingActivities", {}).get("dividendsPaid"),
-                "net_cash_from_financing": data.get("financingActivities", {}).get(
-                    "netCash"
-                ),
+                "net_cash_from_financing": data.get("financingActivities", {}).get("netCash"),
             },
             "net_change_in_cash": data.get("netChangeInCash"),
             "beginning_cash": data.get("beginningCash"),

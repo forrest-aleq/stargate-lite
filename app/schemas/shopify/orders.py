@@ -86,9 +86,7 @@ SHOPIFY_ORDERS_COUNT = CapabilitySchema(
     category="orders",
     description="Get order count from Shopify",
     parameters={
-        "status": ParameterSchema(
-            type="string", required=False, description="Order status filter"
-        ),
+        "status": ParameterSchema(type="string", required=False, description="Order status filter"),
         "financial_status": ParameterSchema(
             type="string", required=False, description="Financial status filter"
         ),
@@ -149,9 +147,7 @@ SHOPIFY_ORDER_UPDATE = CapabilitySchema(
     category="orders",
     description="Update an order in Shopify",
     parameters={
-        "order_id": ParameterSchema(
-            type="string", required=True, description="Shopify order ID"
-        ),
+        "order_id": ParameterSchema(type="string", required=True, description="Shopify order ID"),
         "note": ParameterSchema(type="string", required=False, description="Order note"),
         "tags": ParameterSchema(type="string", required=False, description="Comma-separated tags"),
         "email": ParameterSchema(type="string", required=False, description="Customer email"),
@@ -173,18 +169,14 @@ SHOPIFY_ORDER_CANCEL = CapabilitySchema(
     category="orders",
     description="Cancel an order in Shopify",
     parameters={
-        "order_id": ParameterSchema(
-            type="string", required=True, description="Shopify order ID"
-        ),
+        "order_id": ParameterSchema(type="string", required=True, description="Shopify order ID"),
         "reason": ParameterSchema(
             type="string",
             required=False,
             enum=["customer", "fraud", "inventory", "declined", "other"],
             description="Cancellation reason",
         ),
-        "restock": ParameterSchema(
-            type="boolean", required=False, description="Restock inventory"
-        ),
+        "restock": ParameterSchema(type="boolean", required=False, description="Restock inventory"),
         "email": ParameterSchema(
             type="boolean", required=False, description="Send cancellation email to customer"
         ),

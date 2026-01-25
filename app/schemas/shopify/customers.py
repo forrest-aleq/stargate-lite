@@ -107,9 +107,7 @@ SHOPIFY_CUSTOMERS_UPDATE = CapabilitySchema(
         "phone": ParameterSchema(
             type="string", required=False, description="Customer phone number"
         ),
-        "tags": ParameterSchema(
-            type="string", required=False, description="Comma-separated tags"
-        ),
+        "tags": ParameterSchema(type="string", required=False, description="Comma-separated tags"),
     },
     returns={
         "id": ReturnFieldSchema(type="string", description="Customer ID"),

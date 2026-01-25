@@ -233,9 +233,7 @@ class ShopifyOrdersMixin:
         )
 
         r = result.get("refund", result)
-        total_refunded = sum(
-            float(t.get("amount", 0)) for t in r.get("transactions", [])
-        )
+        total_refunded = sum(float(t.get("amount", 0)) for t in r.get("transactions", []))
         return {
             "refund_id": str(r["id"]),
             "total_refunded": str(total_refunded),

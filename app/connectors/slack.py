@@ -365,7 +365,8 @@ class SlackConnector:
                 query=query, count=count, sort=sort, sort_dir=sort_dir
             )
 
-            matches = response.get("messages", {}).get("matches", [])
+            messages_data = response.get("messages") or {}
+            matches = messages_data.get("matches", [])
             messages = [
                 {
                     "text": msg.get("text"),
@@ -383,7 +384,7 @@ class SlackConnector:
                 "query": query,
                 "messages": messages,
                 "count": len(messages),
-                "total": response.get("messages", {}).get("total", 0),
+                "total": messages_data.get("total", 0),
             }
 
         except SlackApiError as e:

@@ -292,9 +292,7 @@ class ReconciliationMixin(FinancialOpsBase):
             )
         return normalized
 
-    def _is_exact_match(
-        self, gl: dict[str, Any], bank: dict[str, Any], tolerance: Decimal
-    ) -> bool:
+    def _is_exact_match(self, gl: dict[str, Any], bank: dict[str, Any], tolerance: Decimal) -> bool:
         """Check if two transactions are exact matches."""
         amount_diff = abs(gl["amount"] - bank["amount"])
         date_diff = abs((gl["date"] - bank["date"]).days)

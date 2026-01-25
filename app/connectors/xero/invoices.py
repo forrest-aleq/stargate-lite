@@ -500,9 +500,7 @@ class InvoicesMixin(ContactsMixin):
             "updated_date": invoice.get("UpdatedDateUTC"),
         }
 
-    def _format_line_items_for_api(
-        self, line_items: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def _format_line_items_for_api(self, line_items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Format line items for Xero API request."""
         formatted: list[dict[str, Any]] = []
         for li in line_items:

@@ -56,6 +56,7 @@ def _validate_shopify_hmac(
     if not hmac.compare_digest(computed_hmac, hmac_param):
         raise HTTPException(status_code=400, detail="Invalid HMAC signature")
 
+
 # Square OAuth endpoints
 # Production: connect.squareup.com
 # Sandbox: connect.squareupsandbox.com
@@ -113,20 +114,22 @@ async def shopify_oauth_authorize(
 
     # Shopify scopes for e-commerce access
     # https://shopify.dev/docs/api/usage/access-scopes
-    scopes = ",".join([
-        "read_orders",
-        "write_orders",
-        "read_products",
-        "write_products",
-        "read_customers",
-        "write_customers",
-        "read_inventory",
-        "write_inventory",
-        "read_fulfillments",
-        "write_fulfillments",
-        "read_shipping",
-        "write_shipping",
-    ])
+    scopes = ",".join(
+        [
+            "read_orders",
+            "write_orders",
+            "read_products",
+            "write_products",
+            "read_customers",
+            "write_customers",
+            "read_inventory",
+            "write_inventory",
+            "read_fulfillments",
+            "write_fulfillments",
+            "read_shipping",
+            "write_shipping",
+        ]
+    )
 
     params = {
         "client_id": client_id,
@@ -195,7 +198,7 @@ async def shopify_oauth_callback(
         access_token=token_data["access_token"],
         refresh_token=None,
         token_expiry=datetime.utcnow() + timedelta(days=3650),
-        shop=callback_shop,
+        extra_data={"shop": callback_shop},
     )
 
     logger.info("Shopify OAuth completed", org_id=org_id, shop=callback_shop)
@@ -244,22 +247,24 @@ async def square_oauth_authorize(
 
     # Square OAuth scopes
     # https://developer.squareup.com/docs/oauth-api/square-permissions
-    scopes = " ".join([
-        "MERCHANT_PROFILE_READ",
-        "PAYMENTS_READ",
-        "PAYMENTS_WRITE",
-        "ORDERS_READ",
-        "ORDERS_WRITE",
-        "CUSTOMERS_READ",
-        "CUSTOMERS_WRITE",
-        "INVOICES_READ",
-        "INVOICES_WRITE",
-        "INVENTORY_READ",
-        "INVENTORY_WRITE",
-        "ITEMS_READ",
-        "ITEMS_WRITE",
-        "BANK_ACCOUNTS_READ",
-    ])
+    scopes = " ".join(
+        [
+            "MERCHANT_PROFILE_READ",
+            "PAYMENTS_READ",
+            "PAYMENTS_WRITE",
+            "ORDERS_READ",
+            "ORDERS_WRITE",
+            "CUSTOMERS_READ",
+            "CUSTOMERS_WRITE",
+            "INVOICES_READ",
+            "INVOICES_WRITE",
+            "INVENTORY_READ",
+            "INVENTORY_WRITE",
+            "ITEMS_READ",
+            "ITEMS_WRITE",
+            "BANK_ACCOUNTS_READ",
+        ]
+    )
 
     params = {
         "client_id": client_id,
@@ -359,7 +364,7 @@ async def square_oauth_callback(code: str, state: str) -> dict[str, Any]:
         access_token=token_data["access_token"],
         refresh_token=token_data.get("refresh_token"),
         token_expiry=token_expiry,
-        merchant_id=token_data.get("merchant_id"),  # Store merchant ID for API calls
+        extra_data={"merchant_id": token_data.get("merchant_id")},
     )
 
     logger.info(

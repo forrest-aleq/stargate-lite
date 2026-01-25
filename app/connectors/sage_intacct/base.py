@@ -55,9 +55,7 @@ class SageIntacctBase:
                 user_id=user_id,
                 log_event="token_refresh_needed",
             )
-            return self._refresh_token(
-                org_id, user_id, cred["refresh_token"], cred.get("realm_id")
-            )
+            return self._refresh_token(org_id, user_id, cred["refresh_token"], cred.get("realm_id"))
 
         return cred
 
@@ -193,35 +191,50 @@ class SageIntacctBase:
         try:
             if method == "GET":
                 return http_client.get(
-                    url=url, service="sage_intacct", headers=headers,
-                    params=params, timeout=self.DEFAULT_TIMEOUT
+                    url=url,
+                    service="sage_intacct",
+                    headers=headers,
+                    params=params,
+                    timeout=self.DEFAULT_TIMEOUT,
                 )
             elif method == "POST":
                 return http_client.post(
-                    url=url, service="sage_intacct", headers=headers,
-                    json=data, timeout=self.DEFAULT_TIMEOUT
+                    url=url,
+                    service="sage_intacct",
+                    headers=headers,
+                    json=data,
+                    timeout=self.DEFAULT_TIMEOUT,
                 )
             elif method == "PUT":
                 return http_client.put(
-                    url=url, service="sage_intacct", headers=headers,
-                    json=data, timeout=self.DEFAULT_TIMEOUT
+                    url=url,
+                    service="sage_intacct",
+                    headers=headers,
+                    json=data,
+                    timeout=self.DEFAULT_TIMEOUT,
                 )
             elif method == "PATCH":
                 return http_client.patch(
-                    url=url, service="sage_intacct", headers=headers,
-                    json=data, timeout=self.DEFAULT_TIMEOUT
+                    url=url,
+                    service="sage_intacct",
+                    headers=headers,
+                    json=data,
+                    timeout=self.DEFAULT_TIMEOUT,
                 )
             elif method == "DELETE":
                 return http_client.delete(
-                    url=url, service="sage_intacct", headers=headers,
-                    timeout=self.DEFAULT_TIMEOUT
+                    url=url, service="sage_intacct", headers=headers, timeout=self.DEFAULT_TIMEOUT
                 )
             else:
                 return cast(
                     dict[str, Any],
                     http_client.request(
-                        method=method, url=url, service="sage_intacct",
-                        headers=headers, json=data, timeout=self.DEFAULT_TIMEOUT
+                        method=method,
+                        url=url,
+                        service="sage_intacct",
+                        headers=headers,
+                        json=data,
+                        timeout=self.DEFAULT_TIMEOUT,
                     ),
                 )
         except Exception as e:
@@ -274,9 +287,7 @@ class SageIntacctBase:
 
         return all_results
 
-    def get_company_info(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_company_info(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get company information from Sage Intacct."""
         cred = self._get_access_token(org_id, user_id)
         company_id = self._get_company_id(cred)

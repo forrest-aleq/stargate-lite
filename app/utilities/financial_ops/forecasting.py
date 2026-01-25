@@ -82,9 +82,7 @@ class ForecastingMixin(TieredFeesMixin):
             "known_items": args.get("known_items", []),
         }
 
-    def _parse_historical_data(
-        self, historical_data: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def _parse_historical_data(self, historical_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Parse and sort historical data."""
         parsed: list[dict[str, Any]] = []
         for item in historical_data:

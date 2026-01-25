@@ -85,7 +85,9 @@ SAGE_JOURNALS_LIST = CapabilitySchema(
             description="Filter by state",
             enum=["draft", "posted"],
         ),
-        "page_size": ParameterSchema(type="integer", required=False, description="Results per page"),
+        "page_size": ParameterSchema(
+            type="integer", required=False, description="Results per page"
+        ),
     },
     returns={
         "journals": ReturnFieldSchema(type="array", description="Journal entries"),
@@ -108,13 +110,17 @@ SAGE_JOURNALS_CREATE = CapabilitySchema(
         "journal_date": ParameterSchema(
             type="string", required=True, description="Journal date (YYYY-MM-DD)"
         ),
-        "description": ParameterSchema(type="string", required=False, description="Journal description"),
+        "description": ParameterSchema(
+            type="string", required=False, description="Journal description"
+        ),
         "lines": ParameterSchema(
             type="array",
             required=True,
             description="Journal lines with account_no, amount, memo, debit/credit",
         ),
-        "reference_number": ParameterSchema(type="string", required=False, description="External reference"),
+        "reference_number": ParameterSchema(
+            type="string", required=False, description="External reference"
+        ),
     },
     returns={
         "journal_entry": ReturnFieldSchema(type="object", description="Created journal"),
@@ -134,7 +140,9 @@ SAGE_JOURNALS_POST = CapabilitySchema(
     category="general_ledger",
     description="Post a draft journal entry in Sage Intacct",
     parameters={
-        "journal_key": ParameterSchema(type="string", required=True, description="Journal key to post"),
+        "journal_key": ParameterSchema(
+            type="string", required=True, description="Journal key to post"
+        ),
     },
     returns={
         "journal_key": ReturnFieldSchema(type="string", description="Posted journal key"),

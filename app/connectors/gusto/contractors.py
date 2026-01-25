@@ -87,7 +87,9 @@ class GustoContractorsMixin:
             "id": result["uuid"],
         }
 
-    def list_contractor_payments(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    def list_contractor_payments(
+        self, org_id: str, user_id: str, args: dict[str, Any]
+    ) -> dict[str, Any]:
         """List contractor payments from Gusto"""
         cred = self._get_access_token(org_id, user_id)
         company_id = args["company_id"]

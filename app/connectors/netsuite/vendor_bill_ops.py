@@ -18,9 +18,7 @@ logger = get_logger(__name__)
 class VendorBillMixin(NetSuiteBase):
     """Mixin with vendor bill operations."""
 
-    def create_vendor_bill(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def create_vendor_bill(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """
         Create a vendor bill in NetSuite.
 
@@ -81,9 +79,7 @@ class VendorBillMixin(NetSuiteBase):
             "status": result.get("status", "pendingApproval"),
         }
 
-    def _format_expense_lines(
-        self, raw_lines: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def _format_expense_lines(self, raw_lines: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Format expense lines for NetSuite REST API."""
         formatted_lines = []
         for line in raw_lines:
@@ -100,9 +96,7 @@ class VendorBillMixin(NetSuiteBase):
             formatted_lines.append(formatted_line)
         return formatted_lines
 
-    def get_vendor_bill(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_vendor_bill(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get a vendor bill by ID."""
         cred = self._get_credentials(org_id, user_id)
 
@@ -130,9 +124,7 @@ class VendorBillMixin(NetSuiteBase):
             "expense_lines": result.get("expense", {}).get("items", []),
         }
 
-    def list_vendor_bills(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_vendor_bills(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """
         List vendor bills using SuiteQL.
 

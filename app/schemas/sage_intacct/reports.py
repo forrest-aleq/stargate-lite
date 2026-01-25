@@ -8,11 +8,17 @@ SAGE_TRIAL_BALANCE = CapabilitySchema(
     category="reports",
     description="Get trial balance report from Sage Intacct",
     parameters={
-        "as_of_date": ParameterSchema(type="string", required=False, description="Report as-of date (YYYY-MM-DD)"),
-        "reporting_period": ParameterSchema(type="string", required=False, description="Reporting period key"),
+        "as_of_date": ParameterSchema(
+            type="string", required=False, description="Report as-of date (YYYY-MM-DD)"
+        ),
+        "reporting_period": ParameterSchema(
+            type="string", required=False, description="Reporting period key"
+        ),
     },
     returns={
-        "accounts": ReturnFieldSchema(type="array", description="Accounts with debit/credit balances"),
+        "accounts": ReturnFieldSchema(
+            type="array", description="Accounts with debit/credit balances"
+        ),
         "total_debits": ReturnFieldSchema(type="number", description="Total debits"),
         "total_credits": ReturnFieldSchema(type="number", description="Total credits"),
     },
@@ -26,8 +32,12 @@ SAGE_AP_AGING = CapabilitySchema(
     category="reports",
     description="Get AP aging report from Sage Intacct",
     parameters={
-        "as_of_date": ParameterSchema(type="string", required=False, description="Report as-of date (YYYY-MM-DD)"),
-        "vendor_id": ParameterSchema(type="string", required=False, description="Filter by vendor ID"),
+        "as_of_date": ParameterSchema(
+            type="string", required=False, description="Report as-of date (YYYY-MM-DD)"
+        ),
+        "vendor_id": ParameterSchema(
+            type="string", required=False, description="Filter by vendor ID"
+        ),
     },
     returns={
         "aging": ReturnFieldSchema(
@@ -46,8 +56,12 @@ SAGE_AR_AGING = CapabilitySchema(
     category="reports",
     description="Get AR aging report from Sage Intacct",
     parameters={
-        "as_of_date": ParameterSchema(type="string", required=False, description="Report as-of date (YYYY-MM-DD)"),
-        "customer_id": ParameterSchema(type="string", required=False, description="Filter by customer ID"),
+        "as_of_date": ParameterSchema(
+            type="string", required=False, description="Report as-of date (YYYY-MM-DD)"
+        ),
+        "customer_id": ParameterSchema(
+            type="string", required=False, description="Filter by customer ID"
+        ),
     },
     returns={
         "aging": ReturnFieldSchema(
@@ -66,8 +80,12 @@ SAGE_CASH_FLOW = CapabilitySchema(
     category="reports",
     description="Get cash flow statement from Sage Intacct",
     parameters={
-        "start_date": ParameterSchema(type="string", required=True, description="Period start date (YYYY-MM-DD)"),
-        "end_date": ParameterSchema(type="string", required=True, description="Period end date (YYYY-MM-DD)"),
+        "start_date": ParameterSchema(
+            type="string", required=True, description="Period start date (YYYY-MM-DD)"
+        ),
+        "end_date": ParameterSchema(
+            type="string", required=True, description="Period end date (YYYY-MM-DD)"
+        ),
     },
     returns={
         "operating": ReturnFieldSchema(type="object", description="Operating activities"),

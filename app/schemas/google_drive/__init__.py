@@ -157,9 +157,7 @@ GDRIVE_FILE_LIST = CapabilitySchema(
             description="List of file objects with id, name, mimeType, size, timestamps",
         ),
         "count": ReturnFieldSchema(type="integer", description="Number of files returned"),
-        "next_page_token": ReturnFieldSchema(
-            type="string", description="Token for pagination"
-        ),
+        "next_page_token": ReturnFieldSchema(type="string", description="Token for pagination"),
     },
     errors=[
         ErrorHint(

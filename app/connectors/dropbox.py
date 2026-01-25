@@ -192,6 +192,7 @@ class DropboxConnector:
         # Metadata is in response header
         metadata_str = response.headers.get("Dropbox-API-Result", "{}")
         import json
+
         metadata = json.loads(metadata_str)
 
         # Encode as base64

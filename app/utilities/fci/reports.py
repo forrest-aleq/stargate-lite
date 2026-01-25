@@ -545,10 +545,12 @@ class ReportsMixin:
                     for sub_row in row.get("Rows", {}).get("Row", []):
                         sub_cols = sub_row.get("ColData", [])
                         if len(sub_cols) >= 2:
-                            data["income_breakdown"].append({
-                                "category": sub_cols[0].get("value", "Other"),
-                                "amount": float(sub_cols[-1].get("value", 0) or 0),
-                            })
+                            data["income_breakdown"].append(
+                                {
+                                    "category": sub_cols[0].get("value", "Other"),
+                                    "amount": float(sub_cols[-1].get("value", 0) or 0),
+                                }
+                            )
 
                 elif "expense" in group or "cost" in group:
                     if col_data:
@@ -556,10 +558,12 @@ class ReportsMixin:
                     for sub_row in row.get("Rows", {}).get("Row", []):
                         sub_cols = sub_row.get("ColData", [])
                         if len(sub_cols) >= 2:
-                            data["expense_breakdown"].append({
-                                "category": sub_cols[0].get("value", "Other"),
-                                "amount": abs(float(sub_cols[-1].get("value", 0) or 0)),
-                            })
+                            data["expense_breakdown"].append(
+                                {
+                                    "category": sub_cols[0].get("value", "Other"),
+                                    "amount": abs(float(sub_cols[-1].get("value", 0) or 0)),
+                                }
+                            )
 
                 elif "gross" in group:
                     if col_data:
@@ -651,14 +655,16 @@ class ReportsMixin:
 
         # Use the basic AR aging parser first
         ar_basic = self._parse_ar_aging(service, result)
-        data.update({
-            "total": ar_basic["total"],
-            "current": ar_basic["current"],
-            "days_30": ar_basic["days_30"],
-            "days_60": ar_basic["days_60"],
-            "days_90": ar_basic["days_90"],
-            "over_90": ar_basic["over_90"],
-        })
+        data.update(
+            {
+                "total": ar_basic["total"],
+                "current": ar_basic["current"],
+                "days_30": ar_basic["days_30"],
+                "days_60": ar_basic["days_60"],
+                "days_90": ar_basic["days_90"],
+                "over_90": ar_basic["over_90"],
+            }
+        )
 
         # Extract customer details if available
         if service == "quickbooks":
@@ -671,15 +677,17 @@ class ReportsMixin:
                         customer_name = col_data[0].get("value", "Unknown")
                         summary = row.get("Summary", {}).get("ColData", [])
                         if len(summary) >= 6:
-                            data["customers"].append({
-                                "name": customer_name,
-                                "current": float(summary[1].get("value", 0) or 0),
-                                "days_30": float(summary[2].get("value", 0) or 0),
-                                "days_60": float(summary[3].get("value", 0) or 0),
-                                "days_90": float(summary[4].get("value", 0) or 0),
-                                "over_90": float(summary[5].get("value", 0) or 0),
-                                "total": float(summary[-1].get("value", 0) or 0),
-                            })
+                            data["customers"].append(
+                                {
+                                    "name": customer_name,
+                                    "current": float(summary[1].get("value", 0) or 0),
+                                    "days_30": float(summary[2].get("value", 0) or 0),
+                                    "days_60": float(summary[3].get("value", 0) or 0),
+                                    "days_90": float(summary[4].get("value", 0) or 0),
+                                    "over_90": float(summary[5].get("value", 0) or 0),
+                                    "total": float(summary[-1].get("value", 0) or 0),
+                                }
+                            )
 
         return data
 
@@ -701,14 +709,16 @@ class ReportsMixin:
 
         # Use the basic AP aging parser first
         ap_basic = self._parse_ap_aging(service, result)
-        data.update({
-            "total": ap_basic["total"],
-            "current": ap_basic["current"],
-            "days_30": ap_basic["days_30"],
-            "days_60": ap_basic["days_60"],
-            "days_90": ap_basic["days_90"],
-            "over_90": ap_basic["over_90"],
-        })
+        data.update(
+            {
+                "total": ap_basic["total"],
+                "current": ap_basic["current"],
+                "days_30": ap_basic["days_30"],
+                "days_60": ap_basic["days_60"],
+                "days_90": ap_basic["days_90"],
+                "over_90": ap_basic["over_90"],
+            }
+        )
 
         # Extract vendor details if available
         if service == "quickbooks":
@@ -721,15 +731,17 @@ class ReportsMixin:
                         vendor_name = col_data[0].get("value", "Unknown")
                         summary = row.get("Summary", {}).get("ColData", [])
                         if len(summary) >= 6:
-                            data["vendors"].append({
-                                "name": vendor_name,
-                                "current": float(summary[1].get("value", 0) or 0),
-                                "days_30": float(summary[2].get("value", 0) or 0),
-                                "days_60": float(summary[3].get("value", 0) or 0),
-                                "days_90": float(summary[4].get("value", 0) or 0),
-                                "over_90": float(summary[5].get("value", 0) or 0),
-                                "total": float(summary[-1].get("value", 0) or 0),
-                            })
+                            data["vendors"].append(
+                                {
+                                    "name": vendor_name,
+                                    "current": float(summary[1].get("value", 0) or 0),
+                                    "days_30": float(summary[2].get("value", 0) or 0),
+                                    "days_60": float(summary[3].get("value", 0) or 0),
+                                    "days_90": float(summary[4].get("value", 0) or 0),
+                                    "over_90": float(summary[5].get("value", 0) or 0),
+                                    "total": float(summary[-1].get("value", 0) or 0),
+                                }
+                            )
 
         return data
 

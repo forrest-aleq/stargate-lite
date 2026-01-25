@@ -68,9 +68,7 @@ class ExpensesMixin:
         start_date, end_date = self._parse_period(period, None, from_date, to_date)
 
         # Get primary accounting system for P&L-based expenses
-        primary_service = self._get_primary_accounting_service(
-            org_id, user_id, PL_REPORT_SERVICES
-        )
+        primary_service = self._get_primary_accounting_service(org_id, user_id, PL_REPORT_SERVICES)
 
         expense_data = {
             "total": 0.0,
@@ -114,9 +112,7 @@ class ExpensesMixin:
 
         # Calculate change
         current_value = expense_data["total"]
-        prior_total = self._get_prior_expenses(
-            org_id, user_id, current_value, period
-        )
+        prior_total = self._get_prior_expenses(org_id, user_id, current_value, period)
         change, change_percent = self._calculate_change(current_value, prior_total)
 
         # Determine trend direction
@@ -311,7 +307,7 @@ class ExpensesMixin:
             largest = max(categories, key=lambda x: x.get("amount", 0))
             largest_pct = (largest["amount"] / total * 100) if total > 0 else 0
             if largest_pct > 30:
-                cat_name = largest['category']
+                cat_name = largest["category"]
                 return f"Expenses ${total:,.0f}; {cat_name} is {largest_pct:.0f}% of total"
 
         direction = "up" if change_percent > 0 else "down" if change_percent < 0 else "unchanged"

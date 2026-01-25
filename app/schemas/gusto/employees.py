@@ -80,9 +80,7 @@ GUSTO_EMPLOYEE_CREATE = CapabilitySchema(
         "date_of_birth": ParameterSchema(
             type="string", required=False, description="Date of birth (YYYY-MM-DD)"
         ),
-        "ssn": ParameterSchema(
-            type="string", required=False, description="Social Security Number"
-        ),
+        "ssn": ParameterSchema(type="string", required=False, description="Social Security Number"),
     },
     returns={
         "id": ReturnFieldSchema(type="string", description="Created employee UUID"),

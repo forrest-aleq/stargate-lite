@@ -112,12 +112,8 @@ AIRTABLE_RECORDS_LIST = CapabilitySchema(
     description="List records from an Airtable table",
     parameters={
         "base_id": ParameterSchema(type="string", required=True, description="Airtable base ID"),
-        "table_id": ParameterSchema(
-            type="string", required=True, description="Table ID or name"
-        ),
-        "view": ParameterSchema(
-            type="string", required=False, description="View ID or name"
-        ),
+        "table_id": ParameterSchema(type="string", required=True, description="Table ID or name"),
+        "view": ParameterSchema(type="string", required=False, description="View ID or name"),
         "fields": ParameterSchema(
             type="array",
             required=False,
@@ -141,9 +137,7 @@ AIRTABLE_RECORDS_LIST = CapabilitySchema(
         "page_size": ParameterSchema(
             type="integer", required=False, description="Records per page (max 100)"
         ),
-        "offset": ParameterSchema(
-            type="string", required=False, description="Pagination offset"
-        ),
+        "offset": ParameterSchema(type="string", required=False, description="Pagination offset"),
     },
     returns={
         "records": ReturnFieldSchema(
@@ -170,7 +164,9 @@ AIRTABLE_RECORDS_GET = CapabilitySchema(
     parameters={
         "base_id": ParameterSchema(type="string", required=True, description="Airtable base ID"),
         "table_id": ParameterSchema(type="string", required=True, description="Table ID or name"),
-        "record_id": ParameterSchema(type="string", required=True, description="Airtable record ID"),
+        "record_id": ParameterSchema(
+            type="string", required=True, description="Airtable record ID"
+        ),
     },
     returns={
         "id": ReturnFieldSchema(type="string", description="Record ID"),
@@ -291,9 +287,21 @@ AIRTABLE_FIELDS_CREATE = CapabilitySchema(
             type="string",
             required=True,
             enum=[
-                "singleLineText", "multilineText", "number", "currency", "percent",
-                "date", "dateTime", "checkbox", "singleSelect", "multipleSelects",
-                "email", "url", "phoneNumber", "rating", "duration",
+                "singleLineText",
+                "multilineText",
+                "number",
+                "currency",
+                "percent",
+                "date",
+                "dateTime",
+                "checkbox",
+                "singleSelect",
+                "multipleSelects",
+                "email",
+                "url",
+                "phoneNumber",
+                "rating",
+                "duration",
             ],
             description="Field type to create",
         ),
@@ -397,7 +405,9 @@ AIRTABLE_WEBHOOKS_DELETE = CapabilitySchema(
     description="Delete a webhook",
     parameters={
         "base_id": ParameterSchema(type="string", required=True, description="Airtable base ID"),
-        "webhook_id": ParameterSchema(type="string", required=True, description="Webhook ID to delete"),
+        "webhook_id": ParameterSchema(
+            type="string", required=True, description="Webhook ID to delete"
+        ),
     },
     returns={
         "deleted": ReturnFieldSchema(type="boolean", description="True if successfully deleted"),

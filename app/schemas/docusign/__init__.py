@@ -36,7 +36,9 @@ DOCUSIGN_ENVELOPES_LIST = CapabilitySchema(
             enum=["created", "sent", "delivered", "signed", "completed", "declined", "voided"],
             description="Envelope status filter",
         ),
-        "folder_ids": ParameterSchema(type="string", required=False, description="Folder IDs to filter by"),
+        "folder_ids": ParameterSchema(
+            type="string", required=False, description="Folder IDs to filter by"
+        ),
         "count": ParameterSchema(type="integer", required=False, description="Max 100"),
     },
     returns={
@@ -67,7 +69,9 @@ DOCUSIGN_ENVELOPES_GET = CapabilitySchema(
     category="envelopes",
     description="Get envelope details from DocuSign",
     parameters={
-        "envelope_id": ParameterSchema(type="string", required=True, description="DocuSign envelope ID"),
+        "envelope_id": ParameterSchema(
+            type="string", required=True, description="DocuSign envelope ID"
+        ),
     },
     returns={
         "envelope_id": ReturnFieldSchema(type="string", description="Envelope ID"),
@@ -95,8 +99,12 @@ DOCUSIGN_ENVELOPES_CREATE = CapabilitySchema(
         "Can be sent immediately or saved as draft."
     ),
     parameters={
-        "email_subject": ParameterSchema(type="string", required=True, description="Email subject line"),
-        "email_blurb": ParameterSchema(type="string", required=False, description="Email body text"),
+        "email_subject": ParameterSchema(
+            type="string", required=True, description="Email subject line"
+        ),
+        "email_blurb": ParameterSchema(
+            type="string", required=False, description="Email body text"
+        ),
         "documents": ParameterSchema(
             type="array",
             required=True,
@@ -132,7 +140,9 @@ DOCUSIGN_ENVELOPES_SEND = CapabilitySchema(
     category="envelopes",
     description="Send a draft envelope",
     parameters={
-        "envelope_id": ParameterSchema(type="string", required=True, description="Envelope ID to send"),
+        "envelope_id": ParameterSchema(
+            type="string", required=True, description="Envelope ID to send"
+        ),
     },
     returns={
         "envelope_id": ReturnFieldSchema(type="string", description="Sent envelope ID"),
@@ -151,7 +161,9 @@ DOCUSIGN_ENVELOPES_VOID = CapabilitySchema(
     category="envelopes",
     description="Void an envelope",
     parameters={
-        "envelope_id": ParameterSchema(type="string", required=True, description="Envelope ID to void"),
+        "envelope_id": ParameterSchema(
+            type="string", required=True, description="Envelope ID to void"
+        ),
         "voided_reason": ParameterSchema(
             type="string", required=True, description="Reason for voiding"
         ),
@@ -193,9 +205,15 @@ DOCUSIGN_RECIPIENTS_UPDATE = CapabilitySchema(
     description="Update recipient information",
     parameters={
         "envelope_id": ParameterSchema(type="string", required=True, description="Envelope ID"),
-        "recipient_id": ParameterSchema(type="string", required=True, description="Recipient ID to update"),
-        "name": ParameterSchema(type="string", required=False, description="Updated recipient name"),
-        "email": ParameterSchema(type="string", required=False, description="Updated recipient email"),
+        "recipient_id": ParameterSchema(
+            type="string", required=True, description="Recipient ID to update"
+        ),
+        "name": ParameterSchema(
+            type="string", required=False, description="Updated recipient name"
+        ),
+        "email": ParameterSchema(
+            type="string", required=False, description="Updated recipient email"
+        ),
     },
     returns={
         "recipient_id": ReturnFieldSchema(type="string", description="Updated recipient ID"),
@@ -239,9 +257,7 @@ DOCUSIGN_DOCUMENTS_DOWNLOAD = CapabilitySchema(
         ),
     },
     returns={
-        "document_base64": ReturnFieldSchema(
-            type="string", description="Base64 encoded document"
-        ),
+        "document_base64": ReturnFieldSchema(type="string", description="Base64 encoded document"),
         "content_type": ReturnFieldSchema(type="string", description="MIME type"),
     },
     workflow=WorkflowHints(
@@ -259,9 +275,15 @@ DOCUSIGN_TEMPLATES_LIST = CapabilitySchema(
     category="templates",
     description="List templates from DocuSign",
     parameters={
-        "folder_id": ParameterSchema(type="string", required=False, description="Folder ID to filter by"),
-        "search_text": ParameterSchema(type="string", required=False, description="Search text filter"),
-        "count": ParameterSchema(type="integer", required=False, description="Maximum templates to return"),
+        "folder_id": ParameterSchema(
+            type="string", required=False, description="Folder ID to filter by"
+        ),
+        "search_text": ParameterSchema(
+            type="string", required=False, description="Search text filter"
+        ),
+        "count": ParameterSchema(
+            type="integer", required=False, description="Maximum templates to return"
+        ),
     },
     returns={
         "templates": ReturnFieldSchema(
@@ -283,15 +305,21 @@ DOCUSIGN_ENVELOPES_CREATE_FROM_TEMPLATE = CapabilitySchema(
     category="envelopes",
     description="Create envelope from a template",
     parameters={
-        "template_id": ParameterSchema(type="string", required=True, description="Template ID to use"),
-        "email_subject": ParameterSchema(type="string", required=False, description="Override email subject"),
+        "template_id": ParameterSchema(
+            type="string", required=True, description="Template ID to use"
+        ),
+        "email_subject": ParameterSchema(
+            type="string", required=False, description="Override email subject"
+        ),
         "template_roles": ParameterSchema(
             type="array",
             required=True,
             description="Role assignments with role_name, name, email",
         ),
         "status": ParameterSchema(
-            type="string", required=False, enum=["created", "sent"],
+            type="string",
+            required=False,
+            enum=["created", "sent"],
             description="'sent' to send immediately, 'created' for draft",
         ),
     },

@@ -37,6 +37,7 @@ class RateLimiter:
         if not self._initialized:
             try:
                 from app.redis_client import redis_client
+
                 self._redis = redis_client._redis_client
                 self._initialized = True
             except Exception as e:

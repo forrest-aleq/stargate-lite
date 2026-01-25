@@ -366,9 +366,7 @@ class ContactsMixin(XeroBase):
         default_phone: dict[str, Any] = next(
             (p for p in phones if p.get("PhoneType") == "DEFAULT"), {}
         )
-        mobile: dict[str, Any] = next(
-            (p for p in phones if p.get("PhoneType") == "MOBILE"), {}
-        )
+        mobile: dict[str, Any] = next((p for p in phones if p.get("PhoneType") == "MOBILE"), {})
 
         return {
             "contact_id": contact.get("ContactID"),
@@ -415,9 +413,7 @@ class ContactsMixin(XeroBase):
             "country": address.get("Country"),
         }
 
-    def _format_addresses_for_api(
-        self, addresses: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def _format_addresses_for_api(self, addresses: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Format addresses for Xero API request."""
         formatted: list[dict[str, Any]] = []
         for addr in addresses:

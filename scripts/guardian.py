@@ -314,7 +314,7 @@ def check_unsafe_singleton(path: Path, content: str, cfg: Config) -> list[str]:
             context_start = max(0, i - 5)
             context_end = min(len(lines), i + 6)
             context_before = "\n".join(lines[context_start:i])
-            context_after = "\n".join(lines[i : context_end])
+            context_after = "\n".join(lines[i:context_end])
 
             has_global = "global _" in context_before
             # Lock can be before OR after (double-check pattern)

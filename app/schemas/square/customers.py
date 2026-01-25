@@ -12,9 +12,7 @@ SQUARE_CUSTOMERS_LIST = CapabilitySchema(
     category="customers",
     description="List customers from Square",
     parameters={
-        "cursor": ParameterSchema(
-            type="string", required=False, description="Pagination cursor"
-        ),
+        "cursor": ParameterSchema(type="string", required=False, description="Pagination cursor"),
         "limit": ParameterSchema(
             type="integer", required=False, description="Maximum customers to return"
         ),
@@ -54,21 +52,15 @@ SQUARE_CUSTOMERS_CREATE = CapabilitySchema(
         "family_name": ParameterSchema(
             type="string", required=False, description="Customer last name"
         ),
-        "company_name": ParameterSchema(
-            type="string", required=False, description="Company name"
-        ),
+        "company_name": ParameterSchema(type="string", required=False, description="Company name"),
         "email_address": ParameterSchema(
             type="string", required=False, description="Email address"
         ),
-        "phone_number": ParameterSchema(
-            type="string", required=False, description="Phone number"
-        ),
+        "phone_number": ParameterSchema(type="string", required=False, description="Phone number"),
         "reference_id": ParameterSchema(
             type="string", required=False, description="External reference ID"
         ),
-        "note": ParameterSchema(
-            type="string", required=False, description="Customer note"
-        ),
+        "note": ParameterSchema(type="string", required=False, description="Customer note"),
     },
     returns={
         "customer_id": ReturnFieldSchema(type="string", description="Created customer ID"),
@@ -98,9 +90,7 @@ SQUARE_CUSTOMERS_UPDATE = CapabilitySchema(
         "phone_number": ParameterSchema(
             type="string", required=False, description="Phone number (null to clear)"
         ),
-        "note": ParameterSchema(
-            type="string", required=False, description="Customer note"
-        ),
+        "note": ParameterSchema(type="string", required=False, description="Customer note"),
         "version": ParameterSchema(
             type="integer", required=False, description="Current version for optimistic locking"
         ),

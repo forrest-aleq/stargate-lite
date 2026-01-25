@@ -40,6 +40,7 @@ def _get_redis() -> Any:
     """Get Redis client for session caching."""
     try:
         from app.redis_client import redis_client
+
         return redis_client._redis_client
     except Exception:
         return None
@@ -71,7 +72,7 @@ class BillComBase:
         try:
             cached_data = redis.get(f"{BILLCOM_SESSION_PREFIX}{cache_key}")
             if cached_data:
-                session = json.loads(cached_data)
+                session: dict[str, Any] = json.loads(cached_data)
                 # Check if session is still valid
                 expires_at = datetime.fromisoformat(session["expires_at"])
                 if expires_at > datetime.utcnow():
@@ -263,14 +264,17 @@ class BillComBase:
             elif method.upper() == "POST":
                 return http_client.post(url=url, service="billcom", headers=headers, json=json_data)
             elif method.upper() == "PATCH":
-                return http_client.patch(url=url, service="billcom", headers=headers, json=json_data)
+                return http_client.patch(
+                    url=url, service="billcom", headers=headers, json=json_data
+                )
             elif method.upper() == "DELETE":
                 return http_client.delete(url=url, service="billcom", headers=headers)
             else:
                 raise ValueError(f"Unsupported HTTP method: {method}")
 
         except ExternalAPIError as e:
-            if retry_on_auth_error and e.status_code in (401, 403):
+            status_code = e.details.get("external_status_code")
+            if retry_on_auth_error and status_code in (401, 403):
                 logger.warning(
                     "Bill.com session expired, re-authenticating",
                     service="billcom",
@@ -278,7 +282,12 @@ class BillComBase:
                 )
                 self._invalidate_session(org_id, user_id)
                 return self._api_call(
-                    method, endpoint, org_id, user_id, json_data, params,
+                    method,
+                    endpoint,
+                    org_id,
+                    user_id,
+                    json_data,
+                    params,
                     retry_on_auth_error=False,
                 )
             raise

@@ -8,7 +8,12 @@ SAGE_BANK_ACCOUNTS_LIST = CapabilitySchema(
     category="cash_management",
     description="List bank accounts from Sage Intacct",
     parameters={
-        "status": ParameterSchema(type="string", required=False, description="Filter by status", enum=["active", "inactive"]),
+        "status": ParameterSchema(
+            type="string",
+            required=False,
+            description="Filter by status",
+            enum=["active", "inactive"],
+        ),
     },
     returns={
         "bank_accounts": ReturnFieldSchema(type="array", description="Bank accounts"),
@@ -30,8 +35,12 @@ SAGE_BANK_BALANCE = CapabilitySchema(
     category="cash_management",
     description="Get bank account balance from Sage Intacct",
     parameters={
-        "bank_account_id": ParameterSchema(type="string", required=True, description="Bank account ID to check"),
-        "as_of_date": ParameterSchema(type="string", required=False, description="Balance as of date (YYYY-MM-DD)"),
+        "bank_account_id": ParameterSchema(
+            type="string", required=True, description="Bank account ID to check"
+        ),
+        "as_of_date": ParameterSchema(
+            type="string", required=False, description="Balance as of date (YYYY-MM-DD)"
+        ),
     },
     returns={
         "bank_account_id": ReturnFieldSchema(type="string", description="Account ID"),
@@ -49,14 +58,20 @@ SAGE_DEPOSITS_CREATE = CapabilitySchema(
     category="cash_management",
     description="Create a bank deposit in Sage Intacct",
     parameters={
-        "bank_account_id": ParameterSchema(type="string", required=True, description="Bank account ID for deposit"),
-        "deposit_date": ParameterSchema(type="string", required=True, description="Deposit date (YYYY-MM-DD)"),
+        "bank_account_id": ParameterSchema(
+            type="string", required=True, description="Bank account ID for deposit"
+        ),
+        "deposit_date": ParameterSchema(
+            type="string", required=True, description="Deposit date (YYYY-MM-DD)"
+        ),
         "entries": ParameterSchema(
             type="array",
             required=True,
             description="Deposit entries with gl_account and amount",
         ),
-        "description": ParameterSchema(type="string", required=False, description="Deposit description or memo"),
+        "description": ParameterSchema(
+            type="string", required=False, description="Deposit description or memo"
+        ),
     },
     returns={
         "deposit": ReturnFieldSchema(type="object", description="Created deposit"),
@@ -72,11 +87,19 @@ SAGE_TRANSFERS_CREATE = CapabilitySchema(
     category="cash_management",
     description="Create a bank transfer in Sage Intacct",
     parameters={
-        "from_account_id": ParameterSchema(type="string", required=True, description="Source bank account ID"),
-        "to_account_id": ParameterSchema(type="string", required=True, description="Destination bank account ID"),
-        "transfer_date": ParameterSchema(type="string", required=True, description="Transfer date (YYYY-MM-DD)"),
+        "from_account_id": ParameterSchema(
+            type="string", required=True, description="Source bank account ID"
+        ),
+        "to_account_id": ParameterSchema(
+            type="string", required=True, description="Destination bank account ID"
+        ),
+        "transfer_date": ParameterSchema(
+            type="string", required=True, description="Transfer date (YYYY-MM-DD)"
+        ),
         "amount": ParameterSchema(type="number", required=True, description="Transfer amount"),
-        "description": ParameterSchema(type="string", required=False, description="Transfer description or memo"),
+        "description": ParameterSchema(
+            type="string", required=False, description="Transfer description or memo"
+        ),
     },
     returns={
         "transfer": ReturnFieldSchema(type="object", description="Created transfer"),

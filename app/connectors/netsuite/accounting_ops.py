@@ -62,9 +62,7 @@ class AccountingMixin(VendorBillMixin):
             "has_more": result.get("hasMore", False),
         }
 
-    def _build_gl_query(
-        self, from_date: str, to_date: str, account_filter: str
-    ) -> str:
+    def _build_gl_query(self, from_date: str, to_date: str, account_filter: str) -> str:
         """Build SuiteQL query for GL transactions."""
         return f"""
             SELECT
@@ -89,9 +87,7 @@ class AccountingMixin(VendorBillMixin):
             ORDER BY t.trandate, t.id, tl.id
         """
 
-    def _format_gl_transactions(
-        self, items: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def _format_gl_transactions(self, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Format GL transaction results."""
         return [
             {
@@ -132,9 +128,7 @@ class AccountingMixin(VendorBillMixin):
             "count": result.get("count", 0),
         }
 
-    def get_account_list(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_account_list(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """
         Get chart of accounts.
 
@@ -210,9 +204,7 @@ class AccountingMixin(VendorBillMixin):
             "status": "balanced" if abs(variance) < 0.01 else "variance_exists",
         }
 
-    def query_records(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def query_records(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """
         Execute a SuiteQL query.
 

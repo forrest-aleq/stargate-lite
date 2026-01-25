@@ -40,7 +40,9 @@ class AirtableConnector:
             raise CredentialMissingError("airtable", org_id, user_id)
 
         # Airtable OAuth tokens can expire - check and refresh if needed
-        if cred.get("token_expiry") and cred["token_expiry"] < datetime.utcnow() + timedelta(minutes=5):
+        if cred.get("token_expiry") and cred["token_expiry"] < datetime.utcnow() + timedelta(
+            minutes=5
+        ):
             logger.info("Token expired, refreshing", service="airtable", org_id=org_id)
             return self._refresh_token(org_id, user_id, cred["refresh_token"])
 

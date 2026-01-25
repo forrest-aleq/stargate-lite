@@ -66,7 +66,7 @@ def init_sentry() -> bool:
         # Add tags to all events
         default_integrations=True,
         # Before send hook for additional scrubbing
-        before_send=_before_send,
+        before_send=_before_send,  # type: ignore[arg-type]
         # Before breadcrumb hook
         before_breadcrumb=_before_breadcrumb,
     )
@@ -108,9 +108,7 @@ def _before_send(event: dict[str, Any], hint: dict[str, Any]) -> dict[str, Any] 
     return event
 
 
-def _before_breadcrumb(
-    breadcrumb: dict[str, Any], hint: dict[str, Any]
-) -> dict[str, Any] | None:
+def _before_breadcrumb(breadcrumb: dict[str, Any], hint: dict[str, Any]) -> dict[str, Any] | None:
     """Filter/modify breadcrumbs before they're added."""
     # Skip noisy breadcrumbs
     if breadcrumb.get("category") == "httpx" and "health" in str(

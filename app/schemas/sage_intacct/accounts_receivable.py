@@ -8,9 +8,18 @@ SAGE_CUSTOMERS_LIST = CapabilitySchema(
     category="accounts_receivable",
     description="List customers from Sage Intacct",
     parameters={
-        "status": ParameterSchema(type="string", required=False, description="Filter by status", enum=["active", "inactive"]),
-        "customer_type": ParameterSchema(type="string", required=False, description="Filter by customer type"),
-        "page_size": ParameterSchema(type="integer", required=False, description="Number of results per page"),
+        "status": ParameterSchema(
+            type="string",
+            required=False,
+            description="Filter by status",
+            enum=["active", "inactive"],
+        ),
+        "customer_type": ParameterSchema(
+            type="string", required=False, description="Filter by customer type"
+        ),
+        "page_size": ParameterSchema(
+            type="integer", required=False, description="Number of results per page"
+        ),
     },
     returns={
         "customers": ReturnFieldSchema(type="array", description="List of customers"),
@@ -29,14 +38,28 @@ SAGE_CUSTOMERS_CREATE = CapabilitySchema(
     category="accounts_receivable",
     description="Create a customer in Sage Intacct",
     parameters={
-        "customer_id": ParameterSchema(type="string", required=True, description="Unique customer identifier"),
+        "customer_id": ParameterSchema(
+            type="string", required=True, description="Unique customer identifier"
+        ),
         "name": ParameterSchema(type="string", required=True, description="Customer display name"),
-        "email": ParameterSchema(type="string", required=False, description="Customer email address"),
-        "phone": ParameterSchema(type="string", required=False, description="Customer phone number"),
-        "payment_terms": ParameterSchema(type="string", required=False, description="Payment terms code"),
-        "credit_limit": ParameterSchema(type="number", required=False, description="Customer credit limit"),
-        "billing_address": ParameterSchema(type="object", required=False, description="Billing address object"),
-        "shipping_address": ParameterSchema(type="object", required=False, description="Shipping address object"),
+        "email": ParameterSchema(
+            type="string", required=False, description="Customer email address"
+        ),
+        "phone": ParameterSchema(
+            type="string", required=False, description="Customer phone number"
+        ),
+        "payment_terms": ParameterSchema(
+            type="string", required=False, description="Payment terms code"
+        ),
+        "credit_limit": ParameterSchema(
+            type="number", required=False, description="Customer credit limit"
+        ),
+        "billing_address": ParameterSchema(
+            type="object", required=False, description="Billing address object"
+        ),
+        "shipping_address": ParameterSchema(
+            type="object", required=False, description="Shipping address object"
+        ),
     },
     returns={
         "customer": ReturnFieldSchema(type="object", description="Created customer"),
@@ -52,13 +75,24 @@ SAGE_INVOICES_LIST = CapabilitySchema(
     category="accounts_receivable",
     description="List AR invoices from Sage Intacct",
     parameters={
-        "customer_id": ParameterSchema(type="string", required=False, description="Filter by customer ID"),
-        "status": ParameterSchema(
-            type="string", required=False, description="Filter by invoice status", enum=["open", "paid", "partialPaid"]
+        "customer_id": ParameterSchema(
+            type="string", required=False, description="Filter by customer ID"
         ),
-        "date_from": ParameterSchema(type="string", required=False, description="Start date filter (YYYY-MM-DD)"),
-        "date_to": ParameterSchema(type="string", required=False, description="End date filter (YYYY-MM-DD)"),
-        "page_size": ParameterSchema(type="integer", required=False, description="Number of results per page"),
+        "status": ParameterSchema(
+            type="string",
+            required=False,
+            description="Filter by invoice status",
+            enum=["open", "paid", "partialPaid"],
+        ),
+        "date_from": ParameterSchema(
+            type="string", required=False, description="Start date filter (YYYY-MM-DD)"
+        ),
+        "date_to": ParameterSchema(
+            type="string", required=False, description="End date filter (YYYY-MM-DD)"
+        ),
+        "page_size": ParameterSchema(
+            type="integer", required=False, description="Number of results per page"
+        ),
     },
     returns={
         "invoices": ReturnFieldSchema(type="array", description="AR invoices"),
@@ -77,11 +111,19 @@ SAGE_INVOICES_CREATE = CapabilitySchema(
     category="accounts_receivable",
     description="Create an AR invoice in Sage Intacct",
     parameters={
-        "customer_id": ParameterSchema(type="string", required=True, description="Customer ID for the invoice"),
-        "invoice_date": ParameterSchema(type="string", required=True, description="Invoice date (YYYY-MM-DD)"),
-        "due_date": ParameterSchema(type="string", required=False, description="Due date (YYYY-MM-DD)"),
+        "customer_id": ParameterSchema(
+            type="string", required=True, description="Customer ID for the invoice"
+        ),
+        "invoice_date": ParameterSchema(
+            type="string", required=True, description="Invoice date (YYYY-MM-DD)"
+        ),
+        "due_date": ParameterSchema(
+            type="string", required=False, description="Due date (YYYY-MM-DD)"
+        ),
         "lines": ParameterSchema(type="array", required=True, description="Invoice lines"),
-        "description": ParameterSchema(type="string", required=False, description="Invoice description or memo"),
+        "description": ParameterSchema(
+            type="string", required=False, description="Invoice description or memo"
+        ),
     },
     returns={
         "invoice": ReturnFieldSchema(type="object", description="Created invoice"),
@@ -101,16 +143,26 @@ SAGE_AR_PAYMENTS_CREATE = CapabilitySchema(
     category="accounts_receivable",
     description="Record an AR payment in Sage Intacct",
     parameters={
-        "customer_id": ParameterSchema(type="string", required=True, description="Customer ID for the payment"),
-        "bank_account_id": ParameterSchema(type="string", required=True, description="Bank account ID for deposit"),
-        "payment_date": ParameterSchema(type="string", required=True, description="Payment date (YYYY-MM-DD)"),
+        "customer_id": ParameterSchema(
+            type="string", required=True, description="Customer ID for the payment"
+        ),
+        "bank_account_id": ParameterSchema(
+            type="string", required=True, description="Bank account ID for deposit"
+        ),
+        "payment_date": ParameterSchema(
+            type="string", required=True, description="Payment date (YYYY-MM-DD)"
+        ),
         "invoices": ParameterSchema(
             type="array",
             required=True,
             description="Invoices to apply with invoice_key and amount",
         ),
-        "payment_method": ParameterSchema(type="string", required=False, description="Payment method (check, ACH, wire)"),
-        "reference_number": ParameterSchema(type="string", required=False, description="Check or reference number"),
+        "payment_method": ParameterSchema(
+            type="string", required=False, description="Payment method (check, ACH, wire)"
+        ),
+        "reference_number": ParameterSchema(
+            type="string", required=False, description="Check or reference number"
+        ),
     },
     returns={
         "payment": ReturnFieldSchema(type="object", description="Created payment"),

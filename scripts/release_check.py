@@ -73,7 +73,7 @@ def main() -> int:
     version = get_version_from_main()
     if not version:
         errors.append("ERROR: VERSION not found in app/main.py")
-        errors.append("  Add: VERSION = \"0.9.0\" at the top of the file")
+        errors.append('  Add: VERSION = "0.9.0" at the top of the file')
         print("\n".join(errors))
         return 1
 

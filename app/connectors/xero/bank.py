@@ -27,9 +27,7 @@ logger = get_logger(__name__)
 class BankMixin(CreditNotesMixin):
     """Mixin providing bank account and transaction management capabilities."""
 
-    def list_bank_accounts(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_bank_accounts(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List all bank accounts.
 
         Args:
@@ -169,9 +167,7 @@ class BankMixin(CreditNotesMixin):
         if not transaction_id:
             raise ValidationError("transaction_id", "transaction_id is required")
 
-        result = self._make_api_call(
-            "GET", f"BankTransactions/{transaction_id}", cred, tenant_id
-        )
+        result = self._make_api_call("GET", f"BankTransactions/{transaction_id}", cred, tenant_id)
         transactions = result.get("BankTransactions", [])
 
         if not transactions:
@@ -315,9 +311,7 @@ class BankMixin(CreditNotesMixin):
 
         return {"transaction_id": transaction_id, "status": "deleted"}
 
-    def get_bank_statement(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_bank_statement(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get bank statement lines from a bank account.
 
         Args:
@@ -339,9 +333,7 @@ class BankMixin(CreditNotesMixin):
         if args.get("date_to"):
             params["DateTo"] = args["date_to"]
 
-        result = self._make_api_call(
-            "GET", "BankStatements", cred, tenant_id, params=params
-        )
+        result = self._make_api_call("GET", "BankStatements", cred, tenant_id, params=params)
         statements = result.get("BankStatements", [])
 
         # Flatten statement lines
@@ -375,9 +367,7 @@ class BankMixin(CreditNotesMixin):
             "status": "success",
         }
 
-    def get_bank_transfers(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_bank_transfers(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List bank transfers between accounts.
 
         Args:
@@ -553,9 +543,7 @@ class BankMixin(CreditNotesMixin):
             "updated_date": txn.get("UpdatedDateUTC"),
         }
 
-    def _format_bank_txn_line_items(
-        self, line_items: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def _format_bank_txn_line_items(self, line_items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Format line items for bank transaction API request."""
         formatted: list[dict[str, Any]] = []
         for li in line_items:

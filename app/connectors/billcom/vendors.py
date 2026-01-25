@@ -114,7 +114,9 @@ class BillComVendorsMixin(BillComBase):
         if not update_data:
             raise ValidationError("update_data", "No fields provided to update")
 
-        result = self._api_call("PATCH", f"/vendors/{vendor_id}", org_id, user_id, json_data=update_data)
+        result = self._api_call(
+            "PATCH", f"/vendors/{vendor_id}", org_id, user_id, json_data=update_data
+        )
 
         return {
             "vendor_id": f"bc:{result['id']}",
@@ -127,7 +129,9 @@ class BillComVendorsMixin(BillComBase):
     def archive_vendor(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Archive (soft delete) a vendor."""
         vendor_id = args["vendor_id"].replace("bc:", "")
-        result = self._api_call("POST", f"/vendors/{vendor_id}/archive", org_id, user_id, json_data={})
+        result = self._api_call(
+            "POST", f"/vendors/{vendor_id}/archive", org_id, user_id, json_data={}
+        )
 
         return {
             "vendor_id": f"bc:{vendor_id}",
@@ -135,7 +139,9 @@ class BillComVendorsMixin(BillComBase):
             "archived": True,
         }
 
-    def create_vendor_credit(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    def create_vendor_credit(
+        self, org_id: str, user_id: str, args: dict[str, Any]
+    ) -> dict[str, Any]:
         """Create a vendor credit in Bill.com."""
         vendor_id = args["vendor_id"].replace("bc:", "")
 
@@ -160,7 +166,9 @@ class BillComVendorsMixin(BillComBase):
             "status": result.get("status"),
         }
 
-    def list_vendor_credits(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    def list_vendor_credits(
+        self, org_id: str, user_id: str, args: dict[str, Any]
+    ) -> dict[str, Any]:
         """List vendor credits from Bill.com."""
         params: dict[str, Any] = {"max": min(args.get("page_size", 50), 100)}
 

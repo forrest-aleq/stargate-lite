@@ -205,7 +205,8 @@ class CashMixin:
                     # Add pending to available
                     pending_amount = next(
                         (
-                            p.get("amount", 0) for p in pending
+                            p.get("amount", 0)
+                            for p in pending
                             if p.get("currency") == bal.get("currency")
                         ),
                         0,
@@ -230,9 +231,7 @@ class CashMixin:
                 {
                     "name": account.get("NAME", account.get("name", "Sage Account")),
                     "bank": account.get("BANKNAME", "Bank"),
-                    "balance": float(
-                        account.get("CURRENTBALANCE", account.get("balance", 0))
-                    ),
+                    "balance": float(account.get("CURRENTBALANCE", account.get("balance", 0))),
                     "type": "checking",
                     "account_id": (
                         f"sage_intacct:{account.get('RECORDNO', account.get('id', ''))}"

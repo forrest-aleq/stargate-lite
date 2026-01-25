@@ -17,10 +17,13 @@ from app.services.connector_health import (
     group_credentials_by_service,
 )
 
+
 # Import version from main (avoid circular import by importing at module level)
 def _get_version() -> str:
     from app.main import VERSION
+
     return VERSION
+
 
 router = APIRouter(tags=["health"])
 

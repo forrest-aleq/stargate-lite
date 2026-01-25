@@ -100,23 +100,17 @@ class RunwayMixin:
             cash_out_date = cash_out.strftime("%Y-%m")
 
         # Determine confidence
-        confidence = self._calculate_runway_confidence(
-            cash_result, burn_result, runway_months
-        )
+        confidence = self._calculate_runway_confidence(cash_result, burn_result, runway_months)
 
         # Calculate change (compare to last month's projected runway)
-        prior_runway = self._get_prior_runway(
-            org_id, user_id, runway_months, cash_total, burn_avg
-        )
+        prior_runway = self._get_prior_runway(org_id, user_id, runway_months, cash_total, burn_avg)
         change, change_percent = self._calculate_change(runway_months, prior_runway)
 
         # Generate trend data (runway projection over time)
         trend = self._generate_runway_trend(cash_total, burn_avg, runway_months)
 
         # Generate insight
-        insight = self._generate_runway_insight(
-            runway_months, cash_total, burn_avg, confidence
-        )
+        insight = self._generate_runway_insight(runway_months, cash_total, burn_avg, confidence)
 
         return self._format_response(
             total=round(runway_months, 1),  # Use runway as primary metric

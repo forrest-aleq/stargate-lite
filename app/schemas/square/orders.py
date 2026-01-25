@@ -15,15 +15,11 @@ SQUARE_ORDERS_LIST = CapabilitySchema(
         "location_ids": ParameterSchema(
             type="array", required=True, description="Location IDs to search"
         ),
-        "query": ParameterSchema(
-            type="object", required=False, description="Search query filters"
-        ),
+        "query": ParameterSchema(type="object", required=False, description="Search query filters"),
         "limit": ParameterSchema(
             type="integer", required=False, description="Maximum orders to return"
         ),
-        "cursor": ParameterSchema(
-            type="string", required=False, description="Pagination cursor"
-        ),
+        "cursor": ParameterSchema(type="string", required=False, description="Pagination cursor"),
     },
     returns={
         "orders": ReturnFieldSchema(
@@ -42,9 +38,7 @@ SQUARE_ORDERS_GET = CapabilitySchema(
     category="orders",
     description="Get order details from Square",
     parameters={
-        "order_id": ParameterSchema(
-            type="string", required=True, description="Square order ID"
-        ),
+        "order_id": ParameterSchema(type="string", required=True, description="Square order ID"),
     },
     returns={
         "id": ReturnFieldSchema(type="string", description="Order ID"),
@@ -73,9 +67,7 @@ SQUARE_ORDERS_CREATE = CapabilitySchema(
         "location_id": ParameterSchema(
             type="string", required=True, description="Location ID for the order"
         ),
-        "line_items": ParameterSchema(
-            type="array", required=False, description="Order line items"
-        ),
+        "line_items": ParameterSchema(type="array", required=False, description="Order line items"),
         "reference_id": ParameterSchema(
             type="string", required=False, description="External reference ID"
         ),
@@ -94,9 +86,7 @@ SQUARE_ORDERS_UPDATE = CapabilitySchema(
     category="orders",
     description="Update an order in Square",
     parameters={
-        "order_id": ParameterSchema(
-            type="string", required=True, description="Square order ID"
-        ),
+        "order_id": ParameterSchema(type="string", required=True, description="Square order ID"),
         "fields_to_clear": ParameterSchema(
             type="array", required=False, description="Fields to clear from the order"
         ),

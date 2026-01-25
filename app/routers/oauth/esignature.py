@@ -94,11 +94,13 @@ async def docusign_oauth_authorize(
 
     # DocuSign OAuth scopes for eSignature API
     # https://developers.docusign.com/platform/auth/reference/scopes/
-    scopes = " ".join([
-        "signature",  # eSignature REST API access
-        "extended",   # Extended scope for additional features
-        "impersonation",  # Required for sending on behalf of users
-    ])
+    scopes = " ".join(
+        [
+            "signature",  # eSignature REST API access
+            "extended",  # Extended scope for additional features
+            "impersonation",  # Required for sending on behalf of users
+        ]
+    )
 
     params = {
         "response_type": "code",
@@ -158,8 +160,7 @@ async def docusign_oauth_callback(code: str, state: str) -> dict[str, Any]:
         access_token=token_data["access_token"],
         refresh_token=token_data.get("refresh_token"),
         token_expiry=datetime.utcnow() + timedelta(seconds=expires_in),
-        account_id=account_id,
-        base_uri=base_uri,
+        extra_data={"account_id": account_id, "base_uri": base_uri},
     )
 
     logger.info("DocuSign OAuth completed", org_id=org_id, account_id=account_id)

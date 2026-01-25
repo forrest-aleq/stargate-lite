@@ -190,9 +190,7 @@ class FCIBase(BaseUtility, ABC):
         for service in available:
             method_name = service_map[service]
             try:
-                result = self._call_service_method(
-                    service, method_name, org_id, user_id, args
-                )
+                result = self._call_service_method(service, method_name, org_id, user_id, args)
                 result["_source"] = service  # Tag with source
                 results.append(result)
                 sources.append(service)

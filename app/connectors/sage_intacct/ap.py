@@ -159,9 +159,7 @@ class APMixin(VendorMixin):
         if args.get("description"):
             bill_data["description"] = args["description"]
 
-        result = self._make_api_call(
-            "PATCH", f"objects/ap-bill/{bill_key}", cred, data=bill_data
-        )
+        result = self._make_api_call("PATCH", f"objects/ap-bill/{bill_key}", cred, data=bill_data)
         updated = result.get("ia::result", {})
 
         logger.info(
@@ -208,10 +206,7 @@ class APMixin(VendorMixin):
         if not bill_key:
             raise ValidationError("bill_key", "bill_key is required")
 
-        self._make_api_call(
-            "PATCH", f"objects/ap-bill/{bill_key}", cred,
-            data={"state": "posted"}
-        )
+        self._make_api_call("PATCH", f"objects/ap-bill/{bill_key}", cred, data={"state": "posted"})
 
         logger.info(
             "Sage Intacct bill posted",
@@ -222,9 +217,7 @@ class APMixin(VendorMixin):
 
         return {"bill_key": bill_key, "status": "posted"}
 
-    def list_bill_payments(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_bill_payments(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List AP payments.
 
         Args:
@@ -357,18 +350,10 @@ class APMixin(VendorMixin):
             "as_of_date": args.get("as_of_date"),
             "aging": {
                 "current": next((b.get("amount") for b in aging if b.get("name") == "current"), 0),
-                "1_30_days": next(
-                    (b.get("amount") for b in aging if b.get("name") == "1-30"), 0
-                ),
-                "31_60_days": next(
-                    (b.get("amount") for b in aging if b.get("name") == "31-60"), 0
-                ),
-                "61_90_days": next(
-                    (b.get("amount") for b in aging if b.get("name") == "61-90"), 0
-                ),
-                "over_90_days": next(
-                    (b.get("amount") for b in aging if b.get("name") == "90+"), 0
-                ),
+                "1_30_days": next((b.get("amount") for b in aging if b.get("name") == "1-30"), 0),
+                "31_60_days": next((b.get("amount") for b in aging if b.get("name") == "31-60"), 0),
+                "61_90_days": next((b.get("amount") for b in aging if b.get("name") == "61-90"), 0),
+                "over_90_days": next((b.get("amount") for b in aging if b.get("name") == "90+"), 0),
             },
             "total": sum(b.get("amount", 0) for b in aging),
             "status": "success",

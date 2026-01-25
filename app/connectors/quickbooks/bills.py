@@ -278,9 +278,7 @@ class QuickBooksBillsMixin:
             "vendor_id": f"qb:{vendor_id}",
         }
 
-    def get_purchase_order(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_purchase_order(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get purchase order details from QuickBooks"""
         cred = self._get_access_token(org_id, user_id)
         realm_id = cred["realm_id"]
@@ -314,9 +312,7 @@ class QuickBooksBillsMixin:
                     .get("ItemRef", {})
                     .get("value"),
                     "quantity": line.get("ItemBasedExpenseLineDetail", {}).get("Qty"),
-                    "unit_price": line.get("ItemBasedExpenseLineDetail", {}).get(
-                        "UnitPrice"
-                    ),
+                    "unit_price": line.get("ItemBasedExpenseLineDetail", {}).get("UnitPrice"),
                 }
                 for line in po.get("Line", [])
                 if line.get("DetailType") in ("ItemBasedExpenseLineDetail", None)

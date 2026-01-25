@@ -17,6 +17,7 @@ def _lazy_fci_handler(method_name: str) -> Callable[..., dict[str, Any]]:
     This avoids importing FCI at module load time, which would cause
     circular imports with connectors.
     """
+
     def handler(org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         from structlog.contextvars import get_contextvars
 
@@ -46,7 +47,7 @@ def _lazy_fci_handler(method_name: str) -> Callable[..., dict[str, Any]]:
             partial=result.get("status") == "partial",
         )
 
-        return result
+        return result  # type: ignore[no-any-return]
 
     return handler
 

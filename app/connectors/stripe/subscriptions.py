@@ -24,6 +24,11 @@ class StripeSubscriptionsMixin:
         price_id = args.get("price_id")  # Stripe price ID
         metadata = args.get("metadata", {})
 
+        if not isinstance(customer_id, str):
+            raise ValueError("customer_id is required")
+        if not isinstance(price_id, str):
+            raise ValueError("price_id is required")
+
         logger.info(
             "Creating subscription",
             service="stripe",
@@ -58,6 +63,8 @@ class StripeSubscriptionsMixin:
     ) -> dict[str, Any]:
         """Retrieve a subscription"""
         subscription_id = args.get("subscription_id")
+        if not isinstance(subscription_id, str):
+            raise ValueError("subscription_id is required")
         sub = stripe.Subscription.retrieve(subscription_id)
         return {
             "subscription_id": sub.id,

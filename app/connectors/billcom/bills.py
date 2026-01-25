@@ -128,7 +128,9 @@ class BillComBillsMixin(BillComBase):
         if not update_data:
             raise ValidationError("update_data", "No fields provided to update")
 
-        result = self._api_call("PATCH", f"/bills/{bill_id}", org_id, user_id, json_data=update_data)
+        result = self._api_call(
+            "PATCH", f"/bills/{bill_id}", org_id, user_id, json_data=update_data
+        )
 
         return {
             "bill_id": f"bc:{result['id']}",
@@ -184,7 +186,9 @@ class BillComBillsMixin(BillComBase):
         if args.get("notes"):
             payment_data["description"] = args["notes"]
 
-        result = self._api_call("POST", "/bills/record-payment", org_id, user_id, json_data=payment_data)
+        result = self._api_call(
+            "POST", "/bills/record-payment", org_id, user_id, json_data=payment_data
+        )
 
         return {
             "payment_id": f"bc:{result.get('id', '')}",

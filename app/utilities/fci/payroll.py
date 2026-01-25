@@ -57,9 +57,7 @@ class PayrollMixin:
         company_id = args.get("company_id")
 
         # Check if Gusto is connected
-        available = self._get_connected_services(
-            org_id, user_id, PAYROLL_SERVICES
-        )
+        available = self._get_connected_services(org_id, user_id, PAYROLL_SERVICES)
 
         if "gusto" not in available:
             return self._format_response(
@@ -150,7 +148,8 @@ class PayrollMixin:
         if isinstance(payrolls, list) and payrolls:
             # Find processed payrolls
             processed = [
-                p for p in payrolls
+                p
+                for p in payrolls
                 if p.get("processed", p.get("status")) in [True, "processed", "paid"]
             ]
 
@@ -195,14 +194,13 @@ class PayrollMixin:
 
             # Find next scheduled payroll
             pending = [
-                p for p in payrolls
+                p
+                for p in payrolls
                 if p.get("processed", p.get("status")) in [False, "unprocessed", "pending"]
             ]
             if pending:
                 pending.sort(
-                    key=lambda x: x.get(
-                        "check_date", x.get("pay_period", {}).get("end_date", "")
-                    )
+                    key=lambda x: x.get("check_date", x.get("pay_period", {}).get("end_date", ""))
                 )
                 first_pending = pending[0]
                 data["next_run"] = first_pending.get(

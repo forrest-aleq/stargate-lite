@@ -350,7 +350,9 @@ class DocuSignConnector:
         )
 
         return {
-            "document_base64": base64.b64encode(result).decode() if isinstance(result, bytes) else result,
+            "document_base64": base64.b64encode(result).decode()
+            if isinstance(result, bytes)
+            else result,
             "content_type": "application/pdf",
         }
 
@@ -394,7 +396,9 @@ class DocuSignConnector:
             "result_set_size": result.get("resultSetSize", len(templates)),
         }
 
-    def create_envelope_from_template(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    def create_envelope_from_template(
+        self, org_id: str, user_id: str, args: dict[str, Any]
+    ) -> dict[str, Any]:
         """Create envelope from a template"""
         cred = self._get_access_token(org_id, user_id)
         account_id = cred.get("account_id") or args.get("account_id")

@@ -15,9 +15,7 @@ GUSTO_TAX_FORMS_LIST = CapabilitySchema(
         "company_id": ParameterSchema(
             type="string", required=True, description="Gusto company UUID"
         ),
-        "year": ParameterSchema(
-            type="integer", required=True, description="Tax year (e.g., 2025)"
-        ),
+        "year": ParameterSchema(type="integer", required=True, description="Tax year (e.g., 2025)"),
     },
     returns={
         "forms": ReturnFieldSchema(

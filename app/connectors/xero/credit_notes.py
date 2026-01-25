@@ -21,9 +21,7 @@ logger = get_logger(__name__)
 class CreditNotesMixin(PaymentsMixin):
     """Mixin providing credit note management capabilities."""
 
-    def list_credit_notes(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_credit_notes(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List credit notes with optional filtering.
 
         Args:
@@ -93,9 +91,7 @@ class CreditNotesMixin(PaymentsMixin):
 
         credit_note_id = args.get("credit_note_id") or args.get("credit_note_number")
         if not credit_note_id:
-            raise ValidationError(
-                "credit_note_id", "credit_note_id or credit_note_number required"
-            )
+            raise ValidationError("credit_note_id", "credit_note_id or credit_note_number required")
 
         result = self._make_api_call("GET", f"CreditNotes/{credit_note_id}", cred, tenant_id)
         credit_notes = result.get("CreditNotes", [])
@@ -250,8 +246,7 @@ class CreditNotesMixin(PaymentsMixin):
             raise ValidationError("allocations", "At least one allocation is required")
 
         allocation_data = [
-            {"Invoice": {"InvoiceID": a["invoice_id"]}, "Amount": a["amount"]}
-            for a in allocations
+            {"Invoice": {"InvoiceID": a["invoice_id"]}, "Amount": a["amount"]} for a in allocations
         ]
 
         result = self._make_api_call(
@@ -285,9 +280,7 @@ class CreditNotesMixin(PaymentsMixin):
             "status": "success",
         }
 
-    def void_credit_note(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def void_credit_note(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Void a credit note.
 
         Args:

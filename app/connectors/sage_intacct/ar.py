@@ -23,9 +23,7 @@ logger = get_logger(__name__)
 class ARMixin(CustomerMixin):
     """Mixin providing Accounts Receivable capabilities."""
 
-    def list_ar_invoices(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_ar_invoices(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List AR invoices.
 
         Args:
@@ -68,9 +66,7 @@ class ARMixin(CustomerMixin):
             "status": "success",
         }
 
-    def get_ar_invoice(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_ar_invoice(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get a specific AR invoice.
 
         Args:
@@ -90,9 +86,7 @@ class ARMixin(CustomerMixin):
 
         return {"invoice": self._format_ar_invoice(invoice), "status": "success"}
 
-    def create_ar_invoice(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def create_ar_invoice(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Create an AR invoice.
 
         Args:
@@ -126,9 +120,7 @@ class ARMixin(CustomerMixin):
             "customer": {"id": args["customer_id"]},
             "invoiceDate": args["invoice_date"],
             "dueDate": args["due_date"],
-            "arInvoiceItem": [
-                self._format_ar_invoice_line_for_api(line) for line in args["lines"]
-            ],
+            "arInvoiceItem": [self._format_ar_invoice_line_for_api(line) for line in args["lines"]],
         }
 
         if args.get("invoice_no"):
@@ -155,9 +147,7 @@ class ARMixin(CustomerMixin):
 
         return {"invoice": self._format_ar_invoice(created), "status": "success"}
 
-    def post_ar_invoice(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def post_ar_invoice(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Post a draft AR invoice.
 
         Args:
@@ -170,8 +160,7 @@ class ARMixin(CustomerMixin):
             raise ValidationError("invoice_key", "invoice_key is required")
 
         self._make_api_call(
-            "PATCH", f"objects/ar-invoice/{invoice_key}", cred,
-            data={"state": "posted"}
+            "PATCH", f"objects/ar-invoice/{invoice_key}", cred, data={"state": "posted"}
         )
 
         logger.info(
@@ -183,9 +172,7 @@ class ARMixin(CustomerMixin):
 
         return {"invoice_key": invoice_key, "status": "posted"}
 
-    def void_ar_invoice(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def void_ar_invoice(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Void an AR invoice.
 
         Args:
@@ -208,9 +195,7 @@ class ARMixin(CustomerMixin):
 
         return {"invoice_key": invoice_key, "status": "voided"}
 
-    def list_ar_payments(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_ar_payments(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List AR payments (customer payments received).
 
         Args:
@@ -250,9 +235,7 @@ class ARMixin(CustomerMixin):
             "status": "success",
         }
 
-    def create_ar_payment(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def create_ar_payment(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Record an AR payment (customer payment).
 
         Args:
@@ -315,9 +298,7 @@ class ARMixin(CustomerMixin):
 
         return {"payment": self._format_ar_payment(created), "status": "success"}
 
-    def get_ar_aging(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_ar_aging(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get AR aging report.
 
         Args:
@@ -372,9 +353,7 @@ class ARMixin(CustomerMixin):
             "status": "success",
         }
 
-    def create_credit_memo(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def create_credit_memo(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Create an AR credit memo.
 
         Args:

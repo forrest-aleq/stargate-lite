@@ -70,9 +70,7 @@ class RevenueMixin:
         start_date, end_date = self._parse_period(period, None, from_date, to_date)
 
         # Get primary accounting system for P&L-based revenue
-        primary_service = self._get_primary_accounting_service(
-            org_id, user_id, PL_REPORT_SERVICES
-        )
+        primary_service = self._get_primary_accounting_service(org_id, user_id, PL_REPORT_SERVICES)
 
         revenue_data = {
             "total": 0.0,
@@ -117,15 +115,11 @@ class RevenueMixin:
                 all_sources.append("stripe")
 
         # Calculate MTD, YTD, last month values
-        revenue_data = self._calculate_period_values(
-            org_id, user_id, revenue_data, primary_service
-        )
+        revenue_data = self._calculate_period_values(org_id, user_id, revenue_data, primary_service)
 
         # Calculate change
         current_value = revenue_data["total"]
-        prior_total = self._get_prior_revenue(
-            org_id, user_id, current_value, period
-        )
+        prior_total = self._get_prior_revenue(org_id, user_id, current_value, period)
         change, change_percent = self._calculate_change(current_value, prior_total)
 
         # Determine trend direction
@@ -271,9 +265,7 @@ class RevenueMixin:
     ) -> dict[str, Any] | None:
         """Get MRR data from subscription services (Stripe, Recurly)."""
         # Check if Stripe is connected
-        available = self._get_connected_services(
-            org_id, user_id, {"stripe": "get_balance"}
-        )
+        available = self._get_connected_services(org_id, user_id, {"stripe": "get_balance"})
 
         if "stripe" not in available:
             return None

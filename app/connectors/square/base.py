@@ -64,7 +64,9 @@ class SquareBase:
                 },
             )
 
-            new_expiry = datetime.utcnow() + timedelta(seconds=token_data.get("expires_in", 2592000))
+            new_expiry = datetime.utcnow() + timedelta(
+                seconds=token_data.get("expires_in", 2592000)
+            )
 
             CredentialManager.store_credential(
                 org_id=org_id,

@@ -122,11 +122,7 @@ class TestFCIBaseHelpers:
     def test_parse_period_explicit_dates(self):
         """Parse explicit date range."""
         fci = FCIUtility()
-        start, end = fci._parse_period(
-            None,
-            from_date="2026-01-01",
-            to_date="2026-01-31"
-        )
+        start, end = fci._parse_period(None, from_date="2026-01-01", to_date="2026-01-31")
 
         assert start.year == 2026
         assert start.month == 1
@@ -141,10 +137,7 @@ class TestFCIResponseFormatting:
         """Format successful response."""
         fci = FCIUtility()
         response = fci._format_response(
-            total=100000,
-            sources=["plaid", "mercury"],
-            errors=None,
-            custom_field="custom_value"
+            total=100000, sources=["plaid", "mercury"], errors=None, custom_field="custom_value"
         )
 
         assert response["total"] == 100000
@@ -159,7 +152,7 @@ class TestFCIResponseFormatting:
         response = fci._format_response(
             total=100000,
             sources=["plaid"],
-            errors=[{"service": "mercury", "error": "Connection failed"}]
+            errors=[{"service": "mercury", "error": "Connection failed"}],
         )
 
         assert response["total"] == 100000
@@ -183,20 +176,16 @@ class TestCashMixin:
                         "name": "Checking",
                         "institution_name": "Chase",
                         "balances": {"current": 500000},
-                        "account_id": "plaid_123"
+                        "account_id": "plaid_123",
                     }
-                ]
+                ],
             },
             {
                 "_source": "mercury",
                 "accounts": [
-                    {
-                        "name": "Mercury Checking",
-                        "current_balance": 300000,
-                        "id": "merc_456"
-                    }
-                ]
-            }
+                    {"name": "Mercury Checking", "current_balance": 300000, "id": "merc_456"}
+                ],
+            },
         ]
 
         fci = FCIUtility()
@@ -237,14 +226,14 @@ class TestARMixin:
                         "ColData": [
                             {"value": "Customer A"},
                             {"value": "10000"},  # current
-                            {"value": "5000"},   # 30
-                            {"value": "3000"},   # 60
-                            {"value": "1000"},   # 90
-                            {"value": "500"},    # 90+
-                        ]
+                            {"value": "5000"},  # 30
+                            {"value": "3000"},  # 60
+                            {"value": "1000"},  # 90
+                            {"value": "500"},  # 90+
+                        ],
                     }
                 ]
-            }
+            },
         }
 
         fci = FCIUtility()
@@ -277,10 +266,10 @@ class TestAPMixin:
                             {"value": "2000"},
                             {"value": "500"},
                             {"value": "200"},
-                        ]
+                        ],
                     }
                 ]
-            }
+            },
         }
 
         fci = FCIUtility()
@@ -326,14 +315,14 @@ class TestRunwayMixin:
             "total": 1200000,
             "accounts": [],
             "sources": ["mercury"],
-            "errors": None
+            "errors": None,
         }
         mock_burn.return_value = {
             "monthly_avg": 100000,
             "sources": ["quickbooks"],
             "errors": None,
             "months_analyzed": 3,
-            "trend_direction": "stable"
+            "trend_direction": "stable",
         }
 
         fci = FCIUtility()
@@ -458,7 +447,8 @@ class TestDatabaseServiceDiscovery:
         mock_cred2.service = "plaid"
 
         mock_db.query.return_value.filter.return_value.distinct.return_value.all.return_value = [
-            mock_cred1, mock_cred2
+            mock_cred1,
+            mock_cred2,
         ]
 
         services = CredentialManager.get_services_for_org("org_123", "user_456")

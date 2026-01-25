@@ -9,9 +9,28 @@ Provides cross-service entity resolution:
 Supports exact and fuzzy matching with confidence scores.
 """
 
+import re
 from typing import Any
 
 from app.logging_config import get_logger
+
+
+def _sanitize_qboql(value: str) -> str:
+    """
+    Sanitize a value for use in QuickBooks Query Language (QBOQL).
+
+    QBOQL uses backslash escaping for special characters.
+    This prevents injection attacks in LIKE/WHERE clauses.
+    """
+    if not value:
+        return ""
+    # Escape backslashes first, then single quotes
+    sanitized = value.replace("\\", "\\\\").replace("'", "\\'")
+    # Remove any other potentially dangerous characters
+    sanitized = re.sub(r"[;\-\-]", "", sanitized)
+    return sanitized
+
+
 from app.utilities.fci.service_mappings import (
     CUSTOMER_SERVICES,
     INVOICE_SERVICES,
@@ -94,9 +113,7 @@ class EntityMixin:
         if customer_id and ":" in customer_id:
             service_prefix, entity_id = customer_id.split(":", 1)
             if service_prefix in available:
-                result = self._lookup_customer_by_id(
-                    org_id, user_id, service_prefix, entity_id
-                )
+                result = self._lookup_customer_by_id(org_id, user_id, service_prefix, entity_id)
                 if result:
                     matches.append(result)
                     sources.append(service_prefix)
@@ -118,11 +135,13 @@ class EntityMixin:
                         error=str(e),
                         log_event="fci_customer_search_error",
                     )
-                    errors.append({
-                        "service": service,
-                        "error": str(e),
-                        "error_type": type(e).__name__,
-                    })
+                    errors.append(
+                        {
+                            "service": service,
+                            "error": str(e),
+                            "error_type": type(e).__name__,
+                        }
+                    )
 
         # Sort matches by confidence and pick primary
         matches.sort(key=lambda x: x.get("confidence", 0), reverse=True)
@@ -204,9 +223,7 @@ class EntityMixin:
         if vendor_id and ":" in vendor_id:
             service_prefix, entity_id = vendor_id.split(":", 1)
             if service_prefix in available:
-                result = self._lookup_vendor_by_id(
-                    org_id, user_id, service_prefix, entity_id
-                )
+                result = self._lookup_vendor_by_id(org_id, user_id, service_prefix, entity_id)
                 if result:
                     matches.append(result)
                     sources.append(service_prefix)
@@ -226,11 +243,13 @@ class EntityMixin:
                         error=str(e),
                         log_event="fci_vendor_search_error",
                     )
-                    errors.append({
-                        "service": service,
-                        "error": str(e),
-                        "error_type": type(e).__name__,
-                    })
+                    errors.append(
+                        {
+                            "service": service,
+                            "error": str(e),
+                            "error_type": type(e).__name__,
+                        }
+                    )
 
         matches.sort(key=lambda x: x.get("confidence", 0), reverse=True)
         primary = matches[0] if matches else None
@@ -309,9 +328,7 @@ class EntityMixin:
         if invoice_id and ":" in invoice_id:
             service_prefix, entity_id = invoice_id.split(":", 1)
             if service_prefix in available:
-                result = self._lookup_invoice_by_id(
-                    org_id, user_id, service_prefix, entity_id
-                )
+                result = self._lookup_invoice_by_id(org_id, user_id, service_prefix, entity_id)
                 if result:
                     matches.append(result)
                     sources.append(service_prefix)
@@ -331,11 +348,13 @@ class EntityMixin:
                         error=str(e),
                         log_event="fci_invoice_search_error",
                     )
-                    errors.append({
-                        "service": service,
-                        "error": str(e),
-                        "error_type": type(e).__name__,
-                    })
+                    errors.append(
+                        {
+                            "service": service,
+                            "error": str(e),
+                            "error_type": type(e).__name__,
+                        }
+                    )
 
         matches.sort(key=lambda x: x.get("confidence", 0), reverse=True)
         primary = matches[0] if matches else None
@@ -402,26 +421,24 @@ class EntityMixin:
             if service == "quickbooks":
                 # QB uses query language
                 if name:
-                    # Escape single quotes for QBOQL (uses backslash escaping)
-                    sanitized_name = name.replace("'", "\\'")
+                    sanitized_name = _sanitize_qboql(name)
                     search_args["query"] = (
-                        f"SELECT * FROM Customer WHERE DisplayName LIKE '%{sanitized_name}%'"
+                        "SELECT * FROM Customer WHERE DisplayName LIKE '%{}%'".format(
+                            sanitized_name
+                        )
                     )
                 method = getattr(connector, "query_entities", None)
             elif service == "stripe":
                 method = getattr(
-                    connector, "search_customers",
-                    getattr(connector, "list_customers", None)
+                    connector, "search_customers", getattr(connector, "list_customers", None)
                 )
             elif service == "hubspot":
                 method = getattr(
-                    connector, "search_contacts",
-                    getattr(connector, "list_contacts", None)
+                    connector, "search_contacts", getattr(connector, "list_contacts", None)
                 )
             else:
                 method = getattr(
-                    connector, "list_customers",
-                    getattr(connector, "get_customers", None)
+                    connector, "list_customers", getattr(connector, "get_customers", None)
                 )
 
             if not method:
@@ -432,8 +449,7 @@ class EntityMixin:
             # Parse results
             qr = result.get("QueryResponse", {})
             customers = result.get(
-                "customers",
-                result.get("contacts", result.get("results", qr.get("Customer", [])))
+                "customers", result.get("contacts", result.get("results", qr.get("Customer", [])))
             )
 
             if isinstance(customers, list):
@@ -498,17 +514,15 @@ class EntityMixin:
 
             if service == "quickbooks":
                 if name:
-                    # Escape single quotes for QBOQL (uses backslash escaping)
-                    sanitized_name = name.replace("'", "\\'")
+                    sanitized_name = _sanitize_qboql(name)
                     search_args["query"] = (
-                        f"SELECT * FROM Vendor WHERE DisplayName LIKE '%{sanitized_name}%'"
+                        "SELECT * FROM Vendor WHERE DisplayName LIKE '%{}%'".format(
+                            sanitized_name
+                        )
                     )
                 method = getattr(connector, "query_entities", None)
             else:
-                method = getattr(
-                    connector, "list_vendors",
-                    getattr(connector, "get_vendors", None)
-                )
+                method = getattr(connector, "list_vendors", getattr(connector, "get_vendors", None))
 
             if not method:
                 return matches
@@ -516,9 +530,7 @@ class EntityMixin:
             result = method(org_id, user_id, search_args)
 
             qr = result.get("QueryResponse", {})
-            vendors = result.get(
-                "vendors", result.get("results", qr.get("Vendor", []))
-            )
+            vendors = result.get("vendors", result.get("results", qr.get("Vendor", [])))
 
             if isinstance(vendors, list):
                 for vendor in vendors:
@@ -579,16 +591,14 @@ class EntityMixin:
 
             if service == "quickbooks":
                 if invoice_number:
-                    # Escape single quotes for QBOQL (uses backslash escaping)
-                    sanitized_num = invoice_number.replace("'", "\\'")
+                    sanitized_num = _sanitize_qboql(invoice_number)
                     search_args["query"] = (
-                        f"SELECT * FROM Invoice WHERE DocNumber = '{sanitized_num}'"
+                        "SELECT * FROM Invoice WHERE DocNumber = '{}'".format(sanitized_num)
                     )
                 method = getattr(connector, "query_entities", None)
             else:
                 method = getattr(
-                    connector, "list_invoices",
-                    getattr(connector, "get_invoices", None)
+                    connector, "list_invoices", getattr(connector, "get_invoices", None)
                 )
 
             if not method:
@@ -597,9 +607,7 @@ class EntityMixin:
             result = method(org_id, user_id, search_args)
 
             qr = result.get("QueryResponse", {})
-            invoices = result.get(
-                "invoices", result.get("data", qr.get("Invoice", []))
-            )
+            invoices = result.get("invoices", result.get("data", qr.get("Invoice", [])))
 
             if isinstance(invoices, list):
                 for invoice in invoices:
@@ -659,8 +667,8 @@ class EntityMixin:
 
         elif service == "shopify":
             normalized["id"] = f"shopify:{result.get('id', '')}"
-            first = result.get('first_name', '')
-            last = result.get('last_name', '')
+            first = result.get("first_name", "")
+            last = result.get("last_name", "")
             normalized["name"] = f"{first} {last}".strip()
             normalized["email"] = result.get("email", "")
 

@@ -49,9 +49,7 @@ GUSTO_PAYROLL_GET = CapabilitySchema(
         "company_id": ParameterSchema(
             type="string", required=True, description="Gusto company UUID"
         ),
-        "payroll_id": ParameterSchema(
-            type="string", required=True, description="Payroll UUID"
-        ),
+        "payroll_id": ParameterSchema(type="string", required=True, description="Payroll UUID"),
     },
     returns={
         "id": ReturnFieldSchema(type="string", description="Payroll UUID"),

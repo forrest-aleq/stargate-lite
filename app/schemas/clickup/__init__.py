@@ -560,9 +560,7 @@ CLICKUP_SPACE_GET = CapabilitySchema(
     service="clickup",
     category="spaces",
     description="Get space details from ClickUp",
-    description_detailed=(
-        "Get full details of a specific space including statuses and features."
-    ),
+    description_detailed=("Get full details of a specific space including statuses and features."),
     parameters={
         "space_id": ParameterSchema(
             type="string",
@@ -609,8 +607,7 @@ CLICKUP_COMMENT_CREATE = CapabilitySchema(
     category="comments",
     description="Create comment on ClickUp task",
     description_detailed=(
-        "Post a comment on a task. Optionally assign with the comment "
-        "and notify all assignees."
+        "Post a comment on a task. Optionally assign with the comment " "and notify all assignees."
     ),
     parameters={
         "task_id": ParameterSchema(

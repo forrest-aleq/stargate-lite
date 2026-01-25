@@ -235,9 +235,7 @@ class APMixin:
 
                     if due_date_str:
                         try:
-                            due_date = datetime.fromisoformat(
-                                due_date_str.replace("Z", "")
-                            ).date()
+                            due_date = datetime.fromisoformat(due_date_str.replace("Z", "")).date()
                             days_overdue = (today - due_date).days
 
                             if days_overdue <= 0:

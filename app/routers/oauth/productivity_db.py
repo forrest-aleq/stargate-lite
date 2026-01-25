@@ -115,13 +115,15 @@ async def airtable_oauth_authorize(
 
     # Airtable OAuth scopes
     # https://airtable.com/developers/web/api/scopes
-    scopes = " ".join([
-        "data.records:read",      # Read records from tables
-        "data.records:write",     # Create, update, delete records
-        "schema.bases:read",      # Read base schema (tables, fields)
-        "schema.bases:write",     # Modify base schema
-        "webhook:manage",         # Create and manage webhooks
-    ])
+    scopes = " ".join(
+        [
+            "data.records:read",  # Read records from tables
+            "data.records:write",  # Create, update, delete records
+            "schema.bases:read",  # Read base schema (tables, fields)
+            "schema.bases:write",  # Modify base schema
+            "webhook:manage",  # Create and manage webhooks
+        ]
+    )
 
     params = {
         "client_id": client_id,

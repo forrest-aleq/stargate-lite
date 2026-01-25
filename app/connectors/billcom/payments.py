@@ -117,7 +117,9 @@ class BillComPaymentsMixin(BillComBase):
     def cancel_payment(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Cancel a scheduled payment."""
         payment_id = args["payment_id"].replace("bc:", "")
-        result = self._api_call("POST", f"/payments/{payment_id}/cancel", org_id, user_id, json_data={})
+        result = self._api_call(
+            "POST", f"/payments/{payment_id}/cancel", org_id, user_id, json_data={}
+        )
 
         logger.info(
             "Cancelled Bill.com payment",
@@ -157,7 +159,9 @@ class BillComPaymentsMixin(BillComBase):
             "voided": True,
         }
 
-    def create_bulk_payment(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    def create_bulk_payment(
+        self, org_id: str, user_id: str, args: dict[str, Any]
+    ) -> dict[str, Any]:
         """Create bulk payments in Bill.com."""
         start_time = time.time()
 
@@ -192,7 +196,11 @@ class BillComPaymentsMixin(BillComBase):
         return {
             "batch_id": result.get("batchId"),
             "payments": [
-                {"payment_id": f"bc:{p['id']}", "amount": p.get("amount"), "status": p.get("status")}
+                {
+                    "payment_id": f"bc:{p['id']}",
+                    "amount": p.get("amount"),
+                    "status": p.get("status"),
+                }
                 for p in result.get("payments", [])
             ],
             "total_payments": len(result.get("payments", [])),

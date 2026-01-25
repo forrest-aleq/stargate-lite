@@ -243,9 +243,7 @@ class WaterfallMixin(CovenantsMixin):
                 * ((1 + params["pref_return"]) ** params["holding_years"] - 1)
             )
         # Default to simple interest for "simple" or any other value
-        return Decimal(
-            inv.capital_contribution * params["pref_return"] * params["holding_years"]
-        )
+        return Decimal(inv.capital_contribution * params["pref_return"] * params["holding_years"])
 
     def _distribute_catchup(
         self,
