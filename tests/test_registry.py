@@ -115,7 +115,6 @@ def test_oauth_requirements():
         # Services that should require OAuth
         oauth_services = {
             "quickbooks",
-            "billcom",
             "netsuite",
             "ramp",
             "brex",
@@ -130,7 +129,8 @@ def test_oauth_requirements():
             "microsoft",
         }
 
-        # Services that use API keys (or no auth)
+        # Services that use API keys, session auth, or no auth
+        # billcom uses session-based auth (login with username/password, get sessionId)
         api_key_services = {
             "stripe",
             "recurly",
@@ -140,6 +140,7 @@ def test_oauth_requirements():
             "twilio",
             "ibkr",
             "ocr",
+            "billcom",  # Session-based auth, not OAuth
         }
 
         for key, config in CAPABILITY_REGISTRY.items():

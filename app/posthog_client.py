@@ -101,7 +101,7 @@ def track(
         # Never let analytics break the main flow
         logger.warning(
             "PostHog tracking failed",
-            event=event,
+            posthog_event=event,
             error=str(e),
             log_event="posthog_error",
         )

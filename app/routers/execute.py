@@ -5,12 +5,13 @@ Tool execution routes for Stargate Lite.
 import time
 from typing import Any
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends, Header, Response
 
 from app.auth import verify_api_key
 from app.errors import StargateError
 from app.logging_config import bind_request_context, clear_request_context, get_logger
 from app.models import ToolExecutionRequest
+from app.rate_limiter import rate_limiter
 from app.redis_client import redis_client
 from app.registry import get_capability
 from app.services.execution import (
@@ -29,6 +30,7 @@ router = APIRouter(prefix="/api/v1", tags=["execute"])
 @router.post("/execute")
 async def execute_tool(
     request: ToolExecutionRequest,
+    response: Response,
     _: bool = Depends(verify_api_key),
     x_session_id: str | None = Header(None, alias="X-Session-ID"),
 ) -> dict[str, Any]:
@@ -38,6 +40,8 @@ async def execute_tool(
     This is the MAIN endpoint that the Brain (MARS) calls.
     Supports idempotency via turn_id with 24-hour cache.
     Session ID can be passed via X-Session-ID header or session_id body field.
+
+    Rate limited: 100 requests per minute per org_id (configurable via env vars).
     """
     logs: list[str] = []
     capability: dict[str, Any] | None = None
@@ -55,6 +59,36 @@ async def execute_tool(
     )
     logger.info("Execute request received", log_event="execute_start")
 
+    # Rate limiting check
+    is_allowed, rate_info = rate_limiter.check_rate_limit(request.org_id)
+
+    # Add rate limit headers to response
+    response.headers["X-RateLimit-Limit"] = str(rate_info["limit"])
+    response.headers["X-RateLimit-Remaining"] = str(rate_info["remaining"])
+    response.headers["X-RateLimit-Reset"] = str(rate_info["reset_at"])
+
+    if not is_allowed:
+        retry_after = max(1, rate_info["reset_at"] - int(time.time()))
+        response.headers["Retry-After"] = str(retry_after)
+        response.status_code = 429
+        logger.warning(
+            "Rate limit exceeded",
+            org_id=request.org_id,
+            log_event="rate_limit_rejected",
+        )
+        return {
+            "status": "error",
+            "error_code": "RATE_LIMIT",
+            "error_message": f"Rate limit exceeded. Retry after {retry_after} seconds.",
+            "retry_strategy": "backoff",
+            "details": {
+                "limit": rate_info["limit"],
+                "retry_after_seconds": retry_after,
+            },
+            "capability_key": request.capability_key,
+            "turn_id": request.turn_id,
+        }
+
     try:
         cached = check_idempotency_cache(request.turn_id, request.capability_key)
         if cached:
@@ -69,9 +103,9 @@ async def execute_tool(
         )
 
         outputs, _duration = execute_handler(capability, request, logs, session_id)
-        response = build_success_response(request, capability, outputs, logs)
+        response_data = build_success_response(request, capability, outputs, logs)
 
-        redis_client.cache_response(request.turn_id, request.capability_key, response)
+        redis_client.cache_response(request.turn_id, request.capability_key, response_data)
         total_duration_ms = (time.time() - start_time) * 1000
         logger.info(
             "Execute request completed successfully",
@@ -80,7 +114,7 @@ async def execute_tool(
             total_duration_ms=round(total_duration_ms, 2),
             log_event="execute_success",
         )
-        return response
+        return response_data
 
     except StargateError as e:
         return handle_stargate_error(e, request, capability, logs, start_time, session_id)

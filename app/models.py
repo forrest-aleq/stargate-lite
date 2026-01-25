@@ -97,6 +97,7 @@ class HealthResponse(BaseModel):
 
     status: str
     version: str
+    capabilities_count: int | None = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     services: dict[str, str] = Field(default_factory=dict)
 

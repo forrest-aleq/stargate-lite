@@ -17,7 +17,7 @@ def _get_connector_classes() -> dict[str, Any]:
     Lazy-load connector classes to avoid circular imports.
     Returns a dict mapping service name to connector class.
     """
-    from app.connectors.bill_com import BillComConnector
+    from app.connectors.billcom import BillComConnector
     from app.connectors.brex import BrexConnector
     from app.connectors.chase import ChaseConnector
     from app.connectors.gusto import GustoConnector

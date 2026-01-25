@@ -243,3 +243,89 @@ Token refresh is handled automatically by connectors when tokens are near expiry
 3. **OAuth callbacks**: Update redirect URIs to production domain with HTTPS
 4. **CORS**: Restrict `allow_origins` in `app/main.py` middleware
 5. **Credential backup**: Encrypted database contains all OAuth tokens - back up regularly
+
+---
+
+## AI Agent Rules (MANDATORY)
+
+**These rules are enforced by pre-commit hooks. Violations will block commits.**
+
+### Version Management
+
+1. **VERSION lives in `app/main.py`** - This is the single source of truth
+   ```python
+   VERSION = "0.9.0"  # Current version
+   ```
+
+2. **When bumping version, you MUST also update CHANGELOG.md**
+   - Add entry under `## [x.y.z] - YYYY-MM-DD`
+   - Group changes: Added, Fixed, Changed, Removed, Security, BREAKING
+
+3. **Semantic versioning rules:**
+   - PATCH (0.9.0 → 0.9.1): Bug fixes only
+   - MINOR (0.9.x → 0.10.0): New features, backward compatible
+   - MAJOR (0.x.x → 1.0.0): Breaking changes
+
+### Release Process
+
+**Read `docs/RELEASE_GUIDE.md` before any release work.**
+
+1. **Never ship on Friday** - No exceptions
+2. **Always run tests before committing**: `make test`
+3. **Pre-commit hooks must pass**: `pre-commit run --all-files`
+
+### Code Quality Gates
+
+Pre-commit hooks enforce:
+- `ruff` - Linting and formatting
+- `mypy --strict` - Type checking
+- `release-check` - Version/changelog validation
+- `guardian` - Custom quality checks
+- File size limits (500KB max)
+- Function size limits
+
+### Disabled Services (Production Safety)
+
+These services are **disabled by default** in `app/registry/__init__.py`:
+- `ibkr` - Interactive Brokers (trading)
+- `schwab` - Charles Schwab (trading)
+- `blandai` - Voice AI (cost)
+- `twilio` - SMS/Voice (cost/abuse)
+- `hyperbrowser` - Web automation (security)
+
+**Do NOT enable these without explicit approval.**
+
+### Commit Checklist
+
+Before every commit:
+- [ ] Tests pass (`make test`)
+- [ ] Pre-commit hooks pass (`pre-commit run --all-files`)
+- [ ] If version changed → CHANGELOG.md updated
+- [ ] No secrets in code (check for API keys, tokens)
+- [ ] No `print()` statements (use `logger`)
+
+### File Modification Rules
+
+| File | Rule |
+|------|------|
+| `app/main.py` | VERSION changes require CHANGELOG update |
+| `CHANGELOG.md` | Must have entry for current VERSION |
+| `app/registry/__init__.py` | Do not remove from DISABLED_SERVICES |
+| `.env` | NEVER commit this file |
+| `scripts/*.py` | Pre-commit hooks - test before modifying |
+
+### Error Handling
+
+All connectors must:
+1. Use errors from `app/errors.py` (not generic exceptions)
+2. Include `org_id`, `user_id`, `service` in error context
+3. Never expose credentials in error messages
+4. Log with `log_event` for structured logging
+
+### Testing Requirements
+
+When adding/modifying code:
+1. New connector → Add integration test
+2. New capability → Add to registry tests
+3. Bug fix → Add regression test
+4. All tests must pass before PR merge

@@ -28,6 +28,13 @@ repos:
         pass_filenames: false
         always_run: true
 
+      - id: release-check
+        name: Release validation
+        entry: python scripts/release_check.py
+        language: python
+        pass_filenames: false
+        always_run: true
+
   # Ruff - lint + format
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.4

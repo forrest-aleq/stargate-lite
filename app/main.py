@@ -5,6 +5,10 @@ The "Hands" of the Aleq MIND
 
 import os
 
+# Version - Single source of truth
+# Update this on every release (see RELEASE_GUIDE.md)
+VERSION = "0.9.0"
+
 from datadog import statsd
 
 # DataDog APM - import and patch early
@@ -30,7 +34,7 @@ logger = get_logger(__name__)
 app = FastAPI(
     title="Stargate Lite",
     description="Execution Layer ('The Hands') for Aleq MIND",
-    version="1.0.0",
+    version=VERSION,
 )
 
 # CORS middleware

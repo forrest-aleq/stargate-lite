@@ -6,6 +6,8 @@ Updated January 2026 - 20 PLATFORMS + Cognitive Utilities + Financial Ops - 322 
 + Financial Operations: reconciliation, matching, covenants, waterfall, tiered_fees, forecasting
 
 This module combines all sub-registries into a unified CAPABILITY_REGISTRY.
+
+PRODUCTION SAFETY: Certain high-risk services are explicitly disabled.
 """
 
 from typing import Any
@@ -21,11 +23,35 @@ from app.registry.trading import TRADING_CAPABILITIES
 from app.registry.utilities import UTILITIES_CAPABILITIES
 from app.schemas import has_schema
 
+# =============================================================================
+# PRODUCTION SAFETY: DISABLED SERVICES
+# =============================================================================
+# These services are explicitly disabled for production safety:
+# - ibkr: Trading operations - HIGH RISK, requires extensive testing
+# - schwab: Trading operations - HIGH RISK, requires extensive testing
+# - blandai: Voice AI - cost implications, requires careful monitoring
+# - twilio: SMS/Voice - cost implications, potential for abuse
+# - hyperbrowser: Web automation - may be blocked, security concerns
+#
+# To enable these services, remove them from DISABLED_SERVICES set.
+# =============================================================================
+DISABLED_SERVICES = {"ibkr", "schwab", "blandai", "twilio", "hyperbrowser"}
+
+
+def _filter_capabilities(capabilities: dict[str, Any]) -> dict[str, Any]:
+    """Filter out capabilities from disabled services."""
+    return {
+        key: config
+        for key, config in capabilities.items()
+        if config.get("service") not in DISABLED_SERVICES
+    }
+
+
 # CAPABILITY REGISTRY
 # This maps abstract capability keys to concrete tool implementations
 # The Brain (MARS/Aletheia) sends capability_key, Stargate maps it to the right tool
 
-CAPABILITY_REGISTRY = {
+_ALL_CAPABILITIES = {
     **FINANCIAL_CAPABILITIES,
     **FINANCIAL_OPS_CAPABILITIES,
     **FCI_CAPABILITIES,
@@ -36,6 +62,9 @@ CAPABILITY_REGISTRY = {
     **GOOGLE_MICROSOFT_CAPABILITIES,
     **UTILITIES_CAPABILITIES,
 }
+
+# Apply production safety filter
+CAPABILITY_REGISTRY = _filter_capabilities(_ALL_CAPABILITIES)
 
 
 def get_capability(capability_key: str) -> dict[str, Any] | None:
