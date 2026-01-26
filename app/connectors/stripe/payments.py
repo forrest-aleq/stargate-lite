@@ -8,6 +8,7 @@ from typing import Any
 
 import stripe
 
+from app.connectors.stripe.base import requires_stripe_init
 from app.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -16,6 +17,7 @@ logger = get_logger(__name__)
 class StripePaymentsMixin:
     """Stripe payment operations mixin"""
 
+    @requires_stripe_init
     def create_payment_intent(
         self, org_id: str, user_id: str, args: dict[str, Any]
     ) -> dict[str, Any]:
@@ -63,6 +65,7 @@ class StripePaymentsMixin:
             "status": payment_intent.status,
         }
 
+    @requires_stripe_init
     def retrieve_payment_intent(
         self, org_id: str, user_id: str, args: dict[str, Any]
     ) -> dict[str, Any]:
@@ -78,6 +81,7 @@ class StripePaymentsMixin:
             "description": pi.description,
         }
 
+    @requires_stripe_init
     def refund_payment(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Refund a payment"""
         payment_intent_id = args.get("payment_intent_id")
@@ -116,6 +120,7 @@ class StripePaymentsMixin:
             "payment_intent_id": refund.payment_intent,
         }
 
+    @requires_stripe_init
     def retrieve_refund(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Retrieve a refund"""
         refund_id = args.get("refund_id")
@@ -128,6 +133,7 @@ class StripePaymentsMixin:
             "reason": refund.reason,
         }
 
+    @requires_stripe_init
     def update_refund(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Update a refund"""
         refund_id = args.get("refund_id")
@@ -139,12 +145,14 @@ class StripePaymentsMixin:
             "metadata": refund.metadata,
         }
 
+    @requires_stripe_init
     def cancel_refund(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Cancel a refund (only possible if not yet processed)"""
         refund_id = args.get("refund_id")
         refund = stripe.Refund.cancel(refund_id)
         return {"refund_id": refund.id, "status": refund.status}
 
+    @requires_stripe_init
     def list_refunds(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List refunds"""
         limit = args.get("limit", 10)
@@ -171,6 +179,7 @@ class StripePaymentsMixin:
             "has_more": refunds.has_more,
         }
 
+    @requires_stripe_init
     def retrieve_charge(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Retrieve a charge"""
         charge_id = args.get("charge_id")
@@ -185,6 +194,7 @@ class StripePaymentsMixin:
             "refunded": charge.refunded,
         }
 
+    @requires_stripe_init
     def list_charges(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List charges"""
         limit = args.get("limit", 10)

@@ -8,6 +8,7 @@ from typing import Any
 
 import stripe
 
+from app.connectors.stripe.base import requires_stripe_init
 from app.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -16,6 +17,7 @@ logger = get_logger(__name__)
 class StripeBalanceMixin:
     """Stripe balance and payout operations mixin"""
 
+    @requires_stripe_init
     def get_balance(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get current Stripe balance"""
         logger.info("Retrieving balance", service="stripe", log_event="stripe_balance_retrieve")
@@ -43,6 +45,7 @@ class StripeBalanceMixin:
             "connect_reserved": balance.get("connect_reserved", []),
         }
 
+    @requires_stripe_init
     def list_payouts(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List Stripe payouts"""
         limit = args.get("limit", 10)
@@ -67,6 +70,7 @@ class StripeBalanceMixin:
             "has_more": payouts.has_more,
         }
 
+    @requires_stripe_init
     def retrieve_payout(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Retrieve a specific payout"""
         payout_id = args.get("payout_id")
@@ -80,6 +84,7 @@ class StripeBalanceMixin:
             "destination": payout.destination,
         }
 
+    @requires_stripe_init
     def list_balance_transactions(
         self, org_id: str, user_id: str, args: dict[str, Any]
     ) -> dict[str, Any]:
@@ -110,6 +115,7 @@ class StripeBalanceMixin:
             "has_more": transactions.has_more,
         }
 
+    @requires_stripe_init
     def create_transfer(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Create a transfer (Connect accounts)"""
         amount = args.get("amount")
@@ -151,6 +157,7 @@ class StripeBalanceMixin:
             "destination": transfer.destination,
         }
 
+    @requires_stripe_init
     def list_transfers(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List transfers"""
         limit = args.get("limit", 10)

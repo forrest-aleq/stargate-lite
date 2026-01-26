@@ -8,6 +8,7 @@ from typing import Any
 
 import stripe
 
+from app.connectors.stripe.base import requires_stripe_init
 from app.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -16,6 +17,7 @@ logger = get_logger(__name__)
 class StripeProductsMixin:
     """Stripe product and price operations mixin"""
 
+    @requires_stripe_init
     def create_product(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Create a product"""
         name = args.get("name")
@@ -35,6 +37,7 @@ class StripeProductsMixin:
             "active": product.active,
         }
 
+    @requires_stripe_init
     def retrieve_product(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Retrieve a product"""
         product_id = args.get("product_id")
@@ -47,6 +50,7 @@ class StripeProductsMixin:
             "default_price": product.default_price,
         }
 
+    @requires_stripe_init
     def update_product(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Update a product"""
         product_id = args.get("product_id")
@@ -70,6 +74,7 @@ class StripeProductsMixin:
             "active": product.active,
         }
 
+    @requires_stripe_init
     def list_products(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List products"""
         limit = args.get("limit", 10)
@@ -93,12 +98,14 @@ class StripeProductsMixin:
             "has_more": products.has_more,
         }
 
+    @requires_stripe_init
     def delete_product(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Delete a product"""
         product_id = args.get("product_id")
         deleted = stripe.Product.delete(product_id)
         return {"product_id": deleted.id, "deleted": deleted.deleted}
 
+    @requires_stripe_init
     def search_products(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Search for products"""
         query = args.get("query")  # e.g., "name:'Premium'" or "active:'true'"
@@ -118,6 +125,7 @@ class StripeProductsMixin:
             "has_more": products.has_more,
         }
 
+    @requires_stripe_init
     def create_price(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Create a price for a product"""
         product_id = args.get("product_id")
@@ -146,6 +154,7 @@ class StripeProductsMixin:
             "type": price.type,
         }
 
+    @requires_stripe_init
     def retrieve_price(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Retrieve a price"""
         price_id = args.get("price_id")
@@ -159,6 +168,7 @@ class StripeProductsMixin:
             "type": price.type,
         }
 
+    @requires_stripe_init
     def update_price(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Update a price"""
         price_id = args.get("price_id")
@@ -178,6 +188,7 @@ class StripeProductsMixin:
             "metadata": price.metadata,
         }
 
+    @requires_stripe_init
     def list_prices(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List prices"""
         limit = args.get("limit", 10)
@@ -205,6 +216,7 @@ class StripeProductsMixin:
             "has_more": prices.has_more,
         }
 
+    @requires_stripe_init
     def search_prices(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Search for prices"""
         query = args.get("query")  # e.g., "product:'prod_xxx'" or "active:'true'"

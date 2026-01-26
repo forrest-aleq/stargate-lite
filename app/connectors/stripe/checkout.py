@@ -8,6 +8,7 @@ from typing import Any
 
 import stripe
 
+from app.connectors.stripe.base import requires_stripe_init
 from app.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -16,6 +17,7 @@ logger = get_logger(__name__)
 class StripeCheckoutMixin:
     """Stripe checkout session operations mixin"""
 
+    @requires_stripe_init
     def create_checkout_session(
         self, org_id: str, user_id: str, args: dict[str, Any]
     ) -> dict[str, Any]:
@@ -47,6 +49,7 @@ class StripeCheckoutMixin:
             "mode": session.mode,
         }
 
+    @requires_stripe_init
     def retrieve_checkout_session(
         self, org_id: str, user_id: str, args: dict[str, Any]
     ) -> dict[str, Any]:
@@ -61,6 +64,7 @@ class StripeCheckoutMixin:
             "amount_total": session.amount_total,
         }
 
+    @requires_stripe_init
     def expire_checkout_session(
         self, org_id: str, user_id: str, args: dict[str, Any]
     ) -> dict[str, Any]:
@@ -69,6 +73,7 @@ class StripeCheckoutMixin:
         session = stripe.checkout.Session.expire(session_id)
         return {"session_id": session.id, "status": session.status}
 
+    @requires_stripe_init
     def list_checkout_sessions(
         self, org_id: str, user_id: str, args: dict[str, Any]
     ) -> dict[str, Any]:
@@ -94,6 +99,7 @@ class StripeCheckoutMixin:
             "has_more": sessions.has_more,
         }
 
+    @requires_stripe_init
     def list_checkout_line_items(
         self, org_id: str, user_id: str, args: dict[str, Any]
     ) -> dict[str, Any]:

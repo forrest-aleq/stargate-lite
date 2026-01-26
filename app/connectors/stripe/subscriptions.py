@@ -8,6 +8,7 @@ from typing import Any
 
 import stripe
 
+from app.connectors.stripe.base import requires_stripe_init
 from app.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -16,6 +17,7 @@ logger = get_logger(__name__)
 class StripeSubscriptionsMixin:
     """Stripe subscription operations mixin"""
 
+    @requires_stripe_init
     def create_subscription(
         self, org_id: str, user_id: str, args: dict[str, Any]
     ) -> dict[str, Any]:
@@ -58,6 +60,7 @@ class StripeSubscriptionsMixin:
             "current_period_end": subscription.current_period_end,
         }
 
+    @requires_stripe_init
     def retrieve_subscription(
         self, org_id: str, user_id: str, args: dict[str, Any]
     ) -> dict[str, Any]:
@@ -75,6 +78,7 @@ class StripeSubscriptionsMixin:
             "cancel_at_period_end": sub.cancel_at_period_end,
         }
 
+    @requires_stripe_init
     def update_subscription(
         self, org_id: str, user_id: str, args: dict[str, Any]
     ) -> dict[str, Any]:
@@ -95,6 +99,7 @@ class StripeSubscriptionsMixin:
             "status": sub.status,
         }
 
+    @requires_stripe_init
     def cancel_subscription(
         self, org_id: str, user_id: str, args: dict[str, Any]
     ) -> dict[str, Any]:
@@ -112,6 +117,7 @@ class StripeSubscriptionsMixin:
             sub = stripe.Subscription.delete(subscription_id)
         return {"subscription_id": sub.id, "status": sub.status}
 
+    @requires_stripe_init
     def list_subscriptions(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List subscriptions"""
         limit = args.get("limit", 10)

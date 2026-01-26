@@ -8,10 +8,13 @@ from typing import Any
 
 import stripe
 
+from app.connectors.stripe.base import requires_stripe_init
+
 
 class StripePaymentMethodsMixin:
     """Stripe payment method operations mixin"""
 
+    @requires_stripe_init
     def list_payment_methods(
         self, org_id: str, user_id: str, args: dict[str, Any]
     ) -> dict[str, Any]:
@@ -36,6 +39,7 @@ class StripePaymentMethodsMixin:
             "has_more": methods.has_more,
         }
 
+    @requires_stripe_init
     def attach_payment_method(
         self, org_id: str, user_id: str, args: dict[str, Any]
     ) -> dict[str, Any]:
@@ -50,6 +54,7 @@ class StripePaymentMethodsMixin:
         method = stripe.PaymentMethod.attach(payment_method_id, customer=customer_id)
         return {"payment_method_id": method.id, "customer": method.customer, "type": method.type}
 
+    @requires_stripe_init
     def create_payment_method(
         self, org_id: str, user_id: str, args: dict[str, Any]
     ) -> dict[str, Any]:
@@ -65,6 +70,7 @@ class StripePaymentMethodsMixin:
             "created": method.created,
         }
 
+    @requires_stripe_init
     def retrieve_payment_method(
         self, org_id: str, user_id: str, args: dict[str, Any]
     ) -> dict[str, Any]:
@@ -81,6 +87,7 @@ class StripePaymentMethodsMixin:
             "billing_details": method.billing_details.to_dict() if method.billing_details else None,
         }
 
+    @requires_stripe_init
     def update_payment_method(
         self, org_id: str, user_id: str, args: dict[str, Any]
     ) -> dict[str, Any]:
@@ -100,6 +107,7 @@ class StripePaymentMethodsMixin:
         method = stripe.PaymentMethod.modify(payment_method_id, **update_params)
         return {"payment_method_id": method.id, "type": method.type}
 
+    @requires_stripe_init
     def detach_payment_method(
         self, org_id: str, user_id: str, args: dict[str, Any]
     ) -> dict[str, Any]:

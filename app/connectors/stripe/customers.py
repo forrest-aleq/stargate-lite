@@ -8,6 +8,7 @@ from typing import Any
 
 import stripe
 
+from app.connectors.stripe.base import requires_stripe_init
 from app.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -16,6 +17,7 @@ logger = get_logger(__name__)
 class StripeCustomersMixin:
     """Stripe customer operations mixin"""
 
+    @requires_stripe_init
     def create_customer(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Create a Stripe customer"""
         email = args.get("email")
@@ -45,6 +47,7 @@ class StripeCustomersMixin:
             "created_at": customer.created,
         }
 
+    @requires_stripe_init
     def search_customers(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Search for customers"""
         query = args.get("query")  # e.g., "email:'john@example.com'" or "name:'John Doe'"
@@ -60,6 +63,7 @@ class StripeCustomersMixin:
             "has_more": customers.has_more,
         }
 
+    @requires_stripe_init
     def retrieve_customer(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Retrieve a customer"""
         customer_id = args.get("customer_id")
@@ -75,6 +79,7 @@ class StripeCustomersMixin:
             "default_source": customer.default_source,
         }
 
+    @requires_stripe_init
     def update_customer(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Update a customer"""
         customer_id = args.get("customer_id")
@@ -103,6 +108,7 @@ class StripeCustomersMixin:
             "phone": customer.phone,
         }
 
+    @requires_stripe_init
     def list_customers(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List customers"""
         limit = args.get("limit", 10)
@@ -120,6 +126,7 @@ class StripeCustomersMixin:
             "has_more": customers.has_more,
         }
 
+    @requires_stripe_init
     def delete_customer(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Delete a customer"""
         customer_id = args.get("customer_id")

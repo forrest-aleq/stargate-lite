@@ -8,10 +8,13 @@ from typing import Any
 
 import stripe
 
+from app.connectors.stripe.base import requires_stripe_init
+
 
 class StripeDisputesMixin:
     """Stripe dispute operations mixin"""
 
+    @requires_stripe_init
     def retrieve_dispute(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Retrieve a dispute"""
         dispute_id = args.get("dispute_id")
@@ -27,6 +30,7 @@ class StripeDisputesMixin:
             "charge": dispute.charge,
         }
 
+    @requires_stripe_init
     def update_dispute(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Update a dispute (submit evidence)"""
         dispute_id = args.get("dispute_id")
@@ -44,6 +48,7 @@ class StripeDisputesMixin:
         dispute = stripe.Dispute.modify(dispute_id, **update_params)
         return {"dispute_id": dispute.id, "status": dispute.status}
 
+    @requires_stripe_init
     def close_dispute(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Close a dispute (accept the dispute)"""
         dispute_id = args.get("dispute_id")
@@ -52,6 +57,7 @@ class StripeDisputesMixin:
         dispute = stripe.Dispute.close(dispute_id)
         return {"dispute_id": dispute.id, "status": dispute.status}
 
+    @requires_stripe_init
     def list_disputes(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List disputes"""
         limit = args.get("limit", 10)
