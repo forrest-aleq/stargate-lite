@@ -28,36 +28,53 @@ class RedisClient:
         return cls._instance
 
     def _initialize(self) -> None:
-        """Initialize Redis connection"""
-        redis_host = os.getenv("REDIS_HOST", "localhost")
-        redis_port = int(os.getenv("REDIS_PORT", "6379"))
-        redis_db = int(os.getenv("REDIS_DB", "0"))
-        redis_password = os.getenv("REDIS_PASSWORD", None)
-
-        logger.info(
-            "Initializing Redis connection",
-            redis_host=redis_host,
-            redis_port=redis_port,
-            redis_db=redis_db,
-            log_event="redis_init_start",
-        )
+        """Initialize Redis connection (supports Upstash via REDIS_URL)"""
+        # Prefer REDIS_URL (Upstash/Railway format) over individual vars
+        redis_url = os.getenv("REDIS_URL")
 
         try:
-            self._redis_client = redis.Redis(
-                host=redis_host,
-                port=redis_port,
-                db=redis_db,
-                password=redis_password,
-                decode_responses=True,  # Return strings instead of bytes
-                socket_connect_timeout=5,
-                socket_timeout=5,
-            )
+            if redis_url:
+                # Use URL format (e.g., rediss://default:token@host:port)
+                # Upstash uses rediss:// (TLS) by default
+                logger.info(
+                    "Initializing Redis via URL",
+                    redis_url=redis_url[:30] + "...",  # Truncate for security
+                    log_event="redis_init_start",
+                )
+                self._redis_client = redis.from_url(
+                    redis_url,
+                    decode_responses=True,
+                    socket_connect_timeout=5,
+                    socket_timeout=5,
+                )
+            else:
+                # Fall back to individual env vars (local dev)
+                redis_host = os.getenv("REDIS_HOST", "localhost")
+                redis_port = int(os.getenv("REDIS_PORT", "6379"))
+                redis_db = int(os.getenv("REDIS_DB", "0"))
+                redis_password = os.getenv("REDIS_PASSWORD", None)
+
+                logger.info(
+                    "Initializing Redis via host/port",
+                    redis_host=redis_host,
+                    redis_port=redis_port,
+                    redis_db=redis_db,
+                    log_event="redis_init_start",
+                )
+                self._redis_client = redis.Redis(
+                    host=redis_host,
+                    port=redis_port,
+                    db=redis_db,
+                    password=redis_password,
+                    decode_responses=True,
+                    socket_connect_timeout=5,
+                    socket_timeout=5,
+                )
+
             # Test connection
             self._redis_client.ping()
             logger.info(
                 "Redis connected successfully",
-                redis_host=redis_host,
-                redis_port=redis_port,
                 log_event="redis_init_success",
             )
         except (redis.ConnectionError, redis.TimeoutError) as e:
@@ -65,18 +82,14 @@ class RedisClient:
             # Cannot silently continue - would violate contract and risk duplicate executions
             logger.error(
                 "Redis connection FAILED - CRITICAL for idempotency",
-                redis_host=redis_host,
-                redis_port=redis_port,
                 error_type=type(e).__name__,
                 log_event="redis_init_error",
                 exc_info=True,
             )
             raise RuntimeError(
                 f"Redis connection REQUIRED but failed: {e}\n"
-                f"Attempted connection: {redis_host}:{redis_port}\n"
                 f"Idempotency caching is mandatory per Stargate Command Contract.\n"
-                "Fix: Ensure Redis is running and accessible, or set "
-                "REDIS_HOST/REDIS_PORT environment variables."
+                "Fix: Set REDIS_URL (Upstash) or REDIS_HOST/REDIS_PORT environment variables."
             ) from e
 
     def get_cached_response(self, turn_id: str, capability_key: str) -> dict[str, Any] | None:
