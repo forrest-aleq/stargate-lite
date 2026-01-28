@@ -122,8 +122,7 @@ class HyperbrowserConnector:
 
         if wait_for:
             instruction = (
-                f"Navigate to {url} and wait for element "
-                f"'{wait_for}' to appear (max {timeout}s)"
+                f"Navigate to {url} and wait for element '{wait_for}' to appear (max {timeout}s)"
             )
         else:
             instruction = f"Navigate to {url} and wait for page to fully load"
@@ -323,8 +322,7 @@ class HyperbrowserConnector:
         # Step 3: Export to Excel
         export_result = self._execute_computer_action(
             action=(
-                f"Click the Export button, select 'Excel', "
-                f"and download the '{report_name}' report"
+                f"Click the Export button, select 'Excel', and download the '{report_name}' report"
             ),
             instruction="Export Power BI report to Excel",
         )

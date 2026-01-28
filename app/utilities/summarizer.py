@@ -325,7 +325,7 @@ Respond ONLY with valid JSON."""
 
         prompt = f"""Extract key facts and data from the following content.
 
-Focus on these fact types: {', '.join(fact_types)}
+Focus on these fact types: {", ".join(fact_types)}
 
 Structure your response as JSON with:
 - "facts": Array of objects with "fact", "type", "context"

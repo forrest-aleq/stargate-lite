@@ -109,8 +109,7 @@ class JournalEntriesMixin(AccountingMixin):
         """Validate that debits equal credits within rounding tolerance."""
         if abs(total_debit - total_credit) > 0.01:
             raise ValueError(
-                f"Journal entry does not balance. "
-                f"Debits: {total_debit}, Credits: {total_credit}"
+                f"Journal entry does not balance. Debits: {total_debit}, Credits: {total_credit}"
             )
 
     def _build_je_payload(

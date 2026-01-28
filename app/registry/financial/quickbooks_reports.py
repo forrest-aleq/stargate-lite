@@ -109,7 +109,7 @@ QUICKBOOKS_REPORT_CAPABILITIES = {
         "handler": qb_connector.upload_attachment,
         "tool_name": "quickbooks.upload_attachment",
         "description": (
-            "Upload document (W-9, invoice, receipt) and attach to " "vendor/customer/bill/invoice"
+            "Upload document (W-9, invoice, receipt) and attach to vendor/customer/bill/invoice"
         ),
         "requires_oauth": True,
         "service": "quickbooks",

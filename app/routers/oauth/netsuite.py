@@ -39,8 +39,7 @@ async def netsuite_oauth_authorize(
         raise HTTPException(
             status_code=500,
             detail=(
-                "NetSuite OAuth not configured "
-                "(need NETSUITE_ACCOUNT_ID and NETSUITE_CONSUMER_KEY)"
+                "NetSuite OAuth not configured (need NETSUITE_ACCOUNT_ID and NETSUITE_CONSUMER_KEY)"
             ),
         )
 
@@ -60,8 +59,7 @@ async def netsuite_oauth_authorize(
 
     # NetSuite auth URL includes account ID
     auth_url = (
-        f"https://{account_id}.app.netsuite.com/app/login/oauth2/authorize.nl?"
-        f"{urlencode(params)}"
+        f"https://{account_id}.app.netsuite.com/app/login/oauth2/authorize.nl?{urlencode(params)}"
     )
 
     return RedirectResponse(url=auth_url)
@@ -92,7 +90,7 @@ async def netsuite_oauth_callback(code: str, state: str) -> dict[str, Any]:
 
         # NetSuite token endpoint
         token_url = (
-            f"https://{account_id}.suitetalk.api.netsuite.com" "/services/rest/auth/oauth2/v1/token"
+            f"https://{account_id}.suitetalk.api.netsuite.com/services/rest/auth/oauth2/v1/token"
         )
 
         response = requests.post(

@@ -244,8 +244,7 @@ def check_mock_data(path: Path, content: str, cfg: Config) -> list[str]:
             for i, line in enumerate(lines, 1):
                 if pattern.lower() in line.lower():
                     return [
-                        f"{path}:{i}: Mock/fake data '{pattern}'. "
-                        "Replace with real implementation."
+                        f"{path}:{i}: Mock/fake data '{pattern}'. Replace with real implementation."
                     ]
     return []
 

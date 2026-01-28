@@ -132,10 +132,7 @@ class CredentialsInsufficientError(StargateError):
     """User needs additional OAuth scopes"""
 
     def __init__(self, service: str, required_scopes: list[str]) -> None:
-        msg = (
-            f"Insufficient credentials for service '{service}': "
-            f"missing scopes {required_scopes}"
-        )
+        msg = f"Insufficient credentials for service '{service}': missing scopes {required_scopes}"
         super().__init__(
             message=msg,
             error_code=ErrorCode.CREDENTIALS_INSUFFICIENT,
@@ -325,7 +322,7 @@ class ProviderUnavailableError(StargateError):
     """All providers for a utility are unavailable (rate limited, network error)"""
 
     def __init__(self, utility: str, providers_tried: list[str]) -> None:
-        msg = f"All providers unavailable for utility '{utility}': " f"tried {providers_tried}"
+        msg = f"All providers unavailable for utility '{utility}': tried {providers_tried}"
         super().__init__(
             message=msg,
             error_code=ErrorCode.NETWORK_ERROR,

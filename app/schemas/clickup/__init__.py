@@ -607,7 +607,7 @@ CLICKUP_COMMENT_CREATE = CapabilitySchema(
     category="comments",
     description="Create comment on ClickUp task",
     description_detailed=(
-        "Post a comment on a task. Optionally assign with the comment " "and notify all assignees."
+        "Post a comment on a task. Optionally assign with the comment and notify all assignees."
     ),
     parameters={
         "task_id": ParameterSchema(

@@ -58,7 +58,7 @@ class HyperbrowserBase:
         if self.client is None:
             if not self.api_key:
                 raise ValueError(
-                    "ANTHROPIC_API_KEY not set. Add to .env file:\n" "ANTHROPIC_API_KEY=sk-ant-..."
+                    "ANTHROPIC_API_KEY not set. Add to .env file:\nANTHROPIC_API_KEY=sk-ant-..."
                 )
             self.client = Anthropic(api_key=self.api_key)
 

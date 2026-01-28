@@ -114,7 +114,7 @@ UTILITIES_CAPABILITIES = {
         "handler": ocr_utility.extract_with_gemini,
         "tool_name": "ocr.extract_with_gemini",
         "description": (
-            "Extract structured data from document using Gemini Flash - " "supports custom prompts"
+            "Extract structured data from document using Gemini Flash - supports custom prompts"
         ),
         "requires_oauth": False,
         "service": "ocr",
@@ -135,7 +135,7 @@ UTILITIES_CAPABILITIES = {
         "handler": hyperbrowser_connector.navigate_to,
         "tool_name": "hyperbrowser.navigate_to",
         "description": (
-            "Navigate browser to URL and wait for page load " "(October 2025 computer use API)"
+            "Navigate browser to URL and wait for page load (October 2025 computer use API)"
         ),
         "requires_oauth": False,
         "service": "hyperbrowser",
@@ -164,7 +164,7 @@ UTILITIES_CAPABILITIES = {
         "handler": hyperbrowser_connector.extract_data,
         "tool_name": "hyperbrowser.extract_data",
         "description": (
-            "Extract data from page using natural language description " "(returns JSON/CSV/text)"
+            "Extract data from page using natural language description (returns JSON/CSV/text)"
         ),
         "requires_oauth": False,
         "service": "hyperbrowser",
@@ -193,7 +193,7 @@ UTILITIES_CAPABILITIES = {
         "handler": hyperbrowser_connector.export_powerbi_report,
         "tool_name": "hyperbrowser.export_powerbi_report",
         "description": (
-            "Export Power BI report to Excel " "(automates dashboard -> filters -> export workflow)"
+            "Export Power BI report to Excel (automates dashboard -> filters -> export workflow)"
         ),
         "requires_oauth": False,
         "service": "hyperbrowser",
@@ -315,7 +315,7 @@ UTILITIES_CAPABILITIES = {
         "handler": _lazy_financial_calc("calculate_depreciation"),
         "tool_name": "financial_calculator.calculate_depreciation",
         "description": (
-            "Calculate asset depreciation " "(straight-line, declining balance, sum-of-years)"
+            "Calculate asset depreciation (straight-line, declining balance, sum-of-years)"
         ),
         "requires_oauth": False,
         "service": "financial_calculator",

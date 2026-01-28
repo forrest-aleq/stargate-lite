@@ -290,9 +290,7 @@ class MicrosoftExcelConnector:
         range_address = args.get("range")  # e.g., "A1:D10"
         has_headers = args.get("has_headers", True)
 
-        endpoint = (
-            f"me/drive/items/{workbook_id}/workbook/worksheets/" f"{worksheet_name}/tables/add"
-        )
+        endpoint = f"me/drive/items/{workbook_id}/workbook/worksheets/{worksheet_name}/tables/add"
 
         data = {"address": range_address, "hasHeaders": has_headers}
 

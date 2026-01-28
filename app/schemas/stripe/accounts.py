@@ -358,7 +358,7 @@ APPLICATION_FEE_RETRIEVE = CapabilitySchema(
     category="accounts",
     description="Retrieve an application fee",
     description_detailed=(
-        "Retrieves an application fee collected on a payment from a " "connected account."
+        "Retrieves an application fee collected on a payment from a connected account."
     ),
     parameters={
         "fee_id": ParameterSchema(

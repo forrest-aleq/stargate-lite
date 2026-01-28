@@ -186,7 +186,7 @@ class AccountingMixin(VendorBillMixin):
             SELECT SUM(debit) - SUM(credit) AS balance
             FROM transactionline tl
             INNER JOIN transaction t ON tl.transaction = t.id
-            WHERE tl.account = {str(account_id).replace('ns:', '')}
+            WHERE tl.account = {str(account_id).replace("ns:", "")}
               AND t.trandate <= TO_DATE('{statement_date}', 'YYYY-MM-DD')
         """
 

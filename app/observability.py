@@ -80,7 +80,7 @@ def setup_logging() -> None:
             except (OSError, PermissionError) as e:
                 # If file handler creation fails, log warning and continue with console-only
                 logging.warning(
-                    f"Could not create file handler ({e}), " "continuing with console-only logging"
+                    f"Could not create file handler ({e}), continuing with console-only logging"
                 )
 
 

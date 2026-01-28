@@ -68,8 +68,7 @@ async def microsoft_oauth_authorize(
     }
 
     auth_url = (
-        f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize?"
-        f"{urlencode(params)}"
+        f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize?{urlencode(params)}"
     )
 
     return RedirectResponse(url=auth_url)

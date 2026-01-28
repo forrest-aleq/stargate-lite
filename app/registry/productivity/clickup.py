@@ -15,7 +15,7 @@ CLICKUP_CAPABILITIES = {
         "handler": clickup_connector.create_task,
         "tool_name": "clickup.create_task",
         "description": (
-            "Create task in ClickUp for finance workflows " "(approvals, reviews, month-end)"
+            "Create task in ClickUp for finance workflows (approvals, reviews, month-end)"
         ),
         "requires_oauth": True,
         "service": "clickup",

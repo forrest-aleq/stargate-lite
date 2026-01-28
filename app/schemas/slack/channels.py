@@ -71,7 +71,7 @@ CHANNEL_INVITE = CapabilitySchema(
     category="channels",
     description="Invite users to a Slack channel",
     description_detailed=(
-        "Invites one or more users to a Slack channel. " "Users must be part of the workspace."
+        "Invites one or more users to a Slack channel. Users must be part of the workspace."
     ),
     parameters={
         "channel_id": ParameterSchema(

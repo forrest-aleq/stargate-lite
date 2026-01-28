@@ -48,10 +48,10 @@ class BillsMixin(InvoicesMixin):
             where_clauses.append(f'Contact.ContactID==GUID("{args["contact_id"]}")')
 
         if args.get("date_from"):
-            where_clauses.append(f'Date>=DateTime({args["date_from"].replace("-", ",")})')
+            where_clauses.append(f"Date>=DateTime({args['date_from'].replace('-', ',')})")
 
         if args.get("date_to"):
-            where_clauses.append(f'Date<=DateTime({args["date_to"].replace("-", ",")})')
+            where_clauses.append(f"Date<=DateTime({args['date_to'].replace('-', ',')})")
 
         params["where"] = " AND ".join(where_clauses)
 
