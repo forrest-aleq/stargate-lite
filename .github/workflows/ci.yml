@@ -83,6 +83,8 @@ jobs:
           DATABASE_URL: sqlite:///./test.db
           # Disable ddtrace during tests to avoid structlog conflicts
           DD_TRACE_ENABLED: false
+          DD_TRACE_LOG_INJECTION: false
+          FILTER_THIRD_PARTY_LIB: false
         run: pytest tests/ -v --tb=short
 
   security:
