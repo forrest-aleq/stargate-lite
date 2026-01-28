@@ -27,9 +27,9 @@ from app.logging_config import get_logger
 from app.routers.oauth.base import (
     build_oauth_error_redirect,
     build_oauth_success_redirect,
-    build_signed_state_3parts,
+    build_signed_state_5parts,
     get_env_or_raise,
-    parse_oauth_state_3parts,
+    parse_oauth_state_5parts,
 )
 
 logger = get_logger(__name__)
@@ -40,20 +40,6 @@ router = APIRouter(tags=["oauth"])
 AIRTABLE_AUTH_URL = "https://airtable.com/oauth2/v1/authorize"
 AIRTABLE_TOKEN_URL = "https://airtable.com/oauth2/v1/token"
 
-# In-memory PKCE verifier store
-# In production, use Redis or database with TTL
-# Key: state, Value: (code_verifier, timestamp)
-_pkce_store: dict[str, tuple[str, float]] = {}
-PKCE_TTL_SECONDS = 600  # 10 minutes
-
-
-def _cleanup_expired_pkce() -> None:
-    """Remove expired PKCE verifiers from the store."""
-    now = time.time()
-    expired = [k for k, (_, ts) in _pkce_store.items() if now - ts > PKCE_TTL_SECONDS]
-    for k in expired:
-        del _pkce_store[k]
-
 
 def _generate_pkce_pair() -> tuple[str, str]:
     """Generate PKCE code verifier and challenge (S256 method)."""
@@ -61,17 +47,6 @@ def _generate_pkce_pair() -> tuple[str, str]:
     sha256_hash = hashlib.sha256(code_verifier.encode("ascii")).digest()
     code_challenge = base64.urlsafe_b64encode(sha256_hash).decode("ascii").rstrip("=")
     return code_verifier, code_challenge
-
-
-def _get_pkce_verifier(state: str) -> str:
-    """Retrieve and remove PKCE verifier for state, or raise HTTPException."""
-    _cleanup_expired_pkce()
-    if state not in _pkce_store:
-        raise HTTPException(
-            status_code=400, detail="PKCE verification failed: authorization expired"
-        )
-    code_verifier, _ = _pkce_store.pop(state)
-    return code_verifier
 
 
 @router.get("/oauth/airtable/authorize")
@@ -82,8 +57,8 @@ async def airtable_oauth_authorize(
     Initiate Airtable OAuth flow with PKCE.
 
     Airtable requires PKCE (Proof Key for Code Exchange) for security.
-    Generates a code verifier/challenge pair and stores the verifier
-    for use in the callback.
+    The code_verifier is embedded in the signed state parameter, making
+    this flow completely stateless and compatible with multi-worker deployments.
 
     Args:
         org_id: Organization identifier
@@ -99,13 +74,10 @@ async def airtable_oauth_authorize(
     # Generate PKCE pair
     code_verifier, code_challenge = _generate_pkce_pair()
 
-    # State is cryptographically signed to prevent CSRF/tampering
-    state = build_signed_state_3parts(org_id, user_id, credential_type)
-
-    # Store code_verifier for callback
-    # Clean up old entries first
-    _cleanup_expired_pkce()
-    _pkce_store[state] = (code_verifier, time.time())
+    # State is cryptographically signed and includes code_verifier
+    # This is stateless - no in-memory or database storage needed
+    # Format: org_id:user_id:credential_type:airtable:code_verifier:signature
+    state = build_signed_state_5parts(org_id, user_id, credential_type, "airtable", code_verifier)
 
     # Airtable OAuth scopes
     # https://airtable.com/developers/web/api/scopes
@@ -144,10 +116,13 @@ async def airtable_oauth_authorize(
 @router.get("/oauth/airtable/callback")
 async def airtable_oauth_callback(code: str, state: str) -> RedirectResponse:
     """Handle Airtable OAuth callback with PKCE verification. Redirects to N3 on completion."""
-    # Parse state first to get org_id for error redirects
+    # Parse state to get org_id, user_id, and code_verifier
+    # The code_verifier is embedded in the signed state (stateless PKCE)
     org_id: str | None = None
     try:
-        org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "airtable")
+        org_id, user_id, _credential_type, _sub_service, code_verifier = parse_oauth_state_5parts(
+            state, "airtable"
+        )
     except HTTPException:
         return build_oauth_error_redirect(
             service="airtable",
@@ -156,7 +131,6 @@ async def airtable_oauth_callback(code: str, state: str) -> RedirectResponse:
         )
 
     try:
-        code_verifier = _get_pkce_verifier(state)
 
         client_id = get_env_or_raise("AIRTABLE_CLIENT_ID", "Airtable")
         client_secret = get_env_or_raise("AIRTABLE_CLIENT_SECRET", "Airtable")
@@ -240,11 +214,11 @@ async def airtable_oauth_callback(code: str, state: str) -> RedirectResponse:
         )
         return build_oauth_success_redirect(service="airtable", org_id=org_id)
 
-    except HTTPException as e:
+    except HTTPException:
         return build_oauth_error_redirect(
             service="airtable",
             error="config_error",
-            error_description=str(e.detail),
+            error_description="Service configuration error",
             org_id=org_id,
         )
     except Exception:

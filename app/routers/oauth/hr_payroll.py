@@ -154,11 +154,11 @@ async def gusto_oauth_callback(code: str, state: str) -> RedirectResponse:
         logger.info("Gusto OAuth completed", org_id=org_id)
         return build_oauth_success_redirect(service="gusto", org_id=org_id)
 
-    except HTTPException as e:
+    except HTTPException:
         return build_oauth_error_redirect(
             service="gusto",
             error="config_error",
-            error_description=str(e.detail),
+            error_description="Service configuration error",
             org_id=org_id,
         )
     except Exception as e:

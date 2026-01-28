@@ -225,11 +225,11 @@ async def stripe_oauth_callback(code: str, state: str) -> RedirectResponse:
 
         return build_oauth_success_redirect(service="stripe", org_id=org_id)
 
-    except HTTPException as e:
+    except HTTPException:
         return build_oauth_error_redirect(
             service="stripe",
             error="token_exchange_failed",
-            error_description=str(e.detail),
+            error_description="Token exchange failed",
             org_id=org_id,
         )
     except Exception as e:

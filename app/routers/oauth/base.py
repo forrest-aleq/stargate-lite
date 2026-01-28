@@ -253,6 +253,76 @@ def parse_oauth_state_3parts(state: str, service: str) -> tuple[str, str, str]:
     return org_id, user_id, credential_type
 
 
+def build_signed_state_5parts(
+    org_id: str, user_id: str, credential_type: str, sub_service: str, extra: str
+) -> str:
+    """Build a cryptographically signed OAuth state parameter with 5 data parts.
+
+    Used for PKCE flows where we need to embed the code_verifier in the state.
+
+    Format: org_id:user_id:credential_type:sub_service:extra:signature
+
+    Args:
+        org_id: Organization ID
+        user_id: User ID
+        credential_type: Credential type (customer/agent)
+        sub_service: Sub-service identifier (e.g., "gmail", "drive")
+        extra: Additional data (e.g., PKCE code_verifier)
+
+    Returns:
+        Signed state string
+    """
+    payload = f"{org_id}:{user_id}:{credential_type}:{sub_service}:{extra}"
+    signature = _sign_state(payload)
+    return f"{payload}:{signature}"
+
+
+def parse_oauth_state_5parts(state: str, service: str) -> tuple[str, str, str, str, str]:
+    """Parse and verify signed OAuth state parameter with 5 data parts.
+
+    Expected format: org_id:user_id:credential_type:sub_service:extra:signature
+
+    Args:
+        state: The signed state parameter from OAuth callback
+        service: Service name for logging
+
+    Returns:
+        Tuple of (org_id, user_id, credential_type, sub_service, extra)
+
+    Raises:
+        HTTPException: If state is invalid, signature doesn't match, or contains empty values
+    """
+    parts = state.split(":")
+
+    # Signed format has 6 parts (5 data + 1 signature)
+    if len(parts) != 6:
+        logger.warning(
+            "Invalid state parameter format", service=service, log_event="oauth_state_invalid"
+        )
+        raise HTTPException(status_code=400, detail="Invalid state parameter")
+
+    org_id, user_id, credential_type, sub_service, extra, signature = parts
+    payload = f"{org_id}:{user_id}:{credential_type}:{sub_service}:{extra}"
+
+    if not _verify_state_signature(payload, signature):
+        logger.warning(
+            "OAuth state signature verification failed",
+            service=service,
+            log_event="oauth_state_signature_invalid",
+        )
+        raise HTTPException(status_code=400, detail="Invalid state parameter: signature mismatch")
+
+    if not org_id or not user_id or not credential_type:
+        logger.warning(
+            "OAuth state contains empty values",
+            service=service,
+            log_event="oauth_state_empty_values",
+        )
+        raise HTTPException(status_code=400, detail="Invalid state parameter: empty values")
+
+    return org_id, user_id, credential_type, sub_service, extra
+
+
 def parse_oauth_state_4parts(state: str, service: str) -> tuple[str, str, str, str]:
     """Parse and verify signed OAuth state parameter with sub-service.
 

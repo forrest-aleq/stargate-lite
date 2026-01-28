@@ -259,11 +259,11 @@ async def slack_oauth_callback(code: str, state: str) -> RedirectResponse:
 
         return build_oauth_success_redirect(service="slack", org_id=org_id)
 
-    except HTTPException as e:
+    except HTTPException:
         return build_oauth_error_redirect(
             service="slack",
             error="token_exchange_failed",
-            error_description=str(e.detail),
+            error_description="Token exchange failed",
             org_id=org_id,
         )
     except Exception as e:
