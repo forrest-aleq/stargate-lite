@@ -13,7 +13,7 @@ Only fails when an actual Stripe API method is called.
 import os
 from collections.abc import Callable
 from functools import wraps
-from typing import Any, TypeVar
+from typing import Any
 
 import stripe
 
@@ -22,10 +22,8 @@ from app.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-F = TypeVar("F", bound=Callable[..., Any])
 
-
-def requires_stripe_init(method: F) -> F:
+def requires_stripe_init[F: Callable[..., Any]](method: F) -> F:
     """
     Decorator that ensures Stripe API key is initialized before method execution.
 
@@ -45,7 +43,7 @@ def requires_stripe_init(method: F) -> F:
     return wrapper  # type: ignore[return-value]
 
 
-def requires_stripe_config(method: F) -> F:
+def requires_stripe_config[F: Callable[..., Any]](method: F) -> F:
     """
     Decorator that retrieves Stripe config (connected account or platform) before method execution.
 
