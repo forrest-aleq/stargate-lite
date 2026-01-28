@@ -81,6 +81,8 @@ jobs:
           # Fallback test key if secret not configured
           ENCRYPTION_KEY: ${{ secrets.TEST_ENCRYPTION_KEY || 'rYmVfKcRBe4vfoGz7RJUeffnPpA_ycSk6PFtYvtKFeg=' }}
           DATABASE_URL: sqlite:///./test.db
+          # Disable ddtrace during tests to avoid structlog conflicts
+          DD_TRACE_ENABLED: false
         run: pytest tests/ -v --tb=short
 
   security:
