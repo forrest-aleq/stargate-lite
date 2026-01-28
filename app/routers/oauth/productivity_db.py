@@ -16,7 +16,6 @@ import hashlib
 import secrets
 import time
 from datetime import datetime, timedelta
-from typing import Any
 from urllib.parse import urlencode
 
 import requests
@@ -26,6 +25,8 @@ from fastapi.responses import RedirectResponse
 from app.database import CredentialManager
 from app.logging_config import get_logger
 from app.routers.oauth.base import (
+    build_oauth_error_redirect,
+    build_oauth_success_redirect,
     build_signed_state_3parts,
     get_env_or_raise,
     parse_oauth_state_3parts,
@@ -141,55 +142,122 @@ async def airtable_oauth_authorize(
 
 
 @router.get("/oauth/airtable/callback")
-async def airtable_oauth_callback(code: str, state: str) -> dict[str, Any]:
-    """Handle Airtable OAuth callback with PKCE verification."""
-    org_id, user_id, credential_type = parse_oauth_state_3parts(state, "airtable")
-    code_verifier = _get_pkce_verifier(state)
+async def airtable_oauth_callback(code: str, state: str) -> RedirectResponse:
+    """Handle Airtable OAuth callback with PKCE verification. Redirects to N3 on completion."""
+    # Parse state first to get org_id for error redirects
+    org_id: str | None = None
+    try:
+        org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "airtable")
+    except HTTPException:
+        return build_oauth_error_redirect(
+            service="airtable",
+            error="invalid_state",
+            error_description="Invalid OAuth state parameter",
+        )
 
-    client_id = get_env_or_raise("AIRTABLE_CLIENT_ID", "Airtable")
-    client_secret = get_env_or_raise("AIRTABLE_CLIENT_SECRET", "Airtable")
-    redirect_uri = get_env_or_raise("AIRTABLE_REDIRECT_URI", "Airtable")
+    try:
+        code_verifier = _get_pkce_verifier(state)
 
-    # Exchange code for tokens (Airtable uses HTTP Basic Auth)
-    auth_header = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
-    response = requests.post(
-        AIRTABLE_TOKEN_URL,
-        headers={
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Authorization": f"Basic {auth_header}",
-        },
-        data={
-            "grant_type": "authorization_code",
-            "code": code,
-            "redirect_uri": redirect_uri,
-            "code_verifier": code_verifier,
-        },
-        timeout=30,
-    )
+        client_id = get_env_or_raise("AIRTABLE_CLIENT_ID", "Airtable")
+        client_secret = get_env_or_raise("AIRTABLE_CLIENT_SECRET", "Airtable")
+        redirect_uri = get_env_or_raise("AIRTABLE_REDIRECT_URI", "Airtable")
 
-    if response.status_code != 200:
-        logger.error("Airtable token exchange failed", status_code=response.status_code)
-        raise HTTPException(status_code=500, detail="Token exchange failed")
+        logger.info(
+            "Exchanging code for tokens",
+            service="airtable",
+            org_id=org_id,
+            user_id=user_id,
+            log_event="oauth_token_exchange_start",
+        )
 
-    token_data = response.json()
+        token_start = time.time()
 
-    # Store credentials (tokens expire in 60 days)
-    expires_in = token_data.get("expires_in", 5184000)
-    CredentialManager.store_credential(
-        org_id=org_id,
-        user_id=user_id,
-        service="airtable",
-        access_token=token_data["access_token"],
-        refresh_token=token_data.get("refresh_token"),
-        token_expiry=datetime.utcnow() + timedelta(seconds=expires_in),
-    )
+        # Exchange code for tokens (Airtable uses HTTP Basic Auth)
+        auth_header = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
+        response = requests.post(
+            AIRTABLE_TOKEN_URL,
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Authorization": f"Basic {auth_header}",
+            },
+            data={
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": redirect_uri,
+                "code_verifier": code_verifier,
+            },
+            timeout=30,
+        )
 
-    logger.info("Airtable OAuth completed", org_id=org_id)
-    return {
-        "success": True,
-        "message": "Airtable OAuth completed successfully",
-        "org_id": org_id,
-        "user_id": user_id,
-        "credential_type": credential_type,
-        "service": "airtable",
-    }
+        token_duration_ms = (time.time() - token_start) * 1000
+
+        if response.status_code != 200:
+            logger.error(
+                "Token exchange failed",
+                service="airtable",
+                org_id=org_id,
+                user_id=user_id,
+                status_code=response.status_code,
+                duration_ms=round(token_duration_ms, 2),
+                log_event="oauth_token_exchange_error",
+            )
+            return build_oauth_error_redirect(
+                service="airtable",
+                error="token_exchange_failed",
+                error_description="Token exchange with Airtable failed",
+                org_id=org_id,
+            )
+
+        token_data = response.json()
+
+        logger.info(
+            "Token exchange successful",
+            service="airtable",
+            org_id=org_id,
+            user_id=user_id,
+            duration_ms=round(token_duration_ms, 2),
+            has_refresh_token=bool(token_data.get("refresh_token")),
+            log_event="oauth_token_exchange_success",
+        )
+
+        # Store credentials (tokens expire in 60 days)
+        expires_in = token_data.get("expires_in", 5184000)
+        CredentialManager.store_credential(
+            org_id=org_id,
+            user_id=user_id,
+            service="airtable",
+            access_token=token_data["access_token"],
+            refresh_token=token_data.get("refresh_token"),
+            token_expiry=datetime.utcnow() + timedelta(seconds=expires_in),
+        )
+
+        logger.info(
+            "OAuth flow completed successfully",
+            service="airtable",
+            org_id=org_id,
+            user_id=user_id,
+            log_event="oauth_callback_success",
+        )
+        return build_oauth_success_redirect(service="airtable", org_id=org_id)
+
+    except HTTPException as e:
+        return build_oauth_error_redirect(
+            service="airtable",
+            error="config_error",
+            error_description=str(e.detail),
+            org_id=org_id,
+        )
+    except Exception:
+        logger.error(
+            "OAuth callback failed",
+            service="airtable",
+            org_id=org_id,
+            log_event="oauth_callback_error",
+            exc_info=True,
+        )
+        return build_oauth_error_redirect(
+            service="airtable",
+            error="callback_failed",
+            error_description="An unexpected error occurred",
+            org_id=org_id,
+        )

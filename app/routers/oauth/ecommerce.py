@@ -226,11 +226,17 @@ async def shopify_oauth_callback(
             org_id=org_id,
         )
     except Exception as e:
-        logger.error("Shopify OAuth callback failed", error=str(e), exc_info=True)
+        logger.error(
+            "OAuth callback failed",
+            service="shopify",
+            error_type=type(e).__name__,
+            log_event="oauth_callback_error",
+            exc_info=True,
+        )
         return build_oauth_error_redirect(
             service="shopify",
             error="callback_failed",
-            error_description=str(e),
+            error_description="An unexpected error occurred",
             org_id=org_id,
         )
 
@@ -380,10 +386,16 @@ async def square_oauth_callback(code: str, state: str) -> RedirectResponse:
             org_id=org_id,
         )
     except Exception as e:
-        logger.error("Square OAuth callback failed", error=str(e), exc_info=True)
+        logger.error(
+            "OAuth callback failed",
+            service="square",
+            error_type=type(e).__name__,
+            log_event="oauth_callback_error",
+            exc_info=True,
+        )
         return build_oauth_error_redirect(
             service="square",
             error="callback_failed",
-            error_description=str(e),
+            error_description="An unexpected error occurred",
             org_id=org_id,
         )

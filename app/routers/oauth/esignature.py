@@ -189,10 +189,16 @@ async def docusign_oauth_callback(code: str, state: str) -> RedirectResponse:
             org_id=org_id,
         )
     except Exception as e:
-        logger.error("DocuSign OAuth callback failed", error=str(e), exc_info=True)
+        logger.error(
+            "OAuth callback failed",
+            service="docusign",
+            error_type=type(e).__name__,
+            log_event="oauth_callback_error",
+            exc_info=True,
+        )
         return build_oauth_error_redirect(
             service="docusign",
             error="callback_failed",
-            error_description=str(e),
+            error_description="An unexpected error occurred",
             org_id=org_id,
         )

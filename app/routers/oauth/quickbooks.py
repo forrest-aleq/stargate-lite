@@ -232,6 +232,6 @@ async def quickbooks_oauth_callback(code: str, state: str, realmId: str) -> Redi
         return build_oauth_error_redirect(
             service="quickbooks",
             error="callback_failed",
-            error_description=str(e),
+            error_description="An unexpected error occurred",
             org_id=org_id,
         )
