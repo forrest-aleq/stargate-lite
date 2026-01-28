@@ -19,8 +19,11 @@ class StripeCheckoutMixin:
 
     @requires_stripe_config
     def create_checkout_session(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Create a checkout session"""
         mode = args.get("mode", "payment")  # payment, subscription, or setup
@@ -54,8 +57,11 @@ class StripeCheckoutMixin:
 
     @requires_stripe_config
     def retrieve_checkout_session(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Retrieve a checkout session"""
         session_id = args.get("session_id")
@@ -75,8 +81,11 @@ class StripeCheckoutMixin:
 
     @requires_stripe_config
     def expire_checkout_session(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Expire a checkout session"""
         session_id = args.get("session_id")
@@ -92,8 +101,11 @@ class StripeCheckoutMixin:
 
     @requires_stripe_config
     def list_checkout_sessions(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """List checkout sessions"""
         limit = args.get("limit", 10)
@@ -121,8 +133,11 @@ class StripeCheckoutMixin:
 
     @requires_stripe_config
     def list_checkout_line_items(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """List line items for a checkout session"""
         session_id = args.get("session_id")

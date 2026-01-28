@@ -19,8 +19,11 @@ class StripeProductsMixin:
 
     @requires_stripe_config
     def create_product(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Create a product"""
         name = args.get("name")
@@ -31,7 +34,10 @@ class StripeProductsMixin:
         metadata.update({"org_id": org_id, "user_id": user_id})
 
         create_kwargs: dict[str, Any] = {
-            "name": name, "description": description, "metadata": metadata, "active": active
+            "name": name,
+            "description": description,
+            "metadata": metadata,
+            "active": active,
         }
         if stripe_config and stripe_config.get("stripe_account"):
             create_kwargs["stripe_account"] = stripe_config["stripe_account"]
@@ -46,8 +52,11 @@ class StripeProductsMixin:
 
     @requires_stripe_config
     def retrieve_product(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Retrieve a product"""
         product_id = args.get("product_id")
@@ -67,8 +76,11 @@ class StripeProductsMixin:
 
     @requires_stripe_config
     def update_product(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Update a product"""
         product_id = args.get("product_id")
@@ -96,8 +108,11 @@ class StripeProductsMixin:
 
     @requires_stripe_config
     def list_products(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """List products"""
         limit = args.get("limit", 10)
@@ -125,8 +140,11 @@ class StripeProductsMixin:
 
     @requires_stripe_config
     def delete_product(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Delete a product"""
         product_id = args.get("product_id")
@@ -140,8 +158,11 @@ class StripeProductsMixin:
 
     @requires_stripe_config
     def search_products(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Search for products"""
         query = args.get("query")  # e.g., "name:'Premium'" or "active:'true'"
@@ -167,8 +188,11 @@ class StripeProductsMixin:
 
     @requires_stripe_config
     def create_price(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Create a price for a product"""
         product_id = args.get("product_id")
@@ -201,8 +225,11 @@ class StripeProductsMixin:
 
     @requires_stripe_config
     def retrieve_price(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Retrieve a price"""
         price_id = args.get("price_id")
@@ -223,8 +250,11 @@ class StripeProductsMixin:
 
     @requires_stripe_config
     def update_price(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Update a price"""
         price_id = args.get("price_id")
@@ -248,8 +278,11 @@ class StripeProductsMixin:
 
     @requires_stripe_config
     def list_prices(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """List prices"""
         limit = args.get("limit", 10)
@@ -281,8 +314,11 @@ class StripeProductsMixin:
 
     @requires_stripe_config
     def search_prices(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Search for prices"""
         query = args.get("query")  # e.g., "product:'prod_xxx'" or "active:'true'"

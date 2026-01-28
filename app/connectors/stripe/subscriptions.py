@@ -19,8 +19,11 @@ class StripeSubscriptionsMixin:
 
     @requires_stripe_config
     def create_subscription(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Create a subscription for a customer"""
         customer_id = args.get("customer_id")
@@ -43,7 +46,9 @@ class StripeSubscriptionsMixin:
         metadata.update({"org_id": org_id, "user_id": user_id})
 
         create_kwargs: dict[str, Any] = {
-            "customer": customer_id, "items": [{"price": price_id}], "metadata": metadata
+            "customer": customer_id,
+            "items": [{"price": price_id}],
+            "metadata": metadata,
         }
         if stripe_config and stripe_config.get("stripe_account"):
             create_kwargs["stripe_account"] = stripe_config["stripe_account"]
@@ -67,8 +72,11 @@ class StripeSubscriptionsMixin:
 
     @requires_stripe_config
     def retrieve_subscription(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Retrieve a subscription"""
         subscription_id = args.get("subscription_id")
@@ -91,8 +99,11 @@ class StripeSubscriptionsMixin:
 
     @requires_stripe_config
     def update_subscription(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Update a subscription"""
         subscription_id = args.get("subscription_id")
@@ -115,8 +126,11 @@ class StripeSubscriptionsMixin:
 
     @requires_stripe_config
     def cancel_subscription(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Cancel a subscription"""
         subscription_id = args.get("subscription_id")
@@ -140,8 +154,11 @@ class StripeSubscriptionsMixin:
 
     @requires_stripe_config
     def list_subscriptions(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """List subscriptions"""
         limit = args.get("limit", 10)

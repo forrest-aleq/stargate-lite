@@ -108,6 +108,7 @@ def build_signed_state_4parts(
     signature = _sign_state(payload)
     return f"{payload}:{signature}"
 
+
 # Default redirect URLs (should be overridden by environment variables)
 DEFAULT_SUCCESS_PATH = "/settings/integrations"
 DEFAULT_ERROR_PATH = "/settings/integrations"
@@ -218,7 +219,9 @@ def parse_oauth_state_3parts(state: str, service: str) -> tuple[str, str, str]:
                 service=service,
                 log_event="oauth_state_signature_invalid",
             )
-            raise HTTPException(status_code=400, detail="Invalid state parameter: signature mismatch")
+            raise HTTPException(
+                status_code=400, detail="Invalid state parameter: signature mismatch"
+            )
     elif len(parts) == 3:
         # Legacy unsigned format - log warning but still accept during transition
         logger.warning(
@@ -351,7 +354,9 @@ def parse_oauth_state_4parts(state: str, service: str) -> tuple[str, str, str, s
                 service=service,
                 log_event="oauth_state_signature_invalid",
             )
-            raise HTTPException(status_code=400, detail="Invalid state parameter: signature mismatch")
+            raise HTTPException(
+                status_code=400, detail="Invalid state parameter: signature mismatch"
+            )
     elif len(parts) == 4:
         # Legacy unsigned format - log warning but still accept during transition
         logger.warning(

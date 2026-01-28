@@ -40,23 +40,23 @@ SLACK_TOKEN_URL = "https://slack.com/api/oauth.v2.access"
 
 # Slack bot scopes (v2 granular scopes)
 # See: https://api.slack.com/scopes
-SLACK_BOT_SCOPES = " ".join([
-    "chat:write",           # Send messages
-    "channels:read",        # View channel info
-    "channels:history",     # View messages in channels
-    "files:write",          # Upload files
-    "files:read",           # Access files
-    "users:read",           # View users
-    "users:read.email",     # View user emails
-    "groups:read",          # View private channels
-    "im:read",              # View direct messages
-    "mpim:read",            # View group direct messages
-])
+SLACK_BOT_SCOPES = " ".join(
+    [
+        "chat:write",  # Send messages
+        "channels:read",  # View channel info
+        "channels:history",  # View messages in channels
+        "files:write",  # Upload files
+        "files:read",  # Access files
+        "users:read",  # View users
+        "users:read.email",  # View user emails
+        "groups:read",  # View private channels
+        "im:read",  # View direct messages
+        "mpim:read",  # View group direct messages
+    ]
+)
 
 
-def _exchange_slack_tokens(
-    code: str, org_id: str, user_id: str
-) -> dict[str, Any]:
+def _exchange_slack_tokens(code: str, org_id: str, user_id: str) -> dict[str, Any]:
     """Exchange authorization code for Slack access token.
 
     Args:
@@ -111,7 +111,7 @@ def _exchange_slack_tokens(
         )
         raise HTTPException(status_code=500, detail="Token exchange failed")
 
-    token_data = response.json()
+    token_data: dict[str, Any] = response.json()
 
     # Slack returns ok=false on error even with HTTP 200
     if not token_data.get("ok"):
@@ -157,6 +157,18 @@ def _store_slack_credential(
     # Slack tokens don't expire - use 100 year expiry
     token_expiry = datetime.utcnow() + timedelta(days=36500)
 
+    # Validate required token fields
+    access_token = token_data.get("access_token")
+    if not access_token:
+        logger.error(
+            "Missing access_token in Slack response",
+            service="slack",
+            org_id=org_id,
+            user_id=user_id,
+            log_event="oauth_token_missing_field",
+        )
+        raise HTTPException(status_code=500, detail="Invalid token response from Slack")
+
     # Extract team and bot info
     extra_data = {
         "team_id": token_data.get("team", {}).get("id"),
@@ -169,7 +181,7 @@ def _store_slack_credential(
         org_id=org_id,
         user_id=user_id,
         service="slack",
-        access_token=token_data["access_token"],
+        access_token=access_token,
         refresh_token=None,  # Slack tokens don't use refresh
         token_expiry=token_expiry,
         extra_data=extra_data,

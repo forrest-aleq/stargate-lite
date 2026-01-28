@@ -19,8 +19,11 @@ class StripeInvoicesMixin:
 
     @requires_stripe_config
     def create_invoice(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Create an invoice for a customer"""
         customer_id = args.get("customer_id")
@@ -37,7 +40,10 @@ class StripeInvoicesMixin:
         metadata.update({"org_id": org_id, "user_id": user_id})
 
         create_kwargs: dict[str, Any] = {
-            "customer": customer_id, "description": description, "metadata": metadata, "auto_advance": True
+            "customer": customer_id,
+            "description": description,
+            "metadata": metadata,
+            "auto_advance": True,
         }
         if stripe_config and stripe_config.get("stripe_account"):
             create_kwargs["stripe_account"] = stripe_config["stripe_account"]
@@ -62,8 +68,11 @@ class StripeInvoicesMixin:
 
     @requires_stripe_config
     def retrieve_invoice(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Retrieve an invoice"""
         invoice_id = args.get("invoice_id")
@@ -84,8 +93,11 @@ class StripeInvoicesMixin:
 
     @requires_stripe_config
     def update_invoice(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Update an invoice"""
         invoice_id = args.get("invoice_id")
@@ -105,8 +117,11 @@ class StripeInvoicesMixin:
 
     @requires_stripe_config
     def finalize_invoice(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Finalize a draft invoice"""
         invoice_id = args.get("invoice_id")
@@ -120,8 +135,11 @@ class StripeInvoicesMixin:
 
     @requires_stripe_config
     def pay_invoice(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Pay an invoice"""
         invoice_id = args.get("invoice_id")
@@ -135,8 +153,11 @@ class StripeInvoicesMixin:
 
     @requires_stripe_config
     def send_invoice(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Send an invoice for manual payment"""
         invoice_id = args.get("invoice_id")
@@ -150,8 +171,11 @@ class StripeInvoicesMixin:
 
     @requires_stripe_config
     def void_invoice(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Void an invoice"""
         invoice_id = args.get("invoice_id")
@@ -165,8 +189,11 @@ class StripeInvoicesMixin:
 
     @requires_stripe_config
     def list_invoices(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """List invoices"""
         limit = args.get("limit", 10)
@@ -198,8 +225,11 @@ class StripeInvoicesMixin:
 
     @requires_stripe_config
     def delete_invoice(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Delete a draft invoice"""
         invoice_id = args.get("invoice_id")

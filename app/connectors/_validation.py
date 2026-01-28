@@ -29,7 +29,7 @@ def require_int(args: dict[str, Any], key: str) -> int:
 def require_float(args: dict[str, Any], key: str) -> float:
     """Extract a required float/number argument."""
     value = args.get(key)
-    if not isinstance(value, (int, float)):
+    if not isinstance(value, int | float):
         raise ValueError(f"{key} is required and must be a number")
     return float(value)
 

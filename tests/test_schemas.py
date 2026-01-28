@@ -28,7 +28,9 @@ def test_schema_registry_count():
         from app.schemas import SCHEMA_REGISTRY
 
         # Minimum expected schemas - can grow as services are added
-        assert len(SCHEMA_REGISTRY) >= 500, f"Expected at least 500 schemas, got {len(SCHEMA_REGISTRY)}"
+        assert (
+            len(SCHEMA_REGISTRY) >= 500
+        ), f"Expected at least 500 schemas, got {len(SCHEMA_REGISTRY)}"
     except ImportError:
         pytest.skip("Dependencies not installed")
 
@@ -268,20 +270,24 @@ def test_workflow_hints_reference_valid_capabilities():
 
         for key, schema in SCHEMA_REGISTRY.items():
             if schema.workflow:
-                for ref in schema.workflow.typically_preceded_by:
-                    if ref not in valid_keys:
-                        invalid_refs.append(f"{key} -> {ref}")
-                for ref in schema.workflow.typically_followed_by:
-                    if ref not in valid_keys:
-                        invalid_refs.append(f"{key} -> {ref}")
-                for ref in schema.workflow.related_capabilities:
-                    if ref not in valid_keys:
-                        invalid_refs.append(f"{key} -> {ref}")
+                invalid_refs.extend(
+                    f"{key} -> {ref}"
+                    for ref in schema.workflow.typically_preceded_by
+                    if ref not in valid_keys
+                )
+                invalid_refs.extend(
+                    f"{key} -> {ref}"
+                    for ref in schema.workflow.typically_followed_by
+                    if ref not in valid_keys
+                )
+                invalid_refs.extend(
+                    f"{key} -> {ref}"
+                    for ref in schema.workflow.related_capabilities
+                    if ref not in valid_keys
+                )
 
         # Allow up to 25% invalid refs (data quality threshold during schema migration)
-        total_schemas_with_workflow = sum(
-            1 for s in SCHEMA_REGISTRY.values() if s.workflow
-        )
+        total_schemas_with_workflow = sum(1 for s in SCHEMA_REGISTRY.values() if s.workflow)
         max_allowed = max(100, int(total_schemas_with_workflow * 0.25))
         assert len(invalid_refs) <= max_allowed, (
             f"Too many invalid workflow refs ({len(invalid_refs)} > {max_allowed}): "

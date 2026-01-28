@@ -39,7 +39,6 @@ logger = get_logger(__name__)
 router = APIRouter(tags=["oauth"])
 
 
-
 def _validate_shopify_hmac(
     code: str, shop: str, state: str, timestamp: str, hmac_param: str, client_secret: str
 ) -> None:

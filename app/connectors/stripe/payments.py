@@ -19,8 +19,11 @@ class StripePaymentsMixin:
 
     @requires_stripe_config
     def create_payment_intent(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Create a payment intent"""
         amount = args.get("amount")  # Amount in cents
@@ -72,8 +75,11 @@ class StripePaymentsMixin:
 
     @requires_stripe_config
     def retrieve_payment_intent(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Retrieve a payment intent"""
         payment_intent_id = args.get("payment_intent_id")
@@ -94,8 +100,11 @@ class StripePaymentsMixin:
 
     @requires_stripe_config
     def refund_payment(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Refund a payment"""
         payment_intent_id = args.get("payment_intent_id")
@@ -137,8 +146,11 @@ class StripePaymentsMixin:
 
     @requires_stripe_config
     def retrieve_refund(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Retrieve a refund"""
         refund_id = args.get("refund_id")
@@ -158,8 +170,11 @@ class StripePaymentsMixin:
 
     @requires_stripe_config
     def update_refund(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Update a refund"""
         refund_id = args.get("refund_id")
@@ -178,8 +193,11 @@ class StripePaymentsMixin:
 
     @requires_stripe_config
     def cancel_refund(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Cancel a refund (only possible if not yet processed)"""
         refund_id = args.get("refund_id")
@@ -193,8 +211,11 @@ class StripePaymentsMixin:
 
     @requires_stripe_config
     def list_refunds(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """List refunds"""
         limit = args.get("limit", 10)
@@ -225,8 +246,11 @@ class StripePaymentsMixin:
 
     @requires_stripe_config
     def retrieve_charge(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Retrieve a charge"""
         charge_id = args.get("charge_id")
@@ -248,8 +272,11 @@ class StripePaymentsMixin:
 
     @requires_stripe_config
     def list_charges(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """List charges"""
         limit = args.get("limit", 10)

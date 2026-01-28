@@ -19,8 +19,11 @@ class StripeBalanceMixin:
 
     @requires_stripe_config
     def get_balance(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Get current Stripe balance"""
         logger.info("Retrieving balance", service="stripe", log_event="stripe_balance_retrieve")
@@ -54,8 +57,11 @@ class StripeBalanceMixin:
 
     @requires_stripe_config
     def list_payouts(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """List Stripe payouts"""
         limit = args.get("limit", 10)
@@ -84,8 +90,11 @@ class StripeBalanceMixin:
 
     @requires_stripe_config
     def retrieve_payout(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Retrieve a specific payout"""
         payout_id = args.get("payout_id")
@@ -106,8 +115,11 @@ class StripeBalanceMixin:
 
     @requires_stripe_config
     def list_balance_transactions(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """List balance transactions"""
         limit = args.get("limit", 10)
@@ -140,8 +152,11 @@ class StripeBalanceMixin:
 
     @requires_stripe_config
     def create_transfer(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Create a transfer (Connect accounts)"""
         amount = args.get("amount")
@@ -189,8 +204,11 @@ class StripeBalanceMixin:
 
     @requires_stripe_config
     def list_transfers(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """List transfers"""
         limit = args.get("limit", 10)

@@ -41,32 +41,42 @@ GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 # Service-specific scopes
 # See: https://developers.google.com/identity/protocols/oauth2/scopes
 GOOGLE_SCOPE_MAP = {
-    "gmail": " ".join([
-        "https://www.googleapis.com/auth/gmail.send",
-        "https://www.googleapis.com/auth/gmail.readonly",
-        "https://www.googleapis.com/auth/gmail.modify",
-        "https://www.googleapis.com/auth/gmail.labels",
-    ]),
-    "drive": " ".join([
-        "https://www.googleapis.com/auth/drive",
-        "https://www.googleapis.com/auth/drive.file",
-    ]),
-    "calendar": " ".join([
-        "https://www.googleapis.com/auth/calendar",
-        "https://www.googleapis.com/auth/calendar.events",
-    ]),
-    "sheets": " ".join([
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive.file",
-    ]),
-    "all": " ".join([
-        "https://www.googleapis.com/auth/gmail.send",
-        "https://www.googleapis.com/auth/gmail.readonly",
-        "https://www.googleapis.com/auth/gmail.modify",
-        "https://www.googleapis.com/auth/drive",
-        "https://www.googleapis.com/auth/calendar",
-        "https://www.googleapis.com/auth/spreadsheets",
-    ]),
+    "gmail": " ".join(
+        [
+            "https://www.googleapis.com/auth/gmail.send",
+            "https://www.googleapis.com/auth/gmail.readonly",
+            "https://www.googleapis.com/auth/gmail.modify",
+            "https://www.googleapis.com/auth/gmail.labels",
+        ]
+    ),
+    "drive": " ".join(
+        [
+            "https://www.googleapis.com/auth/drive",
+            "https://www.googleapis.com/auth/drive.file",
+        ]
+    ),
+    "calendar": " ".join(
+        [
+            "https://www.googleapis.com/auth/calendar",
+            "https://www.googleapis.com/auth/calendar.events",
+        ]
+    ),
+    "sheets": " ".join(
+        [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive.file",
+        ]
+    ),
+    "all": " ".join(
+        [
+            "https://www.googleapis.com/auth/gmail.send",
+            "https://www.googleapis.com/auth/gmail.readonly",
+            "https://www.googleapis.com/auth/gmail.modify",
+            "https://www.googleapis.com/auth/drive",
+            "https://www.googleapis.com/auth/calendar",
+            "https://www.googleapis.com/auth/spreadsheets",
+        ]
+    ),
 }
 
 
@@ -274,7 +284,9 @@ async def google_oauth_callback(code: str, state: str) -> RedirectResponse:
         token_data, token_expiry = _exchange_google_tokens(code, org_id, user_id, service)
 
         # Store credentials in database
-        _store_google_credential(org_id, user_id, token_data, token_expiry, credential_type, service)
+        _store_google_credential(
+            org_id, user_id, token_data, token_expiry, credential_type, service
+        )
 
         return build_oauth_success_redirect(service="google", org_id=org_id)
 

@@ -16,8 +16,11 @@ class StripeDisputesMixin:
 
     @requires_stripe_config
     def retrieve_dispute(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Retrieve a dispute"""
         dispute_id = args.get("dispute_id")
@@ -40,8 +43,11 @@ class StripeDisputesMixin:
 
     @requires_stripe_config
     def update_dispute(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Update a dispute (submit evidence)"""
         dispute_id = args.get("dispute_id")
@@ -63,8 +69,11 @@ class StripeDisputesMixin:
 
     @requires_stripe_config
     def close_dispute(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Close a dispute (accept the dispute)"""
         dispute_id = args.get("dispute_id")
@@ -80,8 +89,11 @@ class StripeDisputesMixin:
 
     @requires_stripe_config
     def list_disputes(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """List disputes"""
         limit = args.get("limit", 10)

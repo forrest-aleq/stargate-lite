@@ -120,7 +120,7 @@ async def airtable_oauth_callback(code: str, state: str) -> RedirectResponse:
     # The code_verifier is embedded in the signed state (stateless PKCE)
     org_id: str | None = None
     try:
-        org_id, user_id, _credential_type, _sub_service, code_verifier = parse_oauth_state_5parts(
+        org_id, user_id, credential_type, _sub_service, code_verifier = parse_oauth_state_5parts(
             state, "airtable"
         )
     except HTTPException:
@@ -131,7 +131,6 @@ async def airtable_oauth_callback(code: str, state: str) -> RedirectResponse:
         )
 
     try:
-
         client_id = get_env_or_raise("AIRTABLE_CLIENT_ID", "Airtable")
         client_secret = get_env_or_raise("AIRTABLE_CLIENT_SECRET", "Airtable")
         redirect_uri = get_env_or_raise("AIRTABLE_REDIRECT_URI", "Airtable")
@@ -194,15 +193,33 @@ async def airtable_oauth_callback(code: str, state: str) -> RedirectResponse:
             log_event="oauth_token_exchange_success",
         )
 
+        # Validate required token field
+        access_token = token_data.get("access_token")
+        if not access_token:
+            logger.error(
+                "Missing access_token in Airtable response",
+                service="airtable",
+                org_id=org_id,
+                user_id=user_id,
+                log_event="oauth_token_missing_field",
+            )
+            return build_oauth_error_redirect(
+                service="airtable",
+                error="invalid_token_response",
+                error_description="Missing access token in Airtable response",
+                org_id=org_id,
+            )
+
         # Store credentials (tokens expire in 60 days)
         expires_in = token_data.get("expires_in", 5184000)
         CredentialManager.store_credential(
             org_id=org_id,
             user_id=user_id,
             service="airtable",
-            access_token=token_data["access_token"],
+            access_token=access_token,
             refresh_token=token_data.get("refresh_token"),
             token_expiry=datetime.utcnow() + timedelta(seconds=expires_in),
+            credential_type=credential_type,
         )
 
         logger.info(

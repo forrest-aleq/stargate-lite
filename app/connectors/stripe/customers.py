@@ -19,8 +19,11 @@ class StripeCustomersMixin:
 
     @requires_stripe_config
     def create_customer(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Create a Stripe customer"""
         email = args.get("email")
@@ -35,7 +38,12 @@ class StripeCustomersMixin:
         metadata.update({"org_id": org_id, "user_id": user_id})
 
         # Build kwargs with optional stripe_account for connected accounts
-        create_kwargs: dict[str, Any] = {"email": email, "name": name, "phone": phone, "metadata": metadata}
+        create_kwargs: dict[str, Any] = {
+            "email": email,
+            "name": name,
+            "phone": phone,
+            "metadata": metadata,
+        }
         if stripe_config and stripe_config.get("stripe_account"):
             create_kwargs["stripe_account"] = stripe_config["stripe_account"]
 
@@ -57,8 +65,11 @@ class StripeCustomersMixin:
 
     @requires_stripe_config
     def search_customers(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Search for customers"""
         query = args.get("query")  # e.g., "email:'john@example.com'" or "name:'John Doe'"
@@ -80,8 +91,11 @@ class StripeCustomersMixin:
 
     @requires_stripe_config
     def retrieve_customer(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Retrieve a customer"""
         customer_id = args.get("customer_id")
@@ -104,8 +118,11 @@ class StripeCustomersMixin:
 
     @requires_stripe_config
     def update_customer(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Update a customer"""
         customer_id = args.get("customer_id")
@@ -138,8 +155,11 @@ class StripeCustomersMixin:
 
     @requires_stripe_config
     def list_customers(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """List customers"""
         limit = args.get("limit", 10)
@@ -161,8 +181,11 @@ class StripeCustomersMixin:
 
     @requires_stripe_config
     def delete_customer(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Delete a customer"""
         customer_id = args.get("customer_id")

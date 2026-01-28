@@ -32,9 +32,7 @@ STRIPE_CONNECT_AUTHORIZE_URL = "https://connect.stripe.com/oauth/authorize"
 STRIPE_CONNECT_TOKEN_URL = "https://connect.stripe.com/oauth/token"
 
 
-def _exchange_stripe_tokens(
-    code: str, org_id: str, user_id: str
-) -> dict[str, Any]:
+def _exchange_stripe_tokens(code: str, org_id: str, user_id: str) -> dict[str, Any]:
     """Exchange authorization code for Stripe access tokens.
 
     Args:
@@ -90,7 +88,7 @@ def _exchange_stripe_tokens(
         # Return generic message to avoid leaking sensitive error details
         raise HTTPException(status_code=500, detail="Token exchange failed")
 
-    token_data = response.json()
+    token_data: dict[str, Any] = response.json()
 
     logger.info(
         "Token exchange successful",

@@ -11,8 +11,9 @@ Only fails when an actual Stripe API method is called.
 """
 
 import os
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 import stripe
 

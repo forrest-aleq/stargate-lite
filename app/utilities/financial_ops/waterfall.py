@@ -163,7 +163,7 @@ class WaterfallMixin(CovenantsMixin):
         waterfall_tiers: dict[str, Decimal],
     ) -> Decimal:
         """Distribute cash through all waterfall tiers."""
-        remaining = params["cash"]
+        remaining: Decimal = params["cash"]
         lp_investors = [inv for inv in investors if not inv.is_gp]
 
         # Tier 1: Return of Capital

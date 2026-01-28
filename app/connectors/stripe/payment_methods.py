@@ -16,8 +16,11 @@ class StripePaymentMethodsMixin:
 
     @requires_stripe_config
     def list_payment_methods(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """List payment methods for a customer"""
         customer_id = args.get("customer_id")
@@ -46,8 +49,11 @@ class StripePaymentMethodsMixin:
 
     @requires_stripe_config
     def attach_payment_method(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Attach a payment method to a customer"""
         payment_method_id = args.get("payment_method_id")
@@ -66,15 +72,22 @@ class StripePaymentMethodsMixin:
 
     @requires_stripe_config
     def create_payment_method(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Create a payment method"""
         type_ = args.get("type", "card")
         card = args.get("card")  # token or card details
         billing_details = args.get("billing_details", {})
 
-        create_kwargs: dict[str, Any] = {"type": type_, "card": card, "billing_details": billing_details}
+        create_kwargs: dict[str, Any] = {
+            "type": type_,
+            "card": card,
+            "billing_details": billing_details,
+        }
         if stripe_config and stripe_config.get("stripe_account"):
             create_kwargs["stripe_account"] = stripe_config["stripe_account"]
 
@@ -87,8 +100,11 @@ class StripePaymentMethodsMixin:
 
     @requires_stripe_config
     def retrieve_payment_method(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Retrieve a payment method"""
         payment_method_id = args.get("payment_method_id")
@@ -110,8 +126,11 @@ class StripePaymentMethodsMixin:
 
     @requires_stripe_config
     def update_payment_method(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Update a payment method"""
         payment_method_id = args.get("payment_method_id")
@@ -133,8 +152,11 @@ class StripePaymentMethodsMixin:
 
     @requires_stripe_config
     def detach_payment_method(
-        self, org_id: str, user_id: str, args: dict[str, Any],
-        stripe_config: dict[str, Any] | None = None
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Detach a payment method from its customer"""
         payment_method_id = args.get("payment_method_id")

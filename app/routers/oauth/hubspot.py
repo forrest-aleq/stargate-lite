@@ -39,28 +39,30 @@ HUBSPOT_TOKEN_URL = "https://api.hubapi.com/oauth/v1/token"
 
 # Comprehensive CRM scopes for full data access
 # See: https://developers.hubspot.com/docs/api/oauth/scopes
-HUBSPOT_SCOPES = " ".join([
-    # Core CRM objects
-    "crm.objects.contacts.read",
-    "crm.objects.contacts.write",
-    "crm.objects.companies.read",
-    "crm.objects.companies.write",
-    "crm.objects.deals.read",
-    "crm.objects.deals.write",
-    # Owners (for attribution)
-    "crm.objects.owners.read",
-    # Customer service
-    "crm.objects.tickets.read",
-    "crm.objects.tickets.write",
-    # Commerce/quotes
-    "crm.objects.line_items.read",
-    "crm.objects.line_items.write",
-    "crm.objects.quotes.read",
-    # Products
-    "crm.objects.products.read",
-    # Lists (for segmentation)
-    "crm.lists.read",
-])
+HUBSPOT_SCOPES = " ".join(
+    [
+        # Core CRM objects
+        "crm.objects.contacts.read",
+        "crm.objects.contacts.write",
+        "crm.objects.companies.read",
+        "crm.objects.companies.write",
+        "crm.objects.deals.read",
+        "crm.objects.deals.write",
+        # Owners (for attribution)
+        "crm.objects.owners.read",
+        # Customer service
+        "crm.objects.tickets.read",
+        "crm.objects.tickets.write",
+        # Commerce/quotes
+        "crm.objects.line_items.read",
+        "crm.objects.line_items.write",
+        "crm.objects.quotes.read",
+        # Products
+        "crm.objects.products.read",
+        # Lists (for segmentation)
+        "crm.lists.read",
+    ]
+)
 
 
 def _exchange_hubspot_tokens(
@@ -155,12 +157,24 @@ def _store_hubspot_credential(
         token_expiry: Token expiration datetime
         credential_type: Type of credential (customer/agent)
     """
+    # Validate required token field
+    access_token = token_data.get("access_token")
+    if not access_token:
+        logger.error(
+            "Missing access_token in HubSpot response",
+            service="hubspot",
+            org_id=org_id,
+            user_id=user_id,
+            log_event="oauth_token_missing_field",
+        )
+        raise ValueError("Invalid token response from HubSpot")
+
     CredentialManager.store_credential(
         org_id=org_id,
         user_id=user_id,
         service="hubspot",
-        access_token=token_data["access_token"],
-        refresh_token=token_data["refresh_token"],
+        access_token=access_token,
+        refresh_token=token_data.get("refresh_token"),
         token_expiry=token_expiry,
     )
 
