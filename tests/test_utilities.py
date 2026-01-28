@@ -445,7 +445,7 @@ class TestFinancialCalculatorPayback:
 class TestWebSearchInitialization:
     """Lazy initialization tests."""
 
-    @patch.dict("os.environ", {}, clear=True)
+    @patch.dict("os.environ", {"FILTER_THIRD_PARTY_LIB": "false"}, clear=True)
     def test_missing_api_key_raises_error(self, reset_utility_singletons):
         """Missing TAVILY_API_KEY should raise an error on first use."""
         from app.errors import ExecutionError
@@ -562,7 +562,7 @@ class TestWebSearchExtract:
 class TestSummarizerInitialization:
     """Lazy initialization tests."""
 
-    @patch.dict("os.environ", {}, clear=True)
+    @patch.dict("os.environ", {"FILTER_THIRD_PARTY_LIB": "false"}, clear=True)
     def test_missing_api_key_raises_error(self, reset_utility_singletons):
         """Missing ANTHROPIC_API_KEY should raise ExecutionError wrapping CredentialMissingError."""
         from app.errors import ExecutionError
