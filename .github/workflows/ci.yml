@@ -123,6 +123,8 @@ jobs:
       - name: Verify app imports
         env:
           PYTHONPATH: .
+          ENCRYPTION_KEY: ${{ secrets.TEST_ENCRYPTION_KEY || 'rYmVfKcRBe4vfoGz7RJUeffnPpA_ycSk6PFtYvtKFeg=' }}
+          DD_TRACE_ENABLED: "false"
         run: python -c "from app.main import app; print(f'Stargate v{app.version} ready')"
 
       - name: Check version matches changelog
