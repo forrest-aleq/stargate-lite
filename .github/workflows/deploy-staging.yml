@@ -1,7 +1,9 @@
 name: Deploy to Staging
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [staging]
 
 jobs:
@@ -9,8 +11,17 @@ jobs:
     name: Deploy to Railway Staging
     runs-on: ubuntu-latest
     environment: staging
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
+      - name: Verify CI passed
+        if: ${{ github.event.workflow_run.conclusion != 'success' }}
+        run: |
+          echo "CI did not pass. Aborting deploy."
+          exit 1
+
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Install Railway CLI
         run: npm install -g @railway/cli

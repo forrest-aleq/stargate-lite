@@ -68,7 +68,8 @@ def main() -> int:
     if check_mode:
         # Check if existing spec matches
         if not output_path.exists():
-            print("ERROR: openapi.json does not exist. Run 'python scripts/generate_openapi.py' to generate it.")
+            print("ERROR: openapi.json does not exist.")
+            print("Run 'python scripts/generate_openapi.py' to generate it.")
             return 1
 
         existing_content = output_path.read_text()

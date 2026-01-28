@@ -1090,7 +1090,7 @@
     },
     "/api/v1/execute": {
       "post": {
-        "description": "Execute a tool based on capability_key.\n\nThis is the MAIN endpoint that the Brain (MARS) calls.\nSupports idempotency via turn_id with 24-hour cache.\nSession ID can be passed via X-Session-ID header or session_id body field.\n\n**Response Format (Contract v1.0):**\n- Success: `{\"status\": \"success\", \"capability_key\": \"...\", \"tool_used\": \"...\", \"outputs\": {...}}`\n- Error: `{\"status\": \"error\", \"error_code\": \"...\", \"error_message\": \"...\", \"retry_strategy\": \"...\"}`\n\nRate limited: 100 requests per minute per org_id (configurable via env vars).",
+        "description": "Execute a tool based on capability_key.\n\nThis is the MAIN endpoint that the Brain (MARS) calls.\nSupports idempotency via turn_id with 24-hour cache.\nSession ID can be passed via X-Session-ID header or session_id body field.\n\n**Response Format (Contract v1.0):**\n- Success: `{\"status\": \"success\", \"capability_key\": \"...\", \"outputs\": {...}}`\n- Error: `{\"status\": \"error\", \"error_code\": \"...\", \"error_message\": \"...\"}`\n\nRate limited: 100 requests per minute per org_id (configurable via env vars).",
         "operationId": "execute_tool_api_v1_execute_post",
         "parameters": [
           {

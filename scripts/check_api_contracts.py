@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import get_type_hints
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent
@@ -46,9 +45,7 @@ def check_model_descriptions() -> list[str]:
         # Check field descriptions
         for field_name, field_info in model.model_fields.items():
             if not field_info.description:
-                violations.append(
-                    f"Field '{model_name}.{field_name}' is missing a description"
-                )
+                violations.append(f"Field '{model_name}.{field_name}' is missing a description")
 
     return violations
 

@@ -38,12 +38,9 @@ repos:
       - id: openapi-check
         name: OpenAPI spec sync
         entry: python scripts/generate_openapi.py --check
-        language: python
+        language: system
         pass_filenames: false
         files: ^(app/models\.py|app/routers/.*\.py|openapi\.json)$
-        additional_dependencies:
-          - fastapi
-          - pydantic
 
       - id: api-contracts
         name: API contract validation

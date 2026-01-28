@@ -11,7 +11,6 @@ from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field
 
-
 # ============================================================================
 # Enums (Contract v1.0)
 # ============================================================================
@@ -323,9 +322,7 @@ class ErrorResponse(BaseModel):
     programmatic error classification and retry strategy selection.
     """
 
-    status: str = Field(
-        default="error", description="Always 'error' for error responses"
-    )
+    status: str = Field(default="error", description="Always 'error' for error responses")
     error_code: ErrorCode = Field(
         ..., description="Machine-readable error code for programmatic handling"
     )
