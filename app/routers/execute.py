@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, Header, Response
 from app.auth import verify_api_key
 from app.errors import StargateError
 from app.logging_config import bind_request_context, clear_request_context, get_logger
-from app.models import ErrorResponse, ToolExecutionRequest
+from app.models import ErrorResponse, ToolExecutionRequest, ToolExecutionResponse
 from app.rate_limiter import rate_limiter
 from app.redis_client import redis_client
 from app.registry import get_capability
@@ -27,26 +27,11 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["execute"])
 
 # Response models for OpenAPI documentation
+# Note: We include both models explicitly so FastAPI registers them in the schema
 EXECUTE_RESPONSES: dict[int | str, dict[str, Any]] = {
     200: {
         "description": "Successful execution or error (Stargate always returns 200)",
-        "content": {
-            "application/json": {
-                "schema": {
-                    "oneOf": [
-                        {"$ref": "#/components/schemas/ToolExecutionResponse"},
-                        {"$ref": "#/components/schemas/ErrorResponse"},
-                    ],
-                    "discriminator": {
-                        "propertyName": "status",
-                        "mapping": {
-                            "success": "#/components/schemas/ToolExecutionResponse",
-                            "error": "#/components/schemas/ErrorResponse",
-                        },
-                    },
-                }
-            }
-        },
+        "model": ToolExecutionResponse | ErrorResponse,
     },
     429: {
         "description": "Rate limit exceeded",
