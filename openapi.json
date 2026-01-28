@@ -1,0 +1,3984 @@
+{
+  "components": {
+    "schemas": {
+      "ConnectorHealthResponse": {
+        "description": "Detailed health check for all connectors (admin endpoint)",
+        "example": {
+          "connectors": [
+            {
+              "connection_count": 5,
+              "credential_status": "connected",
+              "requires_oauth": true,
+              "service": "quickbooks"
+            }
+          ],
+          "status": "healthy",
+          "timestamp": "2025-10-18T12:00:00.123456",
+          "total_connections": 25,
+          "total_connectors": 13,
+          "version": "0.9.0"
+        },
+        "properties": {
+          "connectors": {
+            "description": "Status of each individual connector",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorStatus"
+            },
+            "title": "Connectors",
+            "type": "array"
+          },
+          "status": {
+            "description": "Overall status: 'healthy' or 'degraded'",
+            "title": "Status",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "Response timestamp (UTC)",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "total_connections": {
+            "description": "Total credential records across all services",
+            "title": "Total Connections",
+            "type": "integer"
+          },
+          "total_connectors": {
+            "description": "Total number of connector types",
+            "title": "Total Connectors",
+            "type": "integer"
+          },
+          "version": {
+            "description": "Stargate Lite version",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "version",
+          "total_connectors",
+          "total_connections",
+          "connectors"
+        ],
+        "title": "ConnectorHealthResponse",
+        "type": "object"
+      },
+      "ConnectorStatus": {
+        "description": "Status for a single connector (admin endpoint)",
+        "example": {
+          "connection_count": 5,
+          "credential_status": "connected",
+          "last_updated": "2025-10-18T10:00:00",
+          "requires_oauth": true,
+          "service": "quickbooks",
+          "token_expiry": "2025-12-31T23:59:59"
+        },
+        "properties": {
+          "connection_count": {
+            "default": 0,
+            "description": "Number of org:user combinations with this credential",
+            "title": "Connection Count",
+            "type": "integer"
+          },
+          "credential_status": {
+            "description": "Credential status: 'connected', 'expired', or 'missing'",
+            "title": "Credential Status",
+            "type": "string"
+          },
+          "last_updated": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When credential was last refreshed",
+            "title": "Last Updated"
+          },
+          "requires_oauth": {
+            "description": "Whether this service requires OAuth flow",
+            "title": "Requires Oauth",
+            "type": "boolean"
+          },
+          "service": {
+            "description": "Service name (e.g., 'quickbooks', 'stripe')",
+            "title": "Service",
+            "type": "string"
+          },
+          "token_expiry": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the token expires (if OAuth)",
+            "title": "Token Expiry"
+          }
+        },
+        "required": [
+          "service",
+          "credential_status",
+          "requires_oauth"
+        ],
+        "title": "ConnectorStatus",
+        "type": "object"
+      },
+      "ConnectorStatusRequest": {
+        "description": "Request to check connector status for specific services",
+        "example": {
+          "org_id": "org_12345",
+          "services": [
+            "quickbooks",
+            "gmail",
+            "vision"
+          ],
+          "user_id": "user_67890"
+        },
+        "properties": {
+          "org_id": {
+            "description": "Organization ID",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "services": {
+            "description": "List of services to check (e.g., ['quickbooks', 'gmail'])",
+            "items": {
+              "type": "string"
+            },
+            "title": "Services",
+            "type": "array"
+          },
+          "user_id": {
+            "description": "User ID",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id",
+          "user_id",
+          "services"
+        ],
+        "title": "ConnectorStatusRequest",
+        "type": "object"
+      },
+      "ConnectorStatusResponse": {
+        "description": "Response with connector status for specific services",
+        "example": {
+          "all_connected": false,
+          "connectors": [
+            {
+              "credential_type": "customer",
+              "display_name": "QuickBooks",
+              "kind": "quickbooks",
+              "last_updated": "2025-10-30T10:00:00",
+              "requires_oauth": true,
+              "status": "connected",
+              "token_expiry": "2025-12-31T23:59:59"
+            },
+            {
+              "credential_type": "agent",
+              "display_name": "Gmail",
+              "kind": "gmail",
+              "requires_oauth": true,
+              "status": "missing"
+            }
+          ],
+          "missing_count": 1
+        },
+        "properties": {
+          "all_connected": {
+            "description": "True if all required connectors are authenticated",
+            "title": "All Connected",
+            "type": "boolean"
+          },
+          "connectors": {
+            "description": "Status of each requested connector",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowConnectorStatus"
+            },
+            "title": "Connectors",
+            "type": "array"
+          },
+          "missing_count": {
+            "description": "Number of connectors that need authentication",
+            "title": "Missing Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "connectors",
+          "all_connected",
+          "missing_count"
+        ],
+        "title": "ConnectorStatusResponse",
+        "type": "object"
+      },
+      "ErrorCode": {
+        "description": "Standardized error codes for Stargate API (Contract v1.0)\n\nThese codes allow consumers to programmatically handle errors\nand determine appropriate retry strategies.",
+        "enum": [
+          "CAPABILITY_NOT_FOUND",
+          "CREDENTIALS_MISSING",
+          "CREDENTIALS_INVALID",
+          "CREDENTIALS_INSUFFICIENT",
+          "RATE_LIMIT",
+          "NETWORK_ERROR",
+          "VALIDATION_ERROR",
+          "EXECUTION_ERROR",
+          "QUOTA_EXCEEDED",
+          "PERMISSION_DENIED"
+        ],
+        "title": "ErrorCode",
+        "type": "string"
+      },
+      "ErrorResponse": {
+        "description": "Standard error response format (Contract v1.0)\n\nAll Stargate errors return HTTP 200 with status='error' to enable\nstructured error handling by AI agents. The error_code field allows\nprogrammatic error classification and retry strategy selection.",
+        "example": {
+          "capability_key": "vendor.create",
+          "details": {
+            "org_id": "org_123",
+            "service": "quickbooks"
+          },
+          "error_code": "CREDENTIALS_MISSING",
+          "error_message": "No credentials found for service 'quickbooks'",
+          "retry_strategy": "human_intervention",
+          "status": "error",
+          "timestamp": "2025-10-18T12:00:00.123456"
+        },
+        "properties": {
+          "capability_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The capability that was being executed (if applicable)",
+            "title": "Capability Key"
+          },
+          "details": {
+            "description": "Additional error context (e.g., field, service)",
+            "title": "Details",
+            "type": "object"
+          },
+          "error_code": {
+            "$ref": "#/components/schemas/ErrorCode",
+            "description": "Machine-readable error code for programmatic handling"
+          },
+          "error_message": {
+            "description": "Human-readable error description",
+            "title": "Error Message",
+            "type": "string"
+          },
+          "retry_strategy": {
+            "$ref": "#/components/schemas/RetryStrategy",
+            "description": "Recommended retry strategy for this error type"
+          },
+          "status": {
+            "default": "error",
+            "description": "Always 'error' for error responses",
+            "title": "Status",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "When the error occurred (UTC)",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "error_code",
+          "error_message",
+          "retry_strategy"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "description": "Health check response for /health endpoint",
+        "example": {
+          "capabilities_count": 570,
+          "services": {
+            "database": "connected",
+            "redis": "connected"
+          },
+          "status": "healthy",
+          "timestamp": "2025-10-18T12:00:00.123456",
+          "version": "0.9.0"
+        },
+        "properties": {
+          "capabilities_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Total registered capabilities",
+            "title": "Capabilities Count"
+          },
+          "services": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Status of dependent services",
+            "title": "Services",
+            "type": "object"
+          },
+          "status": {
+            "description": "Service status: 'healthy' or 'degraded'",
+            "title": "Status",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "Response timestamp (UTC)",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "version": {
+            "description": "Stargate Lite version (e.g., '0.9.0')",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "version"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "RetryStrategy": {
+        "description": "Recommended retry strategy for each error type\n\nConsumers should follow these strategies when handling errors.",
+        "enum": [
+          "human_intervention",
+          "backoff",
+          "none"
+        ],
+        "title": "RetryStrategy",
+        "type": "string"
+      },
+      "ToolExecutionRequest": {
+        "description": "Request model for tool execution (Contract v1.0 compliant)",
+        "example": {
+          "args": {
+            "email": "[email protected]",
+            "vendor_name": "Acme Inc."
+          },
+          "capability_key": "vendor.create",
+          "org_id": "org_12345",
+          "session_id": "01936b3a-4f2e-7000-8000-abc123def456",
+          "turn_id": "turn_01HZ8Y3K5G4N2M6X9W7Q",
+          "use_delegation": false,
+          "user_id": "user_67890"
+        },
+        "properties": {
+          "args": {
+            "description": "Arguments for the tool execution",
+            "title": "Args",
+            "type": "object"
+          },
+          "capability_key": {
+            "description": "The capability being requested (e.g., 'vendor.create')",
+            "title": "Capability Key",
+            "type": "string"
+          },
+          "org_id": {
+            "description": "Organization ID for multi-tenancy",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Session ID for event correlation (passed via X-Session-ID header or body)",
+            "title": "Session Id"
+          },
+          "turn_id": {
+            "description": "Turn ID for idempotency (prevents duplicate executions) - REQUIRED",
+            "title": "Turn Id",
+            "type": "string"
+          },
+          "use_delegation": {
+            "default": false,
+            "description": "For agent credentials: prefer delegated access over system credentials",
+            "title": "Use Delegation",
+            "type": "boolean"
+          },
+          "user_id": {
+            "description": "User ID for credential lookup and audit",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "capability_key",
+          "org_id",
+          "user_id",
+          "turn_id"
+        ],
+        "title": "ToolExecutionRequest",
+        "type": "object"
+      },
+      "ToolExecutionResponse": {
+        "description": "Response model for tool execution",
+        "example": {
+          "capability_key": "vendor.create",
+          "credential_type": "customer",
+          "logs": [
+            "Successfully created vendor in QuickBooks"
+          ],
+          "outputs": {
+            "created_at": "2025-10-18T12:00:00Z",
+            "status": "pending_w9",
+            "vendor_id": "qb:123-xyz"
+          },
+          "status": "success",
+          "timestamp": "2025-10-18T12:00:00.123456",
+          "tool_used": "quickbooks.create_vendor"
+        },
+        "properties": {
+          "capability_key": {
+            "description": "The capability that was executed",
+            "title": "Capability Key",
+            "type": "string"
+          },
+          "credential_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Type of credential used: 'agent' or 'customer' or None",
+            "title": "Credential Type"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Error message if status is 'error'",
+            "title": "Error"
+          },
+          "logs": {
+            "description": "Execution logs",
+            "items": {
+              "type": "string"
+            },
+            "title": "Logs",
+            "type": "array"
+          },
+          "outputs": {
+            "description": "Outputs from the execution",
+            "title": "Outputs",
+            "type": "object"
+          },
+          "status": {
+            "description": "Execution status: 'success' or 'error'",
+            "title": "Status",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "Execution timestamp",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "tool_used": {
+            "description": "The actual tool/connector used (e.g., 'quickbooks.create_vendor')",
+            "title": "Tool Used",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "capability_key",
+          "tool_used"
+        ],
+        "title": "ToolExecutionResponse",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "WorkflowConnectorStatus": {
+        "description": "Status for a single connector in workflow context",
+        "example": {
+          "credential_type": "customer",
+          "display_name": "QuickBooks",
+          "kind": "quickbooks",
+          "last_updated": "2025-10-30T10:00:00",
+          "requires_oauth": true,
+          "status": "connected",
+          "token_expiry": "2025-12-31T23:59:59"
+        },
+        "properties": {
+          "credential_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "'agent' or 'customer' or None",
+            "title": "Credential Type"
+          },
+          "display_name": {
+            "description": "Human-readable name (e.g., 'QuickBooks')",
+            "title": "Display Name",
+            "type": "string"
+          },
+          "kind": {
+            "description": "Service name (e.g., 'quickbooks', 'gmail')",
+            "title": "Kind",
+            "type": "string"
+          },
+          "last_updated": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When credential was last updated",
+            "title": "Last Updated"
+          },
+          "requires_oauth": {
+            "description": "Whether this service requires OAuth",
+            "title": "Requires Oauth",
+            "type": "boolean"
+          },
+          "status": {
+            "description": "Auth status: 'connected', 'expired', 'missing'",
+            "title": "Status",
+            "type": "string"
+          },
+          "token_expiry": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When token expires (if applicable)",
+            "title": "Token Expiry"
+          }
+        },
+        "required": [
+          "kind",
+          "display_name",
+          "status",
+          "requires_oauth"
+        ],
+        "title": "WorkflowConnectorStatus",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Execution Layer ('The Hands') for Aleq MIND",
+    "title": "Stargate Lite",
+    "version": "0.9.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/": {
+      "get": {
+        "description": "Root endpoint - health check",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Root",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/capabilities": {
+      "get": {
+        "description": "List all available capabilities",
+        "operationId": "get_capabilities_api_v1_capabilities_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Capabilities Api V1 Capabilities Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Capabilities",
+        "tags": [
+          "credentials"
+        ]
+      }
+    },
+    "/api/v1/capabilities/enhanced": {
+      "get": {
+        "description": "List capabilities with schema availability indicator.\n\nReturns all capabilities with a 'schema_available' field indicating\nwhether rich metadata is available for each capability.\n\nThis is useful for AI agents to know which capabilities have detailed\ndocumentation vs. basic registry entries.",
+        "operationId": "list_capabilities_enhanced_api_v1_capabilities_enhanced_get",
+        "parameters": [
+          {
+            "description": "Filter by service name",
+            "in": "query",
+            "name": "service",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by service name",
+              "title": "Service"
+            }
+          },
+          {
+            "description": "Only return capabilities with schemas",
+            "in": "query",
+            "name": "schema_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Only return capabilities with schemas",
+              "title": "Schema Only",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response List Capabilities Enhanced Api V1 Capabilities Enhanced Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Capabilities Enhanced",
+        "tags": [
+          "schemas"
+        ]
+      }
+    },
+    "/api/v1/connectors/status": {
+      "post": {
+        "description": "Check connector authentication status for specific services (workflow context).\n\nThis endpoint is called by the workflow manifest builder to check which\nconnectors are authenticated before presenting a workflow preview to the user.",
+        "operationId": "check_workflow_connector_status_api_v1_connectors_status_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectorStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Check Workflow Connector Status",
+        "tags": [
+          "connectors"
+        ]
+      }
+    },
+    "/api/v1/credentials/metadata": {
+      "get": {
+        "description": "Get metadata about a stored credential (without exposing tokens)\n\nQuery params:\n- org_id: Organization ID\n- user_id: User ID\n- service: Service name (e.g., \"quickbooks\", \"google\")\n- credential_type: \"agent\" or \"customer\" (default: \"customer\")\n\nReturns credential metadata: expiry, realm_id, etc. without exposing access_token",
+        "operationId": "get_credential_metadata_api_v1_credentials_metadata_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "service",
+            "required": true,
+            "schema": {
+              "title": "Service",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Credential Metadata Api V1 Credentials Metadata Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Credential Metadata",
+        "tags": [
+          "credentials"
+        ]
+      }
+    },
+    "/api/v1/credentials/revoke": {
+      "post": {
+        "description": "Revoke/delete a stored credential (disconnect an integration).\n\nRequest body:\n{\n    \"org_id\": \"org_123\",\n    \"user_id\": \"user_456\",\n    \"service\": \"quickbooks\",\n    \"credential_type\": \"customer\"  // optional, defaults to \"customer\"\n}\n\nReturns:\n- status: \"revoked\" or \"not_found\"\n- service: service name",
+        "operationId": "revoke_credential_api_v1_credentials_revoke_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "title": "Request",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Revoke Credential Api V1 Credentials Revoke Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Credential",
+        "tags": [
+          "credentials"
+        ]
+      }
+    },
+    "/api/v1/credentials/status": {
+      "post": {
+        "description": "Check if credentials exist for a capability before execution\n\nRequest body:\n{\n    \"org_id\": \"org_123\",\n    \"user_id\": \"user_456\",\n    \"capability_key\": \"vendor.create\",\n    \"use_delegation\": false\n}\n\nReturns:\n- credential_available: bool\n- credential_type: \"agent\" | \"customer\" | None\n- access_pattern: \"programmatic\" | \"delegate\" | None (for agent credentials)\n- requires_setup: bool (True if credential missing)\n- delegation_supported: bool (True if this capability supports delegation)\n- delegation_instructions: str (setup instructions if delegation supported)",
+        "operationId": "check_credential_status_api_v1_credentials_status_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "title": "Request",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Check Credential Status Api V1 Credentials Status Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Check Credential Status",
+        "tags": [
+          "credentials"
+        ]
+      }
+    },
+    "/api/v1/execute": {
+      "post": {
+        "description": "Execute a tool based on capability_key.\n\nThis is the MAIN endpoint that the Brain (MARS) calls.\nSupports idempotency via turn_id with 24-hour cache.\nSession ID can be passed via X-Session-ID header or session_id body field.\n\n**Response Format (Contract v1.0):**\n- Success: `{\"status\": \"success\", \"capability_key\": \"...\", \"tool_used\": \"...\", \"outputs\": {...}}`\n- Error: `{\"status\": \"error\", \"error_code\": \"...\", \"error_message\": \"...\", \"retry_strategy\": \"...\"}`\n\nRate limited: 100 requests per minute per org_id (configurable via env vars).",
+        "operationId": "execute_tool_api_v1_execute_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Session-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Session-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolExecutionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "discriminator": {
+                    "mapping": {
+                      "error": "#/components/schemas/ErrorResponse",
+                      "success": "#/components/schemas/ToolExecutionResponse"
+                    },
+                    "propertyName": "status"
+                  },
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ToolExecutionResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    }
+                  ],
+                  "title": "Response Execute Tool Api V1 Execute Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful execution or error (Stargate always returns 200)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          }
+        },
+        "summary": "Execute Tool",
+        "tags": [
+          "execute"
+        ]
+      }
+    },
+    "/api/v1/schemas": {
+      "get": {
+        "description": "List all available capability schemas.\n\nReturns rich metadata for capabilities that have schemas defined.\nUse the optional 'service' query parameter to filter by service.\n\nResponse format:\n{\n    \"schemas\": {\n        \"vendor.create\": { ... full schema ... },\n        \"vendor.get\": { ... },\n        ...\n    },\n    \"count\": 10,\n    \"service_filter\": \"quickbooks\" | null\n}",
+        "operationId": "list_capability_schemas_api_v1_schemas_get",
+        "parameters": [
+          {
+            "description": "Filter schemas by service name",
+            "in": "query",
+            "name": "service",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter schemas by service name",
+              "title": "Service"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response List Capability Schemas Api V1 Schemas Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Capability Schemas",
+        "tags": [
+          "schemas"
+        ]
+      }
+    },
+    "/api/v1/schemas/{capability_key}": {
+      "get": {
+        "description": "Get detailed schema for a specific capability.\n\nReturns rich metadata including parameters, returns, errors, and workflow hints.\nThe capability_key should match the key used in /api/v1/execute.\n\nCombines schema metadata with registry metadata for complete information.",
+        "operationId": "get_capability_schema_api_v1_schemas__capability_key__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "capability_key",
+            "required": true,
+            "schema": {
+              "title": "Capability Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Capability Schema Api V1 Schemas  Capability Key  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Capability Schema",
+        "tags": [
+          "schemas"
+        ]
+      }
+    },
+    "/api/v1/services": {
+      "get": {
+        "description": "Get summary of services that have capability schemas defined.\n\nUseful for progressive disclosure - AI agents can first discover which\nservices have rich metadata, then drill down into specific capabilities.\n\nResponse format:\n{\n    \"services\": {\n        \"quickbooks\": {\n            \"capabilities_count\": 10,\n            \"categories\": [\"vendors\", \"bills\"]\n        }\n    },\n    \"total_services\": 1,\n    \"total_capabilities\": 10\n}",
+        "operationId": "list_services_with_schemas_api_v1_services_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response List Services With Schemas Api V1 Services Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Services With Schemas",
+        "tags": [
+          "schemas"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Health check endpoint",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health Check",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/health/connectors": {
+      "get": {
+        "description": "Detailed health check for all connectors\nShows credential status, expiry, and connection counts per service",
+        "operationId": "connector_health_check_health_connectors_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorHealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Connector Health Check",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/oauth/airtable/authorize": {
+      "get": {
+        "description": "Initiate Airtable OAuth flow with PKCE.\n\nAirtable requires PKCE (Proof Key for Code Exchange) for security.\nThe code_verifier is embedded in the signed state parameter, making\nthis flow completely stateless and compatible with multi-worker deployments.\n\nArgs:\n    org_id: Organization identifier\n    user_id: User identifier\n    credential_type: Type of credential (customer/agent)\n\nReturns:\n    Redirect to Airtable authorization page",
+        "operationId": "airtable_oauth_authorize_oauth_airtable_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Airtable Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/airtable/callback": {
+      "get": {
+        "description": "Handle Airtable OAuth callback with PKCE verification. Redirects to N3 on completion.",
+        "operationId": "airtable_oauth_callback_oauth_airtable_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Airtable Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/asana/authorize": {
+      "get": {
+        "description": "Initiate Asana OAuth 2.0 flow\n\nRedirects user to Asana authorization page",
+        "operationId": "asana_oauth_authorize_oauth_asana_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Asana Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/asana/callback": {
+      "get": {
+        "description": "Handle Asana OAuth callback",
+        "operationId": "asana_oauth_callback_oauth_asana_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Asana Oauth Callback Oauth Asana Callback Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Asana Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/brex/authorize": {
+      "get": {
+        "description": "Initiate Brex OAuth 2.0 flow\n\nRedirects user to Brex authorization page\nSupports PKCE (optional but not required)",
+        "operationId": "brex_oauth_authorize_oauth_brex_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Brex Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/brex/callback": {
+      "get": {
+        "description": "Handle Brex OAuth callback",
+        "operationId": "brex_oauth_callback_oauth_brex_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Brex Oauth Callback Oauth Brex Callback Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Brex Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/chase/authorize": {
+      "get": {
+        "description": "Initiate Chase/J.P. Morgan OAuth 2.0 flow",
+        "operationId": "chase_oauth_authorize_oauth_chase_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Chase Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/chase/callback": {
+      "get": {
+        "description": "Handle Chase OAuth callback",
+        "operationId": "chase_oauth_callback_oauth_chase_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Chase Oauth Callback Oauth Chase Callback Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Chase Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/clickup/authorize": {
+      "get": {
+        "description": "Initiate ClickUp OAuth 2.0 flow\n\nClickUp is used by finance teams for process management and workflows",
+        "operationId": "clickup_oauth_authorize_oauth_clickup_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Clickup Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/clickup/callback": {
+      "get": {
+        "description": "Handle ClickUp OAuth callback\n\nExchange authorization code for access token\nNote: Current ClickUp tokens do not expire (subject to change)",
+        "operationId": "clickup_oauth_callback_oauth_clickup_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Clickup Oauth Callback Oauth Clickup Callback Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Clickup Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/docusign/authorize": {
+      "get": {
+        "description": "Initiate DocuSign OAuth flow.\n\nRedirects user to DocuSign authorization page to grant access to\ne-signature capabilities including sending, signing, and managing envelopes.\n\nArgs:\n    org_id: Organization identifier\n    user_id: User identifier\n    credential_type: Type of credential (customer/agent)\n\nReturns:\n    Redirect to DocuSign authorization page",
+        "operationId": "docusign_oauth_authorize_oauth_docusign_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Docusign Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/docusign/callback": {
+      "get": {
+        "description": "Handle DocuSign OAuth callback. Redirects to N3 on completion.",
+        "operationId": "docusign_oauth_callback_oauth_docusign_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Docusign Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/google/authorize": {
+      "get": {
+        "description": "Initiate Google Workspace OAuth flow\n\nRedirects user to Google authorization page\n\nArgs:\n    service: gmail, drive, calendar, sheets, all (determines scopes)\n    credential_type: \"customer\" or \"agent\"",
+        "operationId": "google_oauth_authorize_oauth_google_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "service",
+            "required": false,
+            "schema": {
+              "default": "gmail",
+              "title": "Service",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Google Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/google/callback": {
+      "get": {
+        "description": "Handle Google OAuth callback\n\nExchange authorization code for access/refresh tokens and store them.\nRedirects to N3 frontend on completion.",
+        "operationId": "google_oauth_callback_oauth_google_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Google Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/gusto/authorize": {
+      "get": {
+        "description": "Initiate Gusto OAuth flow.\n\nRedirects user to Gusto authorization page to grant access to payroll data.\n\nArgs:\n    org_id: Organization identifier\n    user_id: User identifier\n    credential_type: Type of credential (customer/agent)\n\nReturns:\n    Redirect to Gusto authorization page",
+        "operationId": "gusto_oauth_authorize_oauth_gusto_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Gusto Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/gusto/callback": {
+      "get": {
+        "description": "Handle Gusto OAuth callback.\n\nExchange authorization code for access/refresh tokens and store them.\nRedirects to N3 frontend on completion.",
+        "operationId": "gusto_oauth_callback_oauth_gusto_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Gusto Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/hubspot/authorize": {
+      "get": {
+        "description": "Initiate HubSpot OAuth flow\n\nRedirects user to HubSpot authorization page",
+        "operationId": "hubspot_oauth_authorize_oauth_hubspot_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Hubspot Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/hubspot/callback": {
+      "get": {
+        "description": "Handle HubSpot OAuth callback\n\nExchange authorization code for access/refresh tokens and store them.\nRedirects to N3 frontend on completion.",
+        "operationId": "hubspot_oauth_callback_oauth_hubspot_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Hubspot Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/linear/authorize": {
+      "get": {
+        "description": "Initiate Linear OAuth flow with agent mode (actor=app)\n\nCreates a dedicated agent user in Linear workspace\nAgent can be assigned issues and @mentioned",
+        "operationId": "linear_oauth_authorize_oauth_linear_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "agent",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Linear Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/linear/callback": {
+      "get": {
+        "description": "Handle Linear OAuth callback\n\nExchange authorization code for access/refresh tokens\nLinear tokens expire after 24 hours, refresh tokens auto-enabled (Oct 2025+)",
+        "operationId": "linear_oauth_callback_oauth_linear_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Linear Oauth Callback Oauth Linear Callback Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Linear Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/microsoft/authorize": {
+      "get": {
+        "description": "Initiate Microsoft 365 OAuth flow\n\nRedirects user to Microsoft authorization page\nSupports: Excel, OneDrive, Outlook Calendar, Power BI\n\nArgs:\n    service: excel, onedrive, outlook, powerbi (determines scopes)\n    credential_type: \"customer\" or \"agent\"",
+        "operationId": "microsoft_oauth_authorize_oauth_microsoft_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "service",
+            "required": false,
+            "schema": {
+              "default": "excel",
+              "title": "Service",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Microsoft Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/microsoft/callback": {
+      "get": {
+        "description": "Handle Microsoft 365 OAuth callback\n\nExchange authorization code for access/refresh tokens and store them\nState format: {org_id}:{user_id}:{credential_type}:{service}",
+        "operationId": "microsoft_oauth_callback_oauth_microsoft_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Microsoft Oauth Callback Oauth Microsoft Callback Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Microsoft Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/monday/authorize": {
+      "get": {
+        "description": "Initiate Monday.com OAuth 2.0 flow\n\nMonday.com is used by finance/operations teams for task management",
+        "operationId": "monday_oauth_authorize_oauth_monday_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Monday Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/monday/callback": {
+      "get": {
+        "description": "Handle Monday.com OAuth callback\n\nExchange authorization code for access token\nMonday.com tokens don't expire",
+        "operationId": "monday_oauth_callback_oauth_monday_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Monday Oauth Callback Oauth Monday Callback Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Monday Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/netsuite/authorize": {
+      "get": {
+        "description": "Initiate NetSuite OAuth 2.0 flow\n\nRedirects user to NetSuite authorization page\nRequires NETSUITE_ACCOUNT_ID in environment",
+        "operationId": "netsuite_oauth_authorize_oauth_netsuite_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Netsuite Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/netsuite/callback": {
+      "get": {
+        "description": "Handle NetSuite OAuth callback\n\nExchange authorization code for access/refresh tokens and store them.\nState is cryptographically signed to prevent CSRF/tampering.",
+        "operationId": "netsuite_oauth_callback_oauth_netsuite_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Netsuite Oauth Callback Oauth Netsuite Callback Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Netsuite Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/notion/authorize": {
+      "get": {
+        "description": "Initiate Notion OAuth 2.0 flow\n\nNote: Notion's authorization URL is unique per integration\nMust be configured in Notion integration settings",
+        "operationId": "notion_oauth_authorize_oauth_notion_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Notion Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/notion/callback": {
+      "get": {
+        "description": "Handle Notion OAuth callback",
+        "operationId": "notion_oauth_callback_oauth_notion_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Notion Oauth Callback Oauth Notion Callback Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Notion Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/powerbi/authorize": {
+      "get": {
+        "description": "Redirect to Microsoft OAuth with Power BI scopes",
+        "operationId": "powerbi_oauth_authorize_oauth_powerbi_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Powerbi Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/powerbi/callback": {
+      "get": {
+        "description": "Handle Power BI OAuth callback (uses Microsoft OAuth)",
+        "operationId": "powerbi_oauth_callback_oauth_powerbi_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Powerbi Oauth Callback Oauth Powerbi Callback Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Powerbi Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/quickbooks/authorize": {
+      "get": {
+        "description": "Initiate QuickBooks OAuth flow\n\nRedirects user to Intuit authorization page",
+        "operationId": "quickbooks_oauth_authorize_oauth_quickbooks_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Quickbooks Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/quickbooks/callback": {
+      "get": {
+        "description": "Handle QuickBooks OAuth callback\n\nExchange authorization code for access/refresh tokens and store them.\nRedirects to N3 frontend on completion.",
+        "operationId": "quickbooks_oauth_callback_oauth_quickbooks_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "realmId",
+            "required": true,
+            "schema": {
+              "title": "Realmid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Quickbooks Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/ramp/authorize": {
+      "get": {
+        "description": "Initiate Ramp OAuth 2.0 flow",
+        "operationId": "ramp_oauth_authorize_oauth_ramp_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ramp Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/ramp/callback": {
+      "get": {
+        "description": "Handle Ramp OAuth callback",
+        "operationId": "ramp_oauth_callback_oauth_ramp_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Ramp Oauth Callback Oauth Ramp Callback Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ramp Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/schwab/authorize": {
+      "get": {
+        "description": "Initiate Charles Schwab OAuth 2.0 flow",
+        "operationId": "schwab_oauth_authorize_oauth_schwab_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Schwab Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/schwab/callback": {
+      "get": {
+        "description": "Handle Schwab OAuth callback",
+        "operationId": "schwab_oauth_callback_oauth_schwab_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Schwab Oauth Callback Oauth Schwab Callback Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Schwab Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/shopify/authorize": {
+      "get": {
+        "description": "Initiate Shopify OAuth flow.\n\nShopify requires the shop name to construct OAuth URLs.\nThe shop parameter should be the myshopify.com subdomain (e.g., 'my-store').\n\nArgs:\n    org_id: Organization identifier\n    user_id: User identifier\n    shop: Shopify store name (e.g., 'my-store' for my-store.myshopify.com)\n    credential_type: Type of credential (customer/agent)\n\nReturns:\n    Redirect to Shopify authorization page",
+        "operationId": "shopify_oauth_authorize_oauth_shopify_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "shop",
+            "required": true,
+            "schema": {
+              "title": "Shop",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Shopify Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/shopify/callback": {
+      "get": {
+        "description": "Handle Shopify OAuth callback with HMAC validation. Redirects to N3.",
+        "operationId": "shopify_oauth_callback_oauth_shopify_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "shop",
+            "required": true,
+            "schema": {
+              "title": "Shop",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "hmac",
+            "required": true,
+            "schema": {
+              "title": "Hmac",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "timestamp",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Timestamp",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Shopify Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/slack/authorize": {
+      "get": {
+        "description": "Initiate Slack OAuth flow\n\nRedirects user to Slack authorization page\nNote: Slack is always an agent credential (bot acting on behalf of workspace)",
+        "operationId": "slack_oauth_authorize_oauth_slack_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "agent",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Slack Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/slack/callback": {
+      "get": {
+        "description": "Handle Slack OAuth callback\n\nExchange authorization code for access token and store credentials.\nRedirects to N3 frontend on completion.",
+        "operationId": "slack_oauth_callback_oauth_slack_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Slack Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/square/authorize": {
+      "get": {
+        "description": "Initiate Square OAuth flow.\n\nRedirects user to Square authorization page to grant access to\npayments, orders, customers, and inventory data.\n\nArgs:\n    org_id: Organization identifier\n    user_id: User identifier\n    credential_type: Type of credential (customer/agent)\n\nReturns:\n    Redirect to Square authorization page",
+        "operationId": "square_oauth_authorize_oauth_square_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Square Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/square/callback": {
+      "get": {
+        "description": "Handle Square OAuth callback. Redirects to N3 on completion.",
+        "operationId": "square_oauth_callback_oauth_square_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Square Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/stripe/authorize": {
+      "get": {
+        "description": "Initiate Stripe Connect OAuth flow\n\nRedirects user to Stripe authorization page",
+        "operationId": "stripe_oauth_authorize_oauth_stripe_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stripe Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/stripe/callback": {
+      "get": {
+        "description": "Handle Stripe Connect OAuth callback\n\nExchange authorization code for access token and store credentials.\nRedirects to N3 frontend on completion.",
+        "operationId": "stripe_oauth_callback_oauth_stripe_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stripe Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    }
+  }
+}

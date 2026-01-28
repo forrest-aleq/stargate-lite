@@ -35,6 +35,25 @@ repos:
         pass_filenames: false
         always_run: true
 
+      - id: openapi-check
+        name: OpenAPI spec sync
+        entry: python scripts/generate_openapi.py --check
+        language: python
+        pass_filenames: false
+        files: ^(app/models\.py|app/routers/.*\.py|openapi\.json)$
+        additional_dependencies:
+          - fastapi
+          - pydantic
+
+      - id: api-contracts
+        name: API contract validation
+        entry: python scripts/check_api_contracts.py
+        language: python
+        pass_filenames: false
+        files: ^app/models\.py$
+        additional_dependencies:
+          - pydantic
+
   # Ruff - lint + format
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.4

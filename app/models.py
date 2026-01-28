@@ -1,11 +1,55 @@
 """
 Pydantic models for Stargate Lite API
+
+These models define the API contract between Stargate and its consumers.
+All public models are automatically included in the OpenAPI specification.
 """
 
 from datetime import datetime
+from enum import Enum
 from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field
+
+
+# ============================================================================
+# Enums (Contract v1.0)
+# ============================================================================
+
+
+class ErrorCode(str, Enum):
+    """Standardized error codes for Stargate API (Contract v1.0)
+
+    These codes allow consumers to programmatically handle errors
+    and determine appropriate retry strategies.
+    """
+
+    CAPABILITY_NOT_FOUND = "CAPABILITY_NOT_FOUND"
+    CREDENTIALS_MISSING = "CREDENTIALS_MISSING"
+    CREDENTIALS_INVALID = "CREDENTIALS_INVALID"
+    CREDENTIALS_INSUFFICIENT = "CREDENTIALS_INSUFFICIENT"
+    RATE_LIMIT = "RATE_LIMIT"
+    NETWORK_ERROR = "NETWORK_ERROR"
+    VALIDATION_ERROR = "VALIDATION_ERROR"
+    EXECUTION_ERROR = "EXECUTION_ERROR"
+    QUOTA_EXCEEDED = "QUOTA_EXCEEDED"
+    PERMISSION_DENIED = "PERMISSION_DENIED"
+
+
+class RetryStrategy(str, Enum):
+    """Recommended retry strategy for each error type
+
+    Consumers should follow these strategies when handling errors.
+    """
+
+    HUMAN_INTERVENTION = "human_intervention"  # User must fix (reconnect, grant permission)
+    BACKOFF = "backoff"  # Retry with exponential backoff
+    NONE = "none"  # Do not retry
+
+
+# ============================================================================
+# Request/Response Models
+# ============================================================================
 
 
 class ToolExecutionRequest(BaseModel):
@@ -80,48 +124,106 @@ class ToolExecutionResponse(BaseModel):
 
 
 class OAuthCredential(BaseModel):
-    """Model for storing OAuth credentials"""
+    """Model for storing OAuth credentials (internal use only - not exposed in OpenAPI)"""
 
-    org_id: str
-    user_id: str
-    service: str  # quickbooks, hubspot, google, slack
-    access_token: str
-    refresh_token: str | None = None
-    token_expiry: datetime | None = None
-    realm_id: str | None = None  # QuickBooks specific
-    extra_data: dict[str, Any] = Field(default_factory=dict)
+    org_id: str = Field(..., description="Organization ID for multi-tenancy")
+    user_id: str = Field(..., description="User ID for credential lookup")
+    service: str = Field(
+        ..., description="Service name (e.g., 'quickbooks', 'hubspot', 'google', 'slack')"
+    )
+    access_token: str = Field(..., description="OAuth access token (encrypted at rest)")
+    refresh_token: str | None = Field(None, description="OAuth refresh token for token renewal")
+    token_expiry: datetime | None = Field(None, description="When the access token expires")
+    realm_id: str | None = Field(None, description="QuickBooks-specific realm/company ID")
+    extra_data: dict[str, Any] = Field(
+        default_factory=dict, description="Additional service-specific data"
+    )
 
 
 class HealthResponse(BaseModel):
-    """Health check response"""
+    """Health check response for /health endpoint"""
 
-    status: str
-    version: str
-    capabilities_count: int | None = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
-    services: dict[str, str] = Field(default_factory=dict)
+    status: str = Field(..., description="Service status: 'healthy' or 'degraded'")
+    version: str = Field(..., description="Stargate Lite version (e.g., '0.9.0')")
+    capabilities_count: int | None = Field(None, description="Total registered capabilities")
+    timestamp: datetime = Field(
+        default_factory=datetime.utcnow, description="Response timestamp (UTC)"
+    )
+    services: dict[str, str] = Field(
+        default_factory=dict, description="Status of dependent services"
+    )
+
+    class Config:
+        json_schema_extra: ClassVar[dict[str, Any]] = {
+            "example": {
+                "status": "healthy",
+                "version": "0.9.0",
+                "capabilities_count": 570,
+                "timestamp": "2025-10-18T12:00:00.123456",
+                "services": {"database": "connected", "redis": "connected"},
+            }
+        }
 
 
 class ConnectorStatus(BaseModel):
-    """Status for a single connector"""
+    """Status for a single connector (admin endpoint)"""
 
-    service: str
-    credential_status: str  # "connected", "expired", "missing"
-    token_expiry: datetime | None = None
-    last_updated: datetime | None = None
-    requires_oauth: bool
-    connection_count: int = 0  # Number of org:user combos with this credential
+    service: str = Field(..., description="Service name (e.g., 'quickbooks', 'stripe')")
+    credential_status: str = Field(
+        ..., description="Credential status: 'connected', 'expired', or 'missing'"
+    )
+    token_expiry: datetime | None = Field(None, description="When the token expires (if OAuth)")
+    last_updated: datetime | None = Field(None, description="When credential was last refreshed")
+    requires_oauth: bool = Field(..., description="Whether this service requires OAuth flow")
+    connection_count: int = Field(
+        default=0, description="Number of org:user combinations with this credential"
+    )
+
+    class Config:
+        json_schema_extra: ClassVar[dict[str, Any]] = {
+            "example": {
+                "service": "quickbooks",
+                "credential_status": "connected",
+                "token_expiry": "2025-12-31T23:59:59",
+                "last_updated": "2025-10-18T10:00:00",
+                "requires_oauth": True,
+                "connection_count": 5,
+            }
+        }
 
 
 class ConnectorHealthResponse(BaseModel):
-    """Detailed health check for all connectors"""
+    """Detailed health check for all connectors (admin endpoint)"""
 
-    status: str
-    version: str
-    total_connectors: int
-    total_connections: int  # Total credential records
-    connectors: list[ConnectorStatus]
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    status: str = Field(..., description="Overall status: 'healthy' or 'degraded'")
+    version: str = Field(..., description="Stargate Lite version")
+    total_connectors: int = Field(..., description="Total number of connector types")
+    total_connections: int = Field(..., description="Total credential records across all services")
+    connectors: list[ConnectorStatus] = Field(
+        ..., description="Status of each individual connector"
+    )
+    timestamp: datetime = Field(
+        default_factory=datetime.utcnow, description="Response timestamp (UTC)"
+    )
+
+    class Config:
+        json_schema_extra: ClassVar[dict[str, Any]] = {
+            "example": {
+                "status": "healthy",
+                "version": "0.9.0",
+                "total_connectors": 13,
+                "total_connections": 25,
+                "connectors": [
+                    {
+                        "service": "quickbooks",
+                        "credential_status": "connected",
+                        "requires_oauth": True,
+                        "connection_count": 5,
+                    }
+                ],
+                "timestamp": "2025-10-18T12:00:00.123456",
+            }
+        }
 
 
 class ConnectorStatusRequest(BaseModel):
@@ -171,7 +273,9 @@ class WorkflowConnectorStatus(BaseModel):
 class ConnectorStatusResponse(BaseModel):
     """Response with connector status for specific services"""
 
-    connectors: list[WorkflowConnectorStatus]
+    connectors: list[WorkflowConnectorStatus] = Field(
+        ..., description="Status of each requested connector"
+    )
     all_connected: bool = Field(
         ..., description="True if all required connectors are authenticated"
     )
@@ -202,5 +306,52 @@ class ConnectorStatusResponse(BaseModel):
                 ],
                 "all_connected": False,
                 "missing_count": 1,
+            }
+        }
+
+
+# ============================================================================
+# Error Response Models (Contract v1.0)
+# ============================================================================
+
+
+class ErrorResponse(BaseModel):
+    """Standard error response format (Contract v1.0)
+
+    All Stargate errors return HTTP 200 with status='error' to enable
+    structured error handling by AI agents. The error_code field allows
+    programmatic error classification and retry strategy selection.
+    """
+
+    status: str = Field(
+        default="error", description="Always 'error' for error responses"
+    )
+    error_code: ErrorCode = Field(
+        ..., description="Machine-readable error code for programmatic handling"
+    )
+    error_message: str = Field(..., description="Human-readable error description")
+    retry_strategy: RetryStrategy = Field(
+        ..., description="Recommended retry strategy for this error type"
+    )
+    details: dict[str, Any] = Field(
+        default_factory=dict, description="Additional error context (e.g., field, service)"
+    )
+    capability_key: str | None = Field(
+        None, description="The capability that was being executed (if applicable)"
+    )
+    timestamp: datetime = Field(
+        default_factory=datetime.utcnow, description="When the error occurred (UTC)"
+    )
+
+    class Config:
+        json_schema_extra: ClassVar[dict[str, Any]] = {
+            "example": {
+                "status": "error",
+                "error_code": "CREDENTIALS_MISSING",
+                "error_message": "No credentials found for service 'quickbooks'",
+                "retry_strategy": "human_intervention",
+                "details": {"service": "quickbooks", "org_id": "org_123"},
+                "capability_key": "vendor.create",
+                "timestamp": "2025-10-18T12:00:00.123456",
             }
         }
