@@ -1,7 +1,8 @@
 # Ruff - fast Python linter
 # These rules catch real bugs without being annoying.
 
-target-version = "py312"
+# Production runs Python 3.11, so we target that
+target-version = "py311"
 line-length = 100
 
 exclude = [
@@ -42,6 +43,7 @@ ignore = [
     "ASYNC210",  # blocking-http-call-in-async - OAuth callbacks need sync requests
     "SIM102", # collapsible-if - style preference, readability matters more
     "SIM108", # if-else-block-instead-of-if-exp - ternary not always clearer
+    "UP047",  # type-alias-type-assignment - PEP 695 requires Python 3.12+
 ]
 
 fixable = ["ALL"]
