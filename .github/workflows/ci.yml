@@ -78,7 +78,8 @@ jobs:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
           API_SECRET_KEY: test-key
-          ENCRYPTION_KEY: ${{ secrets.TEST_ENCRYPTION_KEY }}
+          # Fallback test key if secret not configured
+          ENCRYPTION_KEY: ${{ secrets.TEST_ENCRYPTION_KEY || 'rYmVfKcRBe4vfoGz7RJUeffnPpA_ycSk6PFtYvtKFeg=' }}
           DATABASE_URL: sqlite:///./test.db
         run: pytest tests/ -v --tb=short
 
