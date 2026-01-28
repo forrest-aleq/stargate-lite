@@ -137,11 +137,11 @@ def test_oauth_requirements():
             "sage_intacct",
             "xero",
             "linear",
+            "stripe",  # Stripe Connect OAuth
         }
 
         # Services that use API keys, session auth, or no auth
         api_key_services = {
-            "stripe",
             "recurly",
             "plaid",
             "mercury",

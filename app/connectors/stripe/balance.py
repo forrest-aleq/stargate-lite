@@ -8,7 +8,7 @@ from typing import Any
 
 import stripe
 
-from app.connectors.stripe.base import requires_stripe_init
+from app.connectors.stripe.base import requires_stripe_config
 from app.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -17,12 +17,19 @@ logger = get_logger(__name__)
 class StripeBalanceMixin:
     """Stripe balance and payout operations mixin"""
 
-    @requires_stripe_init
-    def get_balance(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    @requires_stripe_config
+    def get_balance(
+        self, org_id: str, user_id: str, args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Get current Stripe balance"""
         logger.info("Retrieving balance", service="stripe", log_event="stripe_balance_retrieve")
 
-        balance = stripe.Balance.retrieve()
+        retrieve_kwargs: dict[str, Any] = {}
+        if stripe_config and stripe_config.get("stripe_account"):
+            retrieve_kwargs["stripe_account"] = stripe_config["stripe_account"]
+
+        balance = stripe.Balance.retrieve(**retrieve_kwargs)
 
         total_available = sum(bal.amount for bal in balance.available)
         total_pending = sum(bal.amount for bal in balance.pending)
@@ -45,8 +52,11 @@ class StripeBalanceMixin:
             "connect_reserved": balance.get("connect_reserved", []),
         }
 
-    @requires_stripe_init
-    def list_payouts(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    @requires_stripe_config
+    def list_payouts(
+        self, org_id: str, user_id: str, args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """List Stripe payouts"""
         limit = args.get("limit", 10)
         status = args.get("status")
@@ -54,6 +64,8 @@ class StripeBalanceMixin:
         params: dict[str, Any] = {"limit": limit}
         if status:
             params["status"] = status
+        if stripe_config and stripe_config.get("stripe_account"):
+            params["stripe_account"] = stripe_config["stripe_account"]
 
         payouts = stripe.Payout.list(**params)
         return {
@@ -70,11 +82,19 @@ class StripeBalanceMixin:
             "has_more": payouts.has_more,
         }
 
-    @requires_stripe_init
-    def retrieve_payout(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    @requires_stripe_config
+    def retrieve_payout(
+        self, org_id: str, user_id: str, args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Retrieve a specific payout"""
         payout_id = args.get("payout_id")
-        payout = stripe.Payout.retrieve(payout_id)
+
+        retrieve_kwargs: dict[str, Any] = {}
+        if stripe_config and stripe_config.get("stripe_account"):
+            retrieve_kwargs["stripe_account"] = stripe_config["stripe_account"]
+
+        payout = stripe.Payout.retrieve(payout_id, **retrieve_kwargs)
         return {
             "payout_id": payout.id,
             "amount": payout.amount,
@@ -84,9 +104,10 @@ class StripeBalanceMixin:
             "destination": payout.destination,
         }
 
-    @requires_stripe_init
+    @requires_stripe_config
     def list_balance_transactions(
-        self, org_id: str, user_id: str, args: dict[str, Any]
+        self, org_id: str, user_id: str, args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """List balance transactions"""
         limit = args.get("limit", 10)
@@ -98,6 +119,8 @@ class StripeBalanceMixin:
             params["payout"] = payout
         if type_:
             params["type"] = type_
+        if stripe_config and stripe_config.get("stripe_account"):
+            params["stripe_account"] = stripe_config["stripe_account"]
 
         transactions = stripe.BalanceTransaction.list(**params)
         return {
@@ -115,8 +138,11 @@ class StripeBalanceMixin:
             "has_more": transactions.has_more,
         }
 
-    @requires_stripe_init
-    def create_transfer(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    @requires_stripe_config
+    def create_transfer(
+        self, org_id: str, user_id: str, args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Create a transfer (Connect accounts)"""
         amount = args.get("amount")
         currency = args.get("currency", "usd")
@@ -134,13 +160,17 @@ class StripeBalanceMixin:
 
         metadata.update({"org_id": org_id, "user_id": user_id})
 
-        transfer = stripe.Transfer.create(
-            amount=amount,
-            currency=currency,
-            destination=destination,
-            description=description,
-            metadata=metadata,
-        )
+        transfer_params: dict[str, Any] = {
+            "amount": amount,
+            "currency": currency,
+            "destination": destination,
+            "description": description,
+            "metadata": metadata,
+        }
+        if stripe_config and stripe_config.get("stripe_account"):
+            transfer_params["stripe_account"] = stripe_config["stripe_account"]
+
+        transfer = stripe.Transfer.create(**transfer_params)
 
         logger.info(
             "Transfer created",
@@ -157,8 +187,11 @@ class StripeBalanceMixin:
             "destination": transfer.destination,
         }
 
-    @requires_stripe_init
-    def list_transfers(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    @requires_stripe_config
+    def list_transfers(
+        self, org_id: str, user_id: str, args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """List transfers"""
         limit = args.get("limit", 10)
         destination = args.get("destination")
@@ -166,6 +199,8 @@ class StripeBalanceMixin:
         params: dict[str, Any] = {"limit": limit}
         if destination:
             params["destination"] = destination
+        if stripe_config and stripe_config.get("stripe_account"):
+            params["stripe_account"] = stripe_config["stripe_account"]
 
         transfers = stripe.Transfer.list(**params)
         return {

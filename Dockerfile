@@ -22,5 +22,6 @@ COPY ./app ./app
 # Expose port (Railway sets PORT dynamically)
 EXPOSE 8001
 
-# Run the application (JSON form with sh -c to expand $PORT)
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8001}"]
+# Force rebuild: 2026-01-26-v2
+# Run the application - Railway provides PORT, fallback to 8001 for local
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8001}"]

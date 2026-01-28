@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
 
 from app.database import CredentialManager
+from app.routers.oauth.base import build_signed_state_3parts, parse_oauth_state_3parts
 
 router = APIRouter(tags=["oauth"])
 
@@ -43,8 +44,8 @@ async def netsuite_oauth_authorize(
             ),
         )
 
-    # State encodes org_id:user_id:credential_type
-    state = f"{org_id}:{user_id}:{credential_type}"
+    # State is cryptographically signed to prevent CSRF/tampering
+    state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     # NetSuite OAuth 2.0 scopes (REST API access)
     scope = "restlets rest_webservices"
@@ -71,20 +72,12 @@ async def netsuite_oauth_callback(code: str, state: str) -> dict[str, Any]:
     """
     Handle NetSuite OAuth callback
 
-    Exchange authorization code for access/refresh tokens and store them
-    State format: {org_id}:{user_id}:{credential_type}
+    Exchange authorization code for access/refresh tokens and store them.
+    State is cryptographically signed to prevent CSRF/tampering.
     """
     try:
-        # Parse state
-        parts = state.split(":")
-        if len(parts) != 3:
-            raise HTTPException(status_code=400, detail="Invalid state parameter")
-
-        org_id, user_id, credential_type = parts
-
-        # Validate no empty values
-        if not org_id or not user_id or not credential_type:
-            raise HTTPException(status_code=400, detail="Invalid state parameter: empty values")
+        # Parse and verify signed state
+        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "netsuite")
 
         # Exchange code for tokens
         account_id = os.getenv("NETSUITE_ACCOUNT_ID")

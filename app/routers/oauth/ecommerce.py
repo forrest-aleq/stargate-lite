@@ -27,24 +27,17 @@ from app.logging_config import get_logger
 from app.routers.oauth.base import (
     build_oauth_error_redirect,
     build_oauth_success_redirect,
+    build_signed_state_3parts,
+    build_signed_state_4parts,
     get_env_or_raise,
     parse_oauth_state_3parts,
+    parse_oauth_state_4parts,
 )
 
 logger = get_logger(__name__)
 
 router = APIRouter(tags=["oauth"])
 
-
-def _parse_shopify_state(state: str) -> tuple[str, str, str, str] | None:
-    """Parse Shopify OAuth state with format org_id:user_id:credential_type:shop."""
-    parts = state.split(":")
-    if len(parts) != 4:
-        return None
-    org_id, user_id, credential_type, shop = parts
-    if not all([org_id, user_id, credential_type, shop]):
-        return None
-    return org_id, user_id, credential_type, shop
 
 
 def _validate_shopify_hmac(
@@ -112,9 +105,9 @@ async def shopify_oauth_authorize(
     if not shop or not all(c.isalnum() or c == "-" for c in shop):
         raise HTTPException(status_code=400, detail="Invalid shop name format")
 
-    # State encodes org_id:user_id:credential_type:shop for the callback
-    # We include shop in state to verify it matches on callback
-    state = f"{org_id}:{user_id}:{credential_type}:{shop}"
+    # State is cryptographically signed to prevent CSRF/tampering
+    # We include shop as sub_service to verify it matches on callback
+    state = build_signed_state_4parts(org_id, user_id, credential_type, shop)
 
     # Shopify scopes for e-commerce access
     # https://shopify.dev/docs/api/usage/access-scopes
@@ -165,15 +158,14 @@ async def shopify_oauth_callback(
     timestamp: str = "",
 ) -> RedirectResponse:
     """Handle Shopify OAuth callback with HMAC validation. Redirects to N3."""
-    parsed = _parse_shopify_state(state)
-    if not parsed:
+    try:
+        org_id, user_id, _credential_type, state_shop = parse_oauth_state_4parts(state, "shopify")
+    except HTTPException:
         return build_oauth_error_redirect(
             service="shopify",
             error="invalid_state",
             error_description="Invalid OAuth state parameter",
         )
-
-    org_id, user_id, _credential_type, state_shop = parsed
 
     # Normalize and verify shop name
     callback_shop = shop.replace(".myshopify.com", "")
@@ -272,8 +264,8 @@ async def square_oauth_authorize(
 
     auth_url, _ = _get_square_urls()
 
-    # State encodes org_id:user_id:credential_type for the callback
-    state = f"{org_id}:{user_id}:{credential_type}"
+    # State is cryptographically signed to prevent CSRF/tampering
+    state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     # Square OAuth scopes
     # https://developer.squareup.com/docs/oauth-api/square-permissions

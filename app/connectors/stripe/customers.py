@@ -8,7 +8,7 @@ from typing import Any
 
 import stripe
 
-from app.connectors.stripe.base import requires_stripe_init
+from app.connectors.stripe.base import requires_stripe_config
 from app.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -17,8 +17,11 @@ logger = get_logger(__name__)
 class StripeCustomersMixin:
     """Stripe customer operations mixin"""
 
-    @requires_stripe_init
-    def create_customer(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    @requires_stripe_config
+    def create_customer(
+        self, org_id: str, user_id: str, args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Create a Stripe customer"""
         email = args.get("email")
         name = args.get("name")
@@ -31,7 +34,12 @@ class StripeCustomersMixin:
 
         metadata.update({"org_id": org_id, "user_id": user_id})
 
-        customer = stripe.Customer.create(email=email, name=name, phone=phone, metadata=metadata)
+        # Build kwargs with optional stripe_account for connected accounts
+        create_kwargs: dict[str, Any] = {"email": email, "name": name, "phone": phone, "metadata": metadata}
+        if stripe_config and stripe_config.get("stripe_account"):
+            create_kwargs["stripe_account"] = stripe_config["stripe_account"]
+
+        customer = stripe.Customer.create(**create_kwargs)
 
         logger.info(
             "Customer created",
@@ -47,15 +55,22 @@ class StripeCustomersMixin:
             "created_at": customer.created,
         }
 
-    @requires_stripe_init
-    def search_customers(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    @requires_stripe_config
+    def search_customers(
+        self, org_id: str, user_id: str, args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Search for customers"""
         query = args.get("query")  # e.g., "email:'john@example.com'" or "name:'John Doe'"
         if not query:
             raise ValueError("query is required")
         limit = args.get("limit", 10)
 
-        customers = stripe.Customer.search(query=query, limit=limit)
+        search_kwargs: dict[str, Any] = {"query": query, "limit": limit}
+        if stripe_config and stripe_config.get("stripe_account"):
+            search_kwargs["stripe_account"] = stripe_config["stripe_account"]
+
+        customers = stripe.Customer.search(**search_kwargs)
         return {
             "customers": [
                 {"customer_id": c.id, "email": c.email, "name": c.name} for c in customers.data
@@ -63,13 +78,21 @@ class StripeCustomersMixin:
             "has_more": customers.has_more,
         }
 
-    @requires_stripe_init
-    def retrieve_customer(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    @requires_stripe_config
+    def retrieve_customer(
+        self, org_id: str, user_id: str, args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Retrieve a customer"""
         customer_id = args.get("customer_id")
         if not customer_id:
             raise ValueError("customer_id is required")
-        customer = stripe.Customer.retrieve(customer_id)
+
+        retrieve_kwargs: dict[str, Any] = {}
+        if stripe_config and stripe_config.get("stripe_account"):
+            retrieve_kwargs["stripe_account"] = stripe_config["stripe_account"]
+
+        customer = stripe.Customer.retrieve(customer_id, **retrieve_kwargs)
         return {
             "customer_id": customer.id,
             "email": customer.email,
@@ -79,8 +102,11 @@ class StripeCustomersMixin:
             "default_source": customer.default_source,
         }
 
-    @requires_stripe_init
-    def update_customer(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    @requires_stripe_config
+    def update_customer(
+        self, org_id: str, user_id: str, args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Update a customer"""
         customer_id = args.get("customer_id")
         if not customer_id:
@@ -99,6 +125,8 @@ class StripeCustomersMixin:
             update_params["phone"] = phone
         if metadata:
             update_params["metadata"] = metadata
+        if stripe_config and stripe_config.get("stripe_account"):
+            update_params["stripe_account"] = stripe_config["stripe_account"]
 
         customer = stripe.Customer.modify(customer_id, **update_params)
         return {
@@ -108,8 +136,11 @@ class StripeCustomersMixin:
             "phone": customer.phone,
         }
 
-    @requires_stripe_init
-    def list_customers(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    @requires_stripe_config
+    def list_customers(
+        self, org_id: str, user_id: str, args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """List customers"""
         limit = args.get("limit", 10)
         email = args.get("email")
@@ -117,6 +148,8 @@ class StripeCustomersMixin:
         params: dict[str, Any] = {"limit": limit}
         if email:
             params["email"] = email
+        if stripe_config and stripe_config.get("stripe_account"):
+            params["stripe_account"] = stripe_config["stripe_account"]
 
         customers = stripe.Customer.list(**params)
         return {
@@ -126,11 +159,19 @@ class StripeCustomersMixin:
             "has_more": customers.has_more,
         }
 
-    @requires_stripe_init
-    def delete_customer(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    @requires_stripe_config
+    def delete_customer(
+        self, org_id: str, user_id: str, args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Delete a customer"""
         customer_id = args.get("customer_id")
         if not customer_id:
             raise ValueError("customer_id is required")
-        deleted = stripe.Customer.delete(customer_id)
+
+        delete_kwargs: dict[str, Any] = {}
+        if stripe_config and stripe_config.get("stripe_account"):
+            delete_kwargs["stripe_account"] = stripe_config["stripe_account"]
+
+        deleted = stripe.Customer.delete(customer_id, **delete_kwargs)
         return {"customer_id": deleted.id, "deleted": deleted.deleted}

@@ -17,6 +17,8 @@ from app.logging_config import get_logger
 from app.routers.oauth.base import (
     build_oauth_error_redirect,
     build_oauth_success_redirect,
+    build_signed_state_3parts,
+    parse_oauth_state_3parts,
 )
 
 logger = get_logger(__name__)
@@ -39,8 +41,8 @@ async def slack_oauth_authorize(
     if not client_id or not redirect_uri:
         raise HTTPException(status_code=500, detail="Slack OAuth not configured")
 
-    # State encodes org_id:user_id:credential_type
-    state = f"{org_id}:{user_id}:{credential_type}"
+    # State is cryptographically signed to prevent CSRF/tampering
+    state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     # Slack OAuth scopes (v2 granular scopes)
     scopes = "chat:write channels:read channels:history files:write files:read users:read"
@@ -61,22 +63,14 @@ async def slack_oauth_callback(code: str, state: str) -> RedirectResponse:
     State format: {org_id}:{user_id}:{credential_type}
     Redirects to N3 frontend on completion.
     """
-    # Parse state first
-    parts = state.split(":")
-    if len(parts) != 3:
+    # Parse and verify signed state
+    try:
+        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "slack")
+    except Exception:
         return build_oauth_error_redirect(
             service="slack",
             error="invalid_state",
             error_description="Invalid OAuth state parameter",
-        )
-
-    org_id, user_id, credential_type = parts
-
-    if not org_id or not user_id or not credential_type:
-        return build_oauth_error_redirect(
-            service="slack",
-            error="invalid_state",
-            error_description="Invalid state parameter: empty values",
         )
 
     try:

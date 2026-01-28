@@ -21,6 +21,7 @@ from app.logging_config import get_logger
 from app.routers.oauth.base import (
     build_oauth_error_redirect,
     build_oauth_success_redirect,
+    build_signed_state_3parts,
     get_env_or_raise,
     parse_oauth_state_3parts,
 )
@@ -68,8 +69,8 @@ async def gusto_oauth_authorize(
 
     auth_url, _ = _get_gusto_urls()
 
-    # State encodes org_id:user_id:credential_type for the callback
-    state = f"{org_id}:{user_id}:{credential_type}"
+    # State is cryptographically signed to prevent CSRF/tampering
+    state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     params = {
         "client_id": client_id,

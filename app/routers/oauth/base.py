@@ -4,6 +4,8 @@ OAuth Routes Base Module
 Common helper functions and utilities for OAuth flows.
 """
 
+import hashlib
+import hmac
 import os
 import time
 from datetime import datetime, timedelta
@@ -19,6 +21,92 @@ from app.logging_config import get_logger
 
 # Initialize structured logger
 logger = get_logger(__name__)
+
+
+def _get_state_signing_key() -> bytes:
+    """Get the key used to sign OAuth state parameters.
+
+    Uses OAUTH_STATE_SECRET if set, otherwise falls back to ENCRYPTION_KEY.
+
+    Returns:
+        Signing key as bytes
+
+    Raises:
+        HTTPException: If no signing key is configured
+    """
+    key = os.getenv("OAUTH_STATE_SECRET") or os.getenv("ENCRYPTION_KEY")
+    if not key:
+        logger.error("No OAuth state signing key configured", log_event="oauth_state_key_missing")
+        raise HTTPException(status_code=500, detail="OAuth state signing not configured")
+    return key.encode("utf-8")
+
+
+def _sign_state(payload: str) -> str:
+    """Create HMAC-SHA256 signature for state payload.
+
+    Args:
+        payload: The state data to sign (e.g., "org_id:user_id:credential_type")
+
+    Returns:
+        Hex-encoded signature (first 16 chars for brevity)
+    """
+    key = _get_state_signing_key()
+    signature = hmac.new(key, payload.encode("utf-8"), hashlib.sha256).hexdigest()
+    # Use first 16 chars - sufficient for CSRF protection, keeps URL shorter
+    return signature[:16]
+
+
+def _verify_state_signature(payload: str, signature: str) -> bool:
+    """Verify HMAC signature of state payload.
+
+    Args:
+        payload: The original state data
+        signature: The signature to verify
+
+    Returns:
+        True if signature is valid, False otherwise
+    """
+    expected = _sign_state(payload)
+    return hmac.compare_digest(expected, signature)
+
+
+def build_signed_state_3parts(org_id: str, user_id: str, credential_type: str) -> str:
+    """Build a cryptographically signed OAuth state parameter.
+
+    Format: org_id:user_id:credential_type:signature
+
+    Args:
+        org_id: Organization ID
+        user_id: User ID
+        credential_type: Credential type (customer/agent)
+
+    Returns:
+        Signed state string
+    """
+    payload = f"{org_id}:{user_id}:{credential_type}"
+    signature = _sign_state(payload)
+    return f"{payload}:{signature}"
+
+
+def build_signed_state_4parts(
+    org_id: str, user_id: str, credential_type: str, sub_service: str
+) -> str:
+    """Build a cryptographically signed OAuth state parameter with sub-service.
+
+    Format: org_id:user_id:credential_type:sub_service:signature
+
+    Args:
+        org_id: Organization ID
+        user_id: User ID
+        credential_type: Credential type (customer/agent)
+        sub_service: Sub-service identifier (e.g., "gmail", "drive")
+
+    Returns:
+        Signed state string
+    """
+    payload = f"{org_id}:{user_id}:{credential_type}:{sub_service}"
+    signature = _sign_state(payload)
+    return f"{payload}:{signature}"
 
 # Default redirect URLs (should be overridden by environment variables)
 DEFAULT_SUCCESS_PATH = "/settings/integrations"
@@ -103,26 +191,47 @@ def build_oauth_error_redirect(
 
 
 def parse_oauth_state_3parts(state: str, service: str) -> tuple[str, str, str]:
-    """Parse OAuth state parameter with format org_id:user_id:credential_type.
+    """Parse and verify signed OAuth state parameter.
+
+    Expected format: org_id:user_id:credential_type:signature
 
     Args:
-        state: The state parameter from OAuth callback
+        state: The signed state parameter from OAuth callback
         service: Service name for logging
 
     Returns:
         Tuple of (org_id, user_id, credential_type)
 
     Raises:
-        HTTPException: If state is invalid or contains empty values
+        HTTPException: If state is invalid, signature doesn't match, or contains empty values
     """
     parts = state.split(":")
-    if len(parts) != 3:
+
+    # New signed format has 4 parts (3 data + 1 signature)
+    if len(parts) == 4:
+        org_id, user_id, credential_type, signature = parts
+        payload = f"{org_id}:{user_id}:{credential_type}"
+
+        if not _verify_state_signature(payload, signature):
+            logger.warning(
+                "OAuth state signature verification failed",
+                service=service,
+                log_event="oauth_state_signature_invalid",
+            )
+            raise HTTPException(status_code=400, detail="Invalid state parameter: signature mismatch")
+    elif len(parts) == 3:
+        # Legacy unsigned format - log warning but still accept during transition
+        logger.warning(
+            "Received unsigned OAuth state (legacy format)",
+            service=service,
+            log_event="oauth_state_unsigned_legacy",
+        )
+        org_id, user_id, credential_type = parts
+    else:
         logger.warning(
             "Invalid state parameter format", service=service, log_event="oauth_state_invalid"
         )
         raise HTTPException(status_code=400, detail="Invalid state parameter")
-
-    org_id, user_id, credential_type = parts
 
     if not org_id or not user_id or not credential_type:
         logger.warning(
@@ -145,26 +254,47 @@ def parse_oauth_state_3parts(state: str, service: str) -> tuple[str, str, str]:
 
 
 def parse_oauth_state_4parts(state: str, service: str) -> tuple[str, str, str, str]:
-    """Parse OAuth state parameter with format org_id:user_id:credential_type:service.
+    """Parse and verify signed OAuth state parameter with sub-service.
+
+    Expected format: org_id:user_id:credential_type:sub_service:signature
 
     Args:
-        state: The state parameter from OAuth callback
+        state: The signed state parameter from OAuth callback
         service: Service name for logging
 
     Returns:
         Tuple of (org_id, user_id, credential_type, sub_service)
 
     Raises:
-        HTTPException: If state is invalid or contains empty values
+        HTTPException: If state is invalid, signature doesn't match, or contains empty values
     """
     parts = state.split(":")
-    if len(parts) != 4:
+
+    # New signed format has 5 parts (4 data + 1 signature)
+    if len(parts) == 5:
+        org_id, user_id, credential_type, sub_service, signature = parts
+        payload = f"{org_id}:{user_id}:{credential_type}:{sub_service}"
+
+        if not _verify_state_signature(payload, signature):
+            logger.warning(
+                "OAuth state signature verification failed",
+                service=service,
+                log_event="oauth_state_signature_invalid",
+            )
+            raise HTTPException(status_code=400, detail="Invalid state parameter: signature mismatch")
+    elif len(parts) == 4:
+        # Legacy unsigned format - log warning but still accept during transition
+        logger.warning(
+            "Received unsigned OAuth state (legacy format)",
+            service=service,
+            log_event="oauth_state_unsigned_legacy",
+        )
+        org_id, user_id, credential_type, sub_service = parts
+    else:
         logger.warning(
             "Invalid state parameter format", service=service, log_event="oauth_state_invalid"
         )
         raise HTTPException(status_code=400, detail="Invalid state parameter")
-
-    org_id, user_id, credential_type, sub_service = parts
 
     if not org_id or not user_id or not credential_type or not sub_service:
         logger.warning(

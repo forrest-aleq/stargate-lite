@@ -18,7 +18,12 @@ Modules:
 """
 
 from app.connectors.stripe.balance import StripeBalanceMixin
-from app.connectors.stripe.base import StripeBase, requires_stripe_init
+from app.connectors.stripe.base import (
+    StripeBase,
+    build_stripe_kwargs,
+    requires_stripe_config,
+    requires_stripe_init,
+)
 from app.connectors.stripe.checkout import StripeCheckoutMixin
 from app.connectors.stripe.customers import StripeCustomersMixin
 from app.connectors.stripe.disputes import StripeDisputesMixin
@@ -60,4 +65,9 @@ class StripeConnector(
     pass
 
 
-__all__ = ["StripeConnector", "requires_stripe_init"]
+__all__ = [
+    "StripeConnector",
+    "build_stripe_kwargs",
+    "requires_stripe_config",
+    "requires_stripe_init",
+]

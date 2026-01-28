@@ -8,7 +8,7 @@ from typing import Any
 
 import stripe
 
-from app.connectors.stripe.base import requires_stripe_init
+from app.connectors.stripe.base import requires_stripe_config
 from app.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -17,9 +17,10 @@ logger = get_logger(__name__)
 class StripeCheckoutMixin:
     """Stripe checkout session operations mixin"""
 
-    @requires_stripe_init
+    @requires_stripe_config
     def create_checkout_session(
-        self, org_id: str, user_id: str, args: dict[str, Any]
+        self, org_id: str, user_id: str, args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """Create a checkout session"""
         mode = args.get("mode", "payment")  # payment, subscription, or setup
@@ -40,6 +41,8 @@ class StripeCheckoutMixin:
         }
         if customer:
             session_params["customer"] = customer
+        if stripe_config and stripe_config.get("stripe_account"):
+            session_params["stripe_account"] = stripe_config["stripe_account"]
 
         session = stripe.checkout.Session.create(**session_params)
         return {
@@ -49,13 +52,19 @@ class StripeCheckoutMixin:
             "mode": session.mode,
         }
 
-    @requires_stripe_init
+    @requires_stripe_config
     def retrieve_checkout_session(
-        self, org_id: str, user_id: str, args: dict[str, Any]
+        self, org_id: str, user_id: str, args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """Retrieve a checkout session"""
         session_id = args.get("session_id")
-        session = stripe.checkout.Session.retrieve(session_id)
+
+        retrieve_kwargs: dict[str, Any] = {}
+        if stripe_config and stripe_config.get("stripe_account"):
+            retrieve_kwargs["stripe_account"] = stripe_config["stripe_account"]
+
+        session = stripe.checkout.Session.retrieve(session_id, **retrieve_kwargs)
         return {
             "session_id": session.id,
             "status": session.status,
@@ -64,18 +73,27 @@ class StripeCheckoutMixin:
             "amount_total": session.amount_total,
         }
 
-    @requires_stripe_init
+    @requires_stripe_config
     def expire_checkout_session(
-        self, org_id: str, user_id: str, args: dict[str, Any]
+        self, org_id: str, user_id: str, args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """Expire a checkout session"""
         session_id = args.get("session_id")
-        session = stripe.checkout.Session.expire(session_id)
+        if not session_id:
+            raise ValueError("session_id is required")
+
+        expire_kwargs: dict[str, Any] = {}
+        if stripe_config and stripe_config.get("stripe_account"):
+            expire_kwargs["stripe_account"] = stripe_config["stripe_account"]
+
+        session = stripe.checkout.Session.expire(session_id, **expire_kwargs)
         return {"session_id": session.id, "status": session.status}
 
-    @requires_stripe_init
+    @requires_stripe_config
     def list_checkout_sessions(
-        self, org_id: str, user_id: str, args: dict[str, Any]
+        self, org_id: str, user_id: str, args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """List checkout sessions"""
         limit = args.get("limit", 10)
@@ -84,6 +102,8 @@ class StripeCheckoutMixin:
         params: dict[str, Any] = {"limit": limit}
         if customer:
             params["customer"] = customer
+        if stripe_config and stripe_config.get("stripe_account"):
+            params["stripe_account"] = stripe_config["stripe_account"]
 
         sessions = stripe.checkout.Session.list(**params)
         return {
@@ -99,15 +119,20 @@ class StripeCheckoutMixin:
             "has_more": sessions.has_more,
         }
 
-    @requires_stripe_init
+    @requires_stripe_config
     def list_checkout_line_items(
-        self, org_id: str, user_id: str, args: dict[str, Any]
+        self, org_id: str, user_id: str, args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """List line items for a checkout session"""
         session_id = args.get("session_id")
         limit = args.get("limit", 10)
 
-        line_items = stripe.checkout.Session.list_line_items(session_id, limit=limit)
+        list_kwargs: dict[str, Any] = {"limit": limit}
+        if stripe_config and stripe_config.get("stripe_account"):
+            list_kwargs["stripe_account"] = stripe_config["stripe_account"]
+
+        line_items = stripe.checkout.Session.list_line_items(session_id, **list_kwargs)
         return {
             "line_items": [
                 {

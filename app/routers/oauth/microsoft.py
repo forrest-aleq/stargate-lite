@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
 
 from app.database import CredentialManager
+from app.routers.oauth.base import build_signed_state_4parts, parse_oauth_state_4parts
 
 router = APIRouter(tags=["oauth"])
 
@@ -39,8 +40,8 @@ async def microsoft_oauth_authorize(
     if not client_id or not redirect_uri:
         raise HTTPException(status_code=500, detail="Microsoft OAuth not configured")
 
-    # State encodes org_id:user_id:credential_type:service
-    state = f"{org_id}:{user_id}:{credential_type}:{service}"
+    # State is cryptographically signed to prevent CSRF/tampering
+    state = build_signed_state_4parts(org_id, user_id, credential_type, service)
 
     # Service-specific scopes
     scope_map = {
@@ -83,16 +84,8 @@ async def microsoft_oauth_callback(code: str, state: str) -> dict[str, Any]:
     State format: {org_id}:{user_id}:{credential_type}:{service}
     """
     try:
-        # Parse state
-        parts = state.split(":")
-        if len(parts) != 4:
-            raise HTTPException(status_code=400, detail="Invalid state parameter")
-
-        org_id, user_id, credential_type, service = parts
-
-        # Validate no empty values
-        if not org_id or not user_id or not credential_type or not service:
-            raise HTTPException(status_code=400, detail="Invalid state parameter: empty values")
+        # Parse and verify signed state
+        org_id, user_id, credential_type, service = parse_oauth_state_4parts(state, "microsoft")
 
         # Exchange code for tokens
         client_id = os.getenv("MICROSOFT_CLIENT_ID")

@@ -1,7 +1,8 @@
 """
-QuickBooks OAuth Routes
+Stripe Connect OAuth Routes
 
-Handles OAuth authorization and callback for QuickBooks Online.
+Handles OAuth authorization and callback for Stripe Connect.
+Allows customers to connect their own Stripe accounts.
 """
 
 import os
@@ -26,11 +27,15 @@ from app.routers.oauth.base import (
 logger = get_logger(__name__)
 router = APIRouter(tags=["oauth"])
 
+# Stripe Connect OAuth URLs
+STRIPE_CONNECT_AUTHORIZE_URL = "https://connect.stripe.com/oauth/authorize"
+STRIPE_CONNECT_TOKEN_URL = "https://connect.stripe.com/oauth/token"
 
-def _exchange_quickbooks_tokens(
+
+def _exchange_stripe_tokens(
     code: str, org_id: str, user_id: str
-) -> tuple[dict[str, Any], datetime]:
-    """Exchange authorization code for QuickBooks access/refresh tokens.
+) -> dict[str, Any]:
+    """Exchange authorization code for Stripe access tokens.
 
     Args:
         code: Authorization code from OAuth callback
@@ -38,185 +43,191 @@ def _exchange_quickbooks_tokens(
         user_id: User ID for logging
 
     Returns:
-        Tuple of (token_data dict, token_expiry datetime)
+        Token data dict containing access_token, stripe_user_id, etc.
 
     Raises:
         HTTPException: If token exchange fails
     """
-    client_id = os.getenv("QUICKBOOKS_CLIENT_ID")
-    client_secret = os.getenv("QUICKBOOKS_CLIENT_SECRET")
-    redirect_uri = os.getenv("QUICKBOOKS_REDIRECT_URI")
+    client_secret = os.getenv("STRIPE_SECRET_KEY")
 
-    if not client_id or not client_secret:
-        raise HTTPException(status_code=500, detail="QuickBooks OAuth not configured")
-
-    token_url = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
+    if not client_secret:
+        raise HTTPException(status_code=500, detail="Stripe OAuth not configured")
 
     logger.info(
         "Exchanging code for tokens",
-        service="quickbooks",
+        service="stripe",
         org_id=org_id,
         user_id=user_id,
         log_event="oauth_token_exchange_start",
     )
 
     token_start = time.time()
+    # Stripe Connect uses form data with client_secret (not Basic Auth)
     response = requests.post(
-        token_url,
-        headers={"Accept": "application/json", "Content-Type": "application/x-www-form-urlencoded"},
-        auth=(client_id, client_secret),
-        data={"grant_type": "authorization_code", "code": code, "redirect_uri": redirect_uri},
+        STRIPE_CONNECT_TOKEN_URL,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "client_secret": client_secret,
+        },
         timeout=30,
     )
     token_duration_ms = (time.time() - token_start) * 1000
 
     if response.status_code != 200:
+        # Log full error for debugging (truncate for safety)
         logger.error(
             "Token exchange failed",
-            service="quickbooks",
+            service="stripe",
             org_id=org_id,
             user_id=user_id,
             status_code=response.status_code,
+            response_text=response.text[:500] if response.text else None,
             duration_ms=round(token_duration_ms, 2),
             log_event="oauth_token_exchange_error",
         )
-        raise HTTPException(status_code=500, detail=f"Token exchange failed: {response.text}")
+        # Return generic message to avoid leaking sensitive error details
+        raise HTTPException(status_code=500, detail="Token exchange failed")
 
     token_data = response.json()
-    token_expiry = datetime.utcnow() + timedelta(seconds=token_data["expires_in"])
 
     logger.info(
         "Token exchange successful",
-        service="quickbooks",
+        service="stripe",
         org_id=org_id,
         user_id=user_id,
         duration_ms=round(token_duration_ms, 2),
-        token_expiry=token_expiry.isoformat(),
+        stripe_user_id=token_data.get("stripe_user_id"),
         log_event="oauth_token_exchange_success",
     )
 
-    return token_data, token_expiry
+    return token_data
 
 
-def _store_quickbooks_credential(
+def _store_stripe_credential(
     org_id: str,
     user_id: str,
     token_data: dict[str, Any],
-    token_expiry: datetime,
-    realm_id: str,
     credential_type: str,
 ) -> None:
-    """Store QuickBooks OAuth credentials in database.
+    """Store Stripe Connect credentials in database.
 
     Args:
         org_id: Organization ID
         user_id: User ID
-        token_data: Token response from QuickBooks
-        token_expiry: Token expiration datetime
-        realm_id: QuickBooks company ID
+        token_data: Token response from Stripe (includes access_token, stripe_user_id)
         credential_type: Type of credential (customer/agent)
     """
+    # Stripe Connect tokens don't expire - use 100 year expiry
+    token_expiry = datetime.utcnow() + timedelta(days=36500)
+
+    # Store stripe_user_id in extra_data for connected account operations
+    extra_data = {
+        "stripe_user_id": token_data.get("stripe_user_id"),
+        "scope": token_data.get("scope"),
+        "livemode": token_data.get("livemode"),
+        "token_type": token_data.get("token_type"),
+    }
+
     CredentialManager.store_credential(
         org_id=org_id,
         user_id=user_id,
-        service="quickbooks",
+        service="stripe",
         access_token=token_data["access_token"],
-        refresh_token=token_data["refresh_token"],
+        refresh_token=token_data.get("refresh_token"),
         token_expiry=token_expiry,
-        realm_id=realm_id,
+        credential_type=credential_type,
+        extra_data=extra_data,
     )
 
     logger.info(
         "OAuth flow completed successfully",
-        service="quickbooks",
+        service="stripe",
         org_id=org_id,
         user_id=user_id,
         credential_type=credential_type,
+        stripe_user_id=token_data.get("stripe_user_id"),
         log_event="oauth_callback_success",
     )
 
 
-@router.get("/oauth/quickbooks/authorize")
-async def quickbooks_oauth_authorize(
+@router.get("/oauth/stripe/authorize")
+async def stripe_oauth_authorize(
     org_id: str, user_id: str, credential_type: str = "customer"
 ) -> RedirectResponse:
     """
-    Initiate QuickBooks OAuth flow
+    Initiate Stripe Connect OAuth flow
 
-    Redirects user to Intuit authorization page
+    Redirects user to Stripe authorization page
     """
     logger.info(
         "OAuth authorization initiated",
-        service="quickbooks",
+        service="stripe",
         org_id=org_id,
         user_id=user_id,
         credential_type=credential_type,
         log_event="oauth_authorize_start",
     )
 
-    client_id = os.getenv("QUICKBOOKS_CLIENT_ID")
-    redirect_uri = os.getenv("QUICKBOOKS_REDIRECT_URI")
+    client_id = os.getenv("STRIPE_CLIENT_ID")
+    redirect_uri = os.getenv("STRIPE_REDIRECT_URI")
 
     if not client_id or not redirect_uri:
-        logger.error("OAuth not configured", service="quickbooks", log_event="oauth_config_error")
-        raise HTTPException(status_code=500, detail="QuickBooks OAuth not configured")
+        logger.error("OAuth not configured", service="stripe", log_event="oauth_config_error")
+        raise HTTPException(status_code=500, detail="Stripe Connect OAuth not configured")
 
     # State is cryptographically signed to prevent CSRF/tampering
     state = build_signed_state_3parts(org_id, user_id, credential_type)
-
-    # OAuth authorization URL
-    auth_base_url = "https://appcenter.intuit.com/connect/oauth2"
 
     params = {
         "client_id": client_id,
         "redirect_uri": redirect_uri,
         "response_type": "code",
-        "scope": "com.intuit.quickbooks.accounting",
+        "scope": "read_write",
         "state": state,
     }
 
-    auth_url = f"{auth_base_url}?{urlencode(params)}"
+    auth_url = f"{STRIPE_CONNECT_AUTHORIZE_URL}?{urlencode(params)}"
 
-    logger.debug("Redirecting to OAuth provider", service="quickbooks", log_event="oauth_redirect")
+    logger.debug("Redirecting to OAuth provider", service="stripe", log_event="oauth_redirect")
 
     return RedirectResponse(url=auth_url)
 
 
-@router.get("/oauth/quickbooks/callback")
-async def quickbooks_oauth_callback(code: str, state: str, realmId: str) -> RedirectResponse:
+@router.get("/oauth/stripe/callback")
+async def stripe_oauth_callback(code: str, state: str) -> RedirectResponse:
     """
-    Handle QuickBooks OAuth callback
+    Handle Stripe Connect OAuth callback
 
-    Exchange authorization code for access/refresh tokens and store them.
+    Exchange authorization code for access token and store credentials.
     Redirects to N3 frontend on completion.
     """
-    logger.info("OAuth callback received", service="quickbooks", log_event="oauth_callback_start")
+    logger.info("OAuth callback received", service="stripe", log_event="oauth_callback_start")
 
     # Parse state first to get org_id for error redirects
     org_id: str | None = None
     try:
-        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "quickbooks")
+        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "stripe")
     except HTTPException:
         return build_oauth_error_redirect(
-            service="quickbooks",
+            service="stripe",
             error="invalid_state",
             error_description="Invalid OAuth state parameter",
         )
 
     try:
         # Exchange authorization code for tokens
-        token_data, token_expiry = _exchange_quickbooks_tokens(code, org_id, user_id)
+        token_data = _exchange_stripe_tokens(code, org_id, user_id)
 
         # Store credentials in database
-        _store_quickbooks_credential(
-            org_id, user_id, token_data, token_expiry, realmId, credential_type
-        )
+        _store_stripe_credential(org_id, user_id, token_data, credential_type)
 
-        return build_oauth_success_redirect(service="quickbooks", org_id=org_id)
+        return build_oauth_success_redirect(service="stripe", org_id=org_id)
 
     except HTTPException as e:
         return build_oauth_error_redirect(
-            service="quickbooks",
+            service="stripe",
             error="token_exchange_failed",
             error_description=str(e.detail),
             org_id=org_id,
@@ -224,14 +235,14 @@ async def quickbooks_oauth_callback(code: str, state: str, realmId: str) -> Redi
     except Exception as e:
         logger.error(
             "OAuth callback failed",
-            service="quickbooks",
+            service="stripe",
             error_type=type(e).__name__,
             log_event="oauth_callback_error",
             exc_info=True,
         )
         return build_oauth_error_redirect(
-            service="quickbooks",
+            service="stripe",
             error="callback_failed",
-            error_description=str(e),
+            error_description="An unexpected error occurred",
             org_id=org_id,
         )

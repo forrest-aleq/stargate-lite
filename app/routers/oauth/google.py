@@ -17,6 +17,8 @@ from app.logging_config import get_logger
 from app.routers.oauth.base import (
     build_oauth_error_redirect,
     build_oauth_success_redirect,
+    build_signed_state_4parts,
+    parse_oauth_state_4parts,
 )
 
 logger = get_logger(__name__)
@@ -42,8 +44,8 @@ async def google_oauth_authorize(
     if not client_id or not redirect_uri:
         raise HTTPException(status_code=500, detail="Google OAuth not configured")
 
-    # State encodes org_id:user_id:credential_type:service
-    state = f"{org_id}:{user_id}:{credential_type}:{service}"
+    # State is cryptographically signed to prevent CSRF/tampering
+    state = build_signed_state_4parts(org_id, user_id, credential_type, service)
 
     # Service-specific scopes
     scope_map = {
@@ -98,22 +100,14 @@ async def google_oauth_callback(code: str, state: str) -> RedirectResponse:
     State format: {org_id}:{user_id}:{credential_type}:{service}
     Redirects to N3 frontend on completion.
     """
-    # Parse state first
-    parts = state.split(":")
-    if len(parts) != 4:
+    # Parse and verify signed state
+    try:
+        org_id, user_id, credential_type, service = parse_oauth_state_4parts(state, "google")
+    except Exception:
         return build_oauth_error_redirect(
             service="google",
             error="invalid_state",
             error_description="Invalid OAuth state parameter",
-        )
-
-    org_id, user_id, credential_type, service = parts
-
-    if not org_id or not user_id or not credential_type or not service:
-        return build_oauth_error_redirect(
-            service="google",
-            error="invalid_state",
-            error_description="Invalid state parameter: empty values",
         )
 
     try:

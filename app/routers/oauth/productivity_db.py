@@ -25,7 +25,11 @@ from fastapi.responses import RedirectResponse
 
 from app.database import CredentialManager
 from app.logging_config import get_logger
-from app.routers.oauth.base import get_env_or_raise
+from app.routers.oauth.base import (
+    build_signed_state_3parts,
+    get_env_or_raise,
+    parse_oauth_state_3parts,
+)
 
 logger = get_logger(__name__)
 
@@ -69,17 +73,6 @@ def _get_pkce_verifier(state: str) -> str:
     return code_verifier
 
 
-def _parse_airtable_state(state: str) -> tuple[str, str, str]:
-    """Parse Airtable OAuth state with format org_id:user_id:credential_type."""
-    parts = state.split(":")
-    if len(parts) != 3:
-        raise HTTPException(status_code=400, detail="Invalid state parameter")
-    org_id, user_id, credential_type = parts
-    if not all([org_id, user_id, credential_type]):
-        raise HTTPException(status_code=400, detail="Invalid state parameter: empty values")
-    return org_id, user_id, credential_type
-
-
 @router.get("/oauth/airtable/authorize")
 async def airtable_oauth_authorize(
     org_id: str, user_id: str, credential_type: str = "customer"
@@ -105,8 +98,8 @@ async def airtable_oauth_authorize(
     # Generate PKCE pair
     code_verifier, code_challenge = _generate_pkce_pair()
 
-    # State encodes org_id:user_id:credential_type for the callback
-    state = f"{org_id}:{user_id}:{credential_type}"
+    # State is cryptographically signed to prevent CSRF/tampering
+    state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     # Store code_verifier for callback
     # Clean up old entries first
@@ -150,7 +143,7 @@ async def airtable_oauth_authorize(
 @router.get("/oauth/airtable/callback")
 async def airtable_oauth_callback(code: str, state: str) -> dict[str, Any]:
     """Handle Airtable OAuth callback with PKCE verification."""
-    org_id, user_id, credential_type = _parse_airtable_state(state)
+    org_id, user_id, credential_type = parse_oauth_state_3parts(state, "airtable")
     code_verifier = _get_pkce_verifier(state)
 
     client_id = get_env_or_raise("AIRTABLE_CLIENT_ID", "Airtable")

@@ -17,6 +17,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
 
 from app.database import CredentialManager
+from app.routers.oauth.base import build_signed_state_3parts, parse_oauth_state_3parts
 
 router = APIRouter(tags=["oauth"])
 
@@ -40,7 +41,8 @@ async def notion_oauth_authorize(
     if not client_id:
         raise HTTPException(status_code=500, detail="Notion OAuth not configured")
 
-    state = f"{org_id}:{user_id}:{credential_type}"
+    # State is cryptographically signed to prevent CSRF/tampering
+    state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     # Notion uses capabilities instead of traditional scopes
     # Authorization URL is provided in Notion integration settings
@@ -62,15 +64,8 @@ async def notion_oauth_authorize(
 async def notion_oauth_callback(code: str, state: str) -> dict[str, Any]:
     """Handle Notion OAuth callback"""
     try:
-        parts = state.split(":")
-        if len(parts) != 3:
-            raise HTTPException(status_code=400, detail="Invalid state parameter")
-
-        org_id, user_id, credential_type = parts
-
-        # Validate no empty values
-        if not org_id or not user_id or not credential_type:
-            raise HTTPException(status_code=400, detail="Invalid state parameter: empty values")
+        # Parse and verify signed state
+        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "notes_issues")
 
         client_id = os.getenv("NOTION_CLIENT_ID")
         client_secret = os.getenv("NOTION_CLIENT_SECRET")
@@ -144,7 +139,8 @@ async def linear_oauth_authorize(
     if not client_id:
         raise HTTPException(status_code=500, detail="Linear OAuth not configured")
 
-    state = f"{org_id}:{user_id}:{credential_type}"
+    # State is cryptographically signed to prevent CSRF/tampering
+    state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     # Agent-optimized scopes for Linear
     # read,write - Basic permissions
@@ -177,15 +173,8 @@ async def linear_oauth_callback(code: str, state: str) -> dict[str, Any]:
     Linear tokens expire after 24 hours, refresh tokens auto-enabled (Oct 2025+)
     """
     try:
-        parts = state.split(":")
-        if len(parts) != 3:
-            raise HTTPException(status_code=400, detail="Invalid state parameter")
-
-        org_id, user_id, credential_type = parts
-
-        # Validate no empty values
-        if not org_id or not user_id or not credential_type:
-            raise HTTPException(status_code=400, detail="Invalid state parameter: empty values")
+        # Parse and verify signed state
+        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "notes_issues")
 
         client_id = os.getenv("LINEAR_CLIENT_ID")
         client_secret = os.getenv("LINEAR_CLIENT_SECRET")

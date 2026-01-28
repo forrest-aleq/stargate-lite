@@ -17,6 +17,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
 
 from app.database import CredentialManager
+from app.routers.oauth.base import build_signed_state_3parts, parse_oauth_state_3parts
 
 router = APIRouter(tags=["oauth"])
 
@@ -39,7 +40,8 @@ async def asana_oauth_authorize(
     if not client_id:
         raise HTTPException(status_code=500, detail="Asana OAuth not configured")
 
-    state = f"{org_id}:{user_id}:{credential_type}"
+    # State is cryptographically signed to prevent CSRF/tampering
+    state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     # Asana scopes (space-separated)
     # Full permissions, or use specific scopes like
@@ -63,15 +65,8 @@ async def asana_oauth_authorize(
 async def asana_oauth_callback(code: str, state: str) -> dict[str, Any]:
     """Handle Asana OAuth callback"""
     try:
-        parts = state.split(":")
-        if len(parts) != 3:
-            raise HTTPException(status_code=400, detail="Invalid state parameter")
-
-        org_id, user_id, credential_type = parts
-
-        # Validate no empty values
-        if not org_id or not user_id or not credential_type:
-            raise HTTPException(status_code=400, detail="Invalid state parameter: empty values")
+        # Parse and verify signed state
+        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "task_managers")
 
         client_id = os.getenv("ASANA_CLIENT_ID")
         client_secret = os.getenv("ASANA_CLIENT_SECRET")
@@ -139,7 +134,8 @@ async def clickup_oauth_authorize(
     if not client_id:
         raise HTTPException(status_code=500, detail="ClickUp OAuth not configured")
 
-    state = f"{org_id}:{user_id}:{credential_type}"
+    # State is cryptographically signed to prevent CSRF/tampering
+    state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     # Build authorization URL
     # Note: ClickUp uses a simple OAuth flow without explicit scopes
@@ -159,15 +155,8 @@ async def clickup_oauth_callback(code: str, state: str) -> dict[str, Any]:
     Note: Current ClickUp tokens do not expire (subject to change)
     """
     try:
-        parts = state.split(":")
-        if len(parts) != 3:
-            raise HTTPException(status_code=400, detail="Invalid state parameter")
-
-        org_id, user_id, credential_type = parts
-
-        # Validate no empty values
-        if not org_id or not user_id or not credential_type:
-            raise HTTPException(status_code=400, detail="Invalid state parameter: empty values")
+        # Parse and verify signed state
+        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "task_managers")
 
         client_id = os.getenv("CLICKUP_CLIENT_ID")
         client_secret = os.getenv("CLICKUP_CLIENT_SECRET")
@@ -228,7 +217,8 @@ async def monday_oauth_authorize(
     if not client_id:
         raise HTTPException(status_code=500, detail="Monday.com OAuth not configured")
 
-    state = f"{org_id}:{user_id}:{credential_type}"
+    # State is cryptographically signed to prevent CSRF/tampering
+    state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     # Monday.com OAuth scopes:
     # boards:read - Read board data
@@ -257,15 +247,8 @@ async def monday_oauth_callback(code: str, state: str) -> dict[str, Any]:
     Monday.com tokens don't expire
     """
     try:
-        parts = state.split(":")
-        if len(parts) != 3:
-            raise HTTPException(status_code=400, detail="Invalid state parameter")
-
-        org_id, user_id, credential_type = parts
-
-        # Validate no empty values
-        if not org_id or not user_id or not credential_type:
-            raise HTTPException(status_code=400, detail="Invalid state parameter: empty values")
+        # Parse and verify signed state
+        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "task_managers")
 
         client_id = os.getenv("MONDAY_CLIENT_ID")
         client_secret = os.getenv("MONDAY_CLIENT_SECRET")

@@ -18,6 +18,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
 
 from app.database import CredentialManager
+from app.routers.oauth.base import build_signed_state_3parts, parse_oauth_state_3parts
 
 router = APIRouter(tags=["oauth"])
 
@@ -41,8 +42,8 @@ async def brex_oauth_authorize(
     if not client_id:
         raise HTTPException(status_code=500, detail="Brex OAuth not configured")
 
-    # State encodes org_id:user_id:credential_type
-    state = f"{org_id}:{user_id}:{credential_type}"
+    # State is cryptographically signed to prevent CSRF/tampering
+    state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     # Brex scopes (must include offline_access for refresh token)
     scope = "cards:read cards:write transactions:read statements:read offline_access"
@@ -64,15 +65,8 @@ async def brex_oauth_authorize(
 async def brex_oauth_callback(code: str, state: str) -> dict[str, Any]:
     """Handle Brex OAuth callback"""
     try:
-        parts = state.split(":")
-        if len(parts) != 3:
-            raise HTTPException(status_code=400, detail="Invalid state parameter")
-
-        org_id, user_id, credential_type = parts
-
-        # Validate no empty values
-        if not org_id or not user_id or not credential_type:
-            raise HTTPException(status_code=400, detail="Invalid state parameter: empty values")
+        # Parse and verify signed state
+        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "fintech")
 
         client_id = os.getenv("BREX_CLIENT_ID")
         client_secret = os.getenv("BREX_CLIENT_SECRET")
@@ -155,15 +149,8 @@ async def ramp_oauth_authorize(
 async def ramp_oauth_callback(code: str, state: str) -> dict[str, Any]:
     """Handle Ramp OAuth callback"""
     try:
-        parts = state.split(":")
-        if len(parts) != 3:
-            raise HTTPException(status_code=400, detail="Invalid state parameter")
-
-        org_id, user_id, credential_type = parts
-
-        # Validate no empty values
-        if not org_id or not user_id or not credential_type:
-            raise HTTPException(status_code=400, detail="Invalid state parameter: empty values")
+        # Parse and verify signed state
+        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "fintech")
 
         client_id = os.getenv("RAMP_CLIENT_ID")
         client_secret = os.getenv("RAMP_CLIENT_SECRET")
@@ -249,15 +236,8 @@ async def chase_oauth_authorize(
 async def chase_oauth_callback(code: str, state: str) -> dict[str, Any]:
     """Handle Chase OAuth callback"""
     try:
-        parts = state.split(":")
-        if len(parts) != 3:
-            raise HTTPException(status_code=400, detail="Invalid state parameter")
-
-        org_id, user_id, credential_type = parts
-
-        # Validate no empty values
-        if not org_id or not user_id or not credential_type:
-            raise HTTPException(status_code=400, detail="Invalid state parameter: empty values")
+        # Parse and verify signed state
+        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "fintech")
 
         client_id = os.getenv("CHASE_CLIENT_ID")
         client_secret = os.getenv("CHASE_CLIENT_SECRET")
@@ -331,15 +311,8 @@ async def schwab_oauth_authorize(
 async def schwab_oauth_callback(code: str, state: str) -> dict[str, Any]:
     """Handle Schwab OAuth callback"""
     try:
-        parts = state.split(":")
-        if len(parts) != 3:
-            raise HTTPException(status_code=400, detail="Invalid state parameter")
-
-        org_id, user_id, credential_type = parts
-
-        # Validate no empty values
-        if not org_id or not user_id or not credential_type:
-            raise HTTPException(status_code=400, detail="Invalid state parameter: empty values")
+        # Parse and verify signed state
+        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "fintech")
 
         client_id = os.getenv("SCHWAB_CLIENT_ID")
         client_secret = os.getenv("SCHWAB_CLIENT_SECRET")
