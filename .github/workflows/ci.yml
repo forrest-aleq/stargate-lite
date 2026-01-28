@@ -74,6 +74,7 @@ jobs:
 
       - name: Run tests
         env:
+          PYTHONPATH: .
           REDIS_HOST: localhost
           REDIS_PORT: 6379
           API_SECRET_KEY: test-key
@@ -114,7 +115,11 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Verify app imports
+        env:
+          PYTHONPATH: .
         run: python -c "from app.main import app; print(f'Stargate v{app.version} ready')"
 
       - name: Check version matches changelog
+        env:
+          PYTHONPATH: .
         run: python scripts/release_check.py
