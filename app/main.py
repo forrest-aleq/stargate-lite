@@ -9,15 +9,21 @@ import os
 # Update this on every release (see RELEASE_GUIDE.md)
 VERSION = "0.9.0"
 
-from datadog import statsd
-
-# DataDog APM - import and patch early
-from ddtrace import patch_all
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# Patch all supported libraries for automatic instrumentation (includes logging)
-patch_all(logging=True)
+# DataDog APM - only patch if DD_TRACE_ENABLED is not explicitly disabled
+# This must happen before other imports to ensure proper instrumentation
+if os.getenv("DD_TRACE_ENABLED", "true").lower() != "false":
+    from datadog import statsd
+    from ddtrace import patch_all
+
+    # Patch all supported libraries for automatic instrumentation (includes logging)
+    patch_all(logging=True)
+
+    # Configure DogStatsD client for custom metrics
+    statsd.host = os.getenv("DD_AGENT_HOST", "localhost")
+    statsd.port = int(os.getenv("DD_DOGSTATSD_PORT", "8125"))
 
 from app.database import init_db
 from app.logging_config import get_logger
@@ -58,10 +64,6 @@ app.include_router(credentials.router)
 app.include_router(execute.router)
 app.include_router(oauth_router)
 app.include_router(schemas.router)
-
-# Configure DogStatsD client for custom metrics
-statsd.host = os.getenv("DD_AGENT_HOST", "localhost")
-statsd.port = int(os.getenv("DD_DOGSTATSD_PORT", "8125"))
 
 # Re-export verify_api_key for backwards compatibility (now lives in app.auth)
 from app.auth import verify_api_key  # noqa: F401
