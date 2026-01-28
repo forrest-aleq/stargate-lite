@@ -485,7 +485,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "description": "Type of credential used: 'agent' or 'customer' or None",
             "title": "Credential Type"
           },
@@ -498,7 +497,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "description": "Error message if status is 'error'",
             "title": "Error"
           },
@@ -1141,14 +1139,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "discriminator": {
-                    "mapping": {
-                      "error": "#/components/schemas/ErrorResponse",
-                      "success": "#/components/schemas/ToolExecutionResponse"
-                    },
-                    "propertyName": "status"
-                  },
-                  "oneOf": [
+                  "anyOf": [
                     {
                       "$ref": "#/components/schemas/ToolExecutionResponse"
                     },
@@ -1156,7 +1147,7 @@
                       "$ref": "#/components/schemas/ErrorResponse"
                     }
                   ],
-                  "title": "Response Execute Tool Api V1 Execute Post",
+                  "title": "Response 200 Execute Tool Api V1 Execute Post",
                   "type": "object"
                 }
               }

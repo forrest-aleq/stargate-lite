@@ -92,7 +92,7 @@ if __name__ == "__main__":
 
     uvicorn.run(
         "app.main:app",
-        host=os.getenv("HOST", "0.0.0.0"),
+        host=os.getenv("HOST", "0.0.0.0"),  # nosec B104 - intentional for containers
         port=int(os.getenv("PORT", 8001)),
         reload=os.getenv("DEBUG", "false").lower() == "true",
     )
