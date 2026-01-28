@@ -82,10 +82,11 @@ jobs:
           ENCRYPTION_KEY: ${{ secrets.TEST_ENCRYPTION_KEY || 'rYmVfKcRBe4vfoGz7RJUeffnPpA_ycSk6PFtYvtKFeg=' }}
           DATABASE_URL: sqlite:///./test.db
           # Disable ddtrace during tests to avoid structlog conflicts
-          DD_TRACE_ENABLED: false
-          DD_TRACE_LOG_INJECTION: false
-          FILTER_THIRD_PARTY_LIB: false
-        run: pytest tests/ -v --tb=short
+          DD_TRACE_ENABLED: "false"
+          DD_PATCH_MODULES: "none"
+          DD_TRACE_LOG_INJECTION: "false"
+          FILTER_THIRD_PARTY_LIB: "false"
+        run: pytest tests/ -v --tb=short -p no:ddtrace
 
   security:
     name: Security Scan
