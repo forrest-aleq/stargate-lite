@@ -88,6 +88,11 @@ VENDOR_CREATE = CapabilitySchema(
             description="ISO timestamp when vendor was created",
             example="2025-01-15T10:30:00Z",
         ),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this vendor in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/vendordetail?nameId=123",
+        ),
     },
     errors=[
         ErrorHint(
@@ -120,6 +125,7 @@ VENDOR_CREATE = CapabilitySchema(
                 "display_name": "Office Depot",
                 "email": "orders@officedepot.com",
                 "status": "active",
+                "deep_link": "https://app.qbo.intuit.com/app/vendordetail?nameId=456",
             },
         ),
     ],
@@ -170,6 +176,11 @@ VENDOR_GET = CapabilitySchema(
             type="string",
             description="Vendor status ('active' or 'inactive')",
             example="active",
+        ),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this vendor in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/vendordetail?nameId=123",
         ),
     },
     errors=[
@@ -229,10 +240,15 @@ VENDOR_LIST = CapabilitySchema(
     returns={
         "vendors": ReturnFieldSchema(
             type="array",
-            description="List of vendor objects",
+            description="List of vendor objects (each includes deep_link URL to QBO)",
             items_type="object",
             example=[
-                {"vendor_id": "qb:123", "display_name": "Acme Supply", "status": "active"},
+                {
+                    "vendor_id": "qb:123",
+                    "display_name": "Acme Supply",
+                    "status": "active",
+                    "deep_link": "https://app.qbo.intuit.com/app/vendordetail?nameId=123",
+                },
             ],
         ),
         "count": ReturnFieldSchema(
@@ -284,10 +300,15 @@ VENDOR_SEARCH = CapabilitySchema(
     returns={
         "vendors": ReturnFieldSchema(
             type="array",
-            description="List of matching vendor objects",
+            description="List of matching vendor objects (each includes deep_link URL to QBO)",
             items_type="object",
             example=[
-                {"vendor_id": "qb:123", "display_name": "Acme Supply Co.", "status": "active"},
+                {
+                    "vendor_id": "qb:123",
+                    "display_name": "Acme Supply Co.",
+                    "status": "active",
+                    "deep_link": "https://app.qbo.intuit.com/app/vendordetail?nameId=123",
+                },
             ],
         ),
         "count": ReturnFieldSchema(
@@ -393,6 +414,11 @@ VENDOR_UPDATE = CapabilitySchema(
             type="boolean",
             description="True if update was successful",
             example=True,
+        ),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this vendor in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/vendordetail?nameId=123",
         ),
     },
     errors=[

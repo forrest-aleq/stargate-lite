@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any
 from urllib.parse import quote
 
+from app.connectors.quickbooks import deep_links
 from app.http_client import http_client
 
 
@@ -48,12 +49,14 @@ class QuickBooksInvoicesMixin:
         )
 
         invoice = result.get("Invoice", {})
+        invoice_id = invoice.get("Id")
         return {
-            "invoice_id": f"qb:{invoice.get('Id')}",
+            "invoice_id": f"qb:{invoice_id}",
             "doc_number": invoice.get("DocNumber"),
             "total_amount": invoice.get("TotalAmt"),
             "balance": invoice.get("Balance"),
             "status": "pending",
+            "deep_link": deep_links.invoice_link(invoice_id),
         }
 
     def get_invoice(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -73,14 +76,16 @@ class QuickBooksInvoicesMixin:
         )
 
         invoice = result.get("Invoice", {})
+        inv_id = invoice.get("Id")
         return {
-            "invoice_id": f"qb:{invoice.get('Id')}",
+            "invoice_id": f"qb:{inv_id}",
             "doc_number": invoice.get("DocNumber"),
             "customer_id": f"qb:{invoice.get('CustomerRef', {}).get('value')}",
             "total_amount": invoice.get("TotalAmt"),
             "balance": invoice.get("Balance"),
             "due_date": invoice.get("DueDate"),
             "email_status": invoice.get("EmailStatus"),
+            "deep_link": deep_links.invoice_link(inv_id),
         }
 
     def send_invoice(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -103,11 +108,13 @@ class QuickBooksInvoicesMixin:
         )
 
         invoice = result.get("Invoice", {})
+        inv_id = invoice.get("Id")
         return {
-            "invoice_id": f"qb:{invoice.get('Id')}",
+            "invoice_id": f"qb:{inv_id}",
             "email_sent": True,
             "sent_to": email,
             "email_status": invoice.get("EmailStatus"),
+            "deep_link": deep_links.invoice_link(inv_id),
         }
 
     def void_invoice(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -146,10 +153,12 @@ class QuickBooksInvoicesMixin:
         )
 
         invoice = result.get("Invoice", {})
+        inv_id = invoice.get("Id")
         return {
-            "invoice_id": f"qb:{invoice.get('Id')}",
+            "invoice_id": f"qb:{inv_id}",
             "voided": True,
             "balance": invoice.get("Balance"),
+            "deep_link": deep_links.invoice_link(inv_id),
         }
 
     def list_invoices(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -189,6 +198,7 @@ class QuickBooksInvoicesMixin:
                     "total_amount": inv.get("TotalAmt"),
                     "balance": inv.get("Balance"),
                     "due_date": inv.get("DueDate"),
+                    "deep_link": deep_links.invoice_link(inv.get("Id")),
                 }
                 for inv in invoices
             ],
@@ -230,6 +240,7 @@ class QuickBooksInvoicesMixin:
                     "total_amount": inv.get("TotalAmt"),
                     "balance": inv.get("Balance"),
                     "due_date": inv.get("DueDate"),
+                    "deep_link": deep_links.invoice_link(inv.get("Id")),
                 }
                 for inv in invoices
             ],

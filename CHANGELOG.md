@@ -7,6 +7,26 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-01-29
+
+### Added
+- **QuickBooks deep links**: All QBO entity responses now include a `deep_link` field
+  with a direct URL to open the record in the QuickBooks Online web interface.
+  - Supports 17 entity types: invoices, bills, bill payments, customer payments,
+    journal entries, estimates, purchase orders, expenses, credit memos, refund
+    receipts, sales receipts, deposits, transfers, vendors, customers, employees,
+    accounts, and items
+  - Transaction URLs use `?txnId=` parameter; name-based entities use `?nameId=`;
+    accounts use `?accountId=`; items use `?itemId=`
+  - Links require the user to be logged into the correct QBO company
+  - New module: `app/connectors/quickbooks/deep_links.py`
+- **Schema updates**: All QuickBooks capability schemas now document the `deep_link`
+  return field, ensuring Aleq discovers and surfaces these URLs to users
+
+### Changed
+- All 7 QuickBooks connector modules updated: invoices, vendors, customers, bills,
+  payments, accounting, items
+
 ## [0.9.0] - 2025-01-24
 
 Initial pre-release with production hardening.

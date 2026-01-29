@@ -90,6 +90,11 @@ CUSTOMER_CREATE = CapabilitySchema(
             type="string",
             description="ISO timestamp when customer was created",
         ),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this customer in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/customerdetail?nameId=123",
+        ),
     },
     errors=[
         ErrorHint(
@@ -161,6 +166,11 @@ CUSTOMER_GET = CapabilitySchema(
             description="'active' or 'inactive'",
             example="active",
         ),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this customer in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/customerdetail?nameId=123",
+        ),
     },
     errors=[
         ErrorHint(
@@ -219,6 +229,11 @@ CUSTOMER_UPDATE = CapabilitySchema(
         "customer_id": ReturnFieldSchema(type="string", description="Customer ID"),
         "display_name": ReturnFieldSchema(type="string", description="Updated name"),
         "updated": ReturnFieldSchema(type="boolean", description="True if successful"),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this customer in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/customerdetail?nameId=123",
+        ),
     },
     errors=[
         ErrorHint(
@@ -267,7 +282,7 @@ CUSTOMER_LIST = CapabilitySchema(
     returns={
         "customers": ReturnFieldSchema(
             type="array",
-            description="List of customer objects",
+            description="List of customer objects (each includes deep_link URL to QBO)",
             items_type="object",
         ),
         "count": ReturnFieldSchema(type="integer", description="Number returned"),
@@ -313,7 +328,7 @@ CUSTOMER_SEARCH = CapabilitySchema(
     returns={
         "customers": ReturnFieldSchema(
             type="array",
-            description="Matching customers",
+            description="Matching customer objects (each includes deep_link URL to QBO)",
             items_type="object",
         ),
         "count": ReturnFieldSchema(type="integer", description="Number of matches"),

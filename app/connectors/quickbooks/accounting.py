@@ -5,6 +5,7 @@ QuickBooks Online connector - Accounting module (Journal entries, Chart of Accou
 from datetime import datetime
 from typing import Any
 
+from app.connectors.quickbooks import deep_links
 from app.http_client import http_client
 
 
@@ -46,12 +47,14 @@ class QuickBooksAccountingMixin:
         )
 
         je = result.get("JournalEntry", {})
+        je_id = je.get("Id")
         return {
-            "journal_entry_id": f"qb:{je.get('Id')}",
+            "journal_entry_id": f"qb:{je_id}",
             "doc_number": je.get("DocNumber"),
             "txn_date": je.get("TxnDate"),
             "total_amount": je.get("TotalAmt"),
             "memo": je.get("PrivateNote"),
+            "deep_link": deep_links.journal_entry_link(je_id),
         }
 
     def get_chart_of_accounts(
@@ -84,6 +87,7 @@ class QuickBooksAccountingMixin:
                     "type": acc.get("AccountType"),
                     "number": acc.get("AcctNum"),
                     "balance": acc.get("CurrentBalance", 0),
+                    "deep_link": deep_links.account_link(acc.get("Id")),
                 }
                 for acc in accounts
             ],
@@ -188,6 +192,7 @@ class QuickBooksAccountingMixin:
                     "family_name": e.get("FamilyName"),
                     "email": e.get("PrimaryEmailAddr", {}).get("Address"),
                     "active": e.get("Active"),
+                    "deep_link": deep_links.employee_link(e.get("Id")),
                 }
                 for e in employees
             ],
@@ -211,8 +216,9 @@ class QuickBooksAccountingMixin:
         )
 
         emp = result.get("Employee", {})
+        emp_id = emp.get("Id")
         return {
-            "employee_id": f"qb:{emp.get('Id')}",
+            "employee_id": f"qb:{emp_id}",
             "display_name": emp.get("DisplayName"),
             "given_name": emp.get("GivenName"),
             "family_name": emp.get("FamilyName"),
@@ -220,6 +226,7 @@ class QuickBooksAccountingMixin:
             "phone": emp.get("PrimaryPhone", {}).get("FreeFormNumber"),
             "hired_date": emp.get("HiredDate"),
             "active": emp.get("Active"),
+            "deep_link": deep_links.employee_link(emp_id),
         }
 
     def create_deposit(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -249,10 +256,12 @@ class QuickBooksAccountingMixin:
         )
 
         deposit = result.get("Deposit", {})
+        dep_id = deposit.get("Id")
         return {
-            "deposit_id": f"qb:{deposit.get('Id')}",
+            "deposit_id": f"qb:{dep_id}",
             "total_amount": deposit.get("TotalAmt"),
             "txn_date": deposit.get("TxnDate"),
+            "deep_link": deep_links.deposit_link(dep_id),
         }
 
     def create_time_activity(
@@ -328,12 +337,14 @@ class QuickBooksAccountingMixin:
         )
 
         transfer = result.get("Transfer", {})
+        xfer_id = transfer.get("Id")
         return {
-            "transfer_id": f"qb:{transfer.get('Id')}",
+            "transfer_id": f"qb:{xfer_id}",
             "amount": transfer.get("Amount"),
             "from_account": transfer.get("FromAccountRef", {}).get("name"),
             "to_account": transfer.get("ToAccountRef", {}).get("name"),
             "txn_date": transfer.get("TxnDate"),
+            "deep_link": deep_links.transfer_link(xfer_id),
         }
 
     def get_account(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -353,14 +364,16 @@ class QuickBooksAccountingMixin:
         )
 
         acc = result.get("Account", {})
+        acc_id = acc.get("Id")
         return {
-            "account_id": f"qb:{acc.get('Id')}",
+            "account_id": f"qb:{acc_id}",
             "name": acc.get("Name"),
             "type": acc.get("AccountType"),
             "sub_type": acc.get("AccountSubType"),
             "number": acc.get("AcctNum"),
             "balance": acc.get("CurrentBalance", 0),
             "active": acc.get("Active"),
+            "deep_link": deep_links.account_link(acc_id),
         }
 
     def list_terms(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:

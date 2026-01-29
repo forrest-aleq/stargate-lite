@@ -87,6 +87,11 @@ BILL_CREATE = CapabilitySchema(
             description="Bill status ('open' for new bills)",
             example="open",
         ),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this bill in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/bill?txnId=456",
+        ),
     },
     errors=[
         ErrorHint(
@@ -187,6 +192,11 @@ BILL_GET = CapabilitySchema(
             description="Vendor ID this bill is from",
             example="qb:123",
         ),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this bill in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/bill?txnId=456",
+        ),
     },
     errors=[
         ErrorHint(
@@ -244,7 +254,7 @@ BILL_LIST = CapabilitySchema(
     returns={
         "bills": ReturnFieldSchema(
             type="array",
-            description="List of bill objects",
+            description="List of bill objects (each includes deep_link URL to QBO)",
             items_type="object",
             example=[
                 {
@@ -254,6 +264,7 @@ BILL_LIST = CapabilitySchema(
                     "balance": 250.00,
                     "due_date": "2025-02-15",
                     "vendor": "Acme Supply Co.",
+                    "deep_link": "https://app.qbo.intuit.com/app/bill?txnId=456",
                 }
             ],
         ),
@@ -369,6 +380,11 @@ BILL_PAYMENT_CREATE = CapabilitySchema(
             description="Transaction date",
             example="2025-01-20",
         ),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this bill payment in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/billpayment?txnId=999",
+        ),
     },
     errors=[
         ErrorHint(
@@ -436,7 +452,7 @@ BILLPAYMENT_LIST = CapabilitySchema(
     returns={
         "payments": ReturnFieldSchema(
             type="array",
-            description="List of bill payment objects",
+            description="List of bill payment objects (each includes deep_link URL to QBO)",
             items_type="object",
             example=[
                 {
@@ -445,6 +461,7 @@ BILLPAYMENT_LIST = CapabilitySchema(
                     "pay_type": "Check",
                     "txn_date": "2025-01-20",
                     "vendor": "Acme Supply Co.",
+                    "deep_link": "https://app.qbo.intuit.com/app/billpayment?txnId=999",
                 }
             ],
         ),

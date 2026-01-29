@@ -53,6 +53,11 @@ PURCHASE_ORDER_CREATE = CapabilitySchema(
         "doc_number": ReturnFieldSchema(type="string", description="PO number"),
         "total_amount": ReturnFieldSchema(type="number", description="Total"),
         "vendor_id": ReturnFieldSchema(type="string", description="Vendor"),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this purchase order in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/purchaseorder?txnId=100",
+        ),
     },
     errors=[
         ErrorHint(
@@ -111,6 +116,11 @@ EXPENSE_CREATE = CapabilitySchema(
         "expense_id": ReturnFieldSchema(type="string", description="Expense ID"),
         "total_amount": ReturnFieldSchema(type="number", description="Total"),
         "payment_type": ReturnFieldSchema(type="string", description="Payment type"),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this expense in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/expense?txnId=200",
+        ),
     },
     errors=[
         ErrorHint(
@@ -163,6 +173,11 @@ DEPOSIT_CREATE = CapabilitySchema(
         "deposit_id": ReturnFieldSchema(type="string", description="Deposit ID"),
         "total_amount": ReturnFieldSchema(type="number", description="Total deposited"),
         "txn_date": ReturnFieldSchema(type="string", description="Date"),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this deposit in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/deposit?txnId=300",
+        ),
     },
     errors=[
         ErrorHint(
@@ -220,6 +235,11 @@ TRANSFER_CREATE = CapabilitySchema(
         "from_account": ReturnFieldSchema(type="string", description="Source account name"),
         "to_account": ReturnFieldSchema(type="string", description="Destination account name"),
         "txn_date": ReturnFieldSchema(type="string", description="Date"),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this transfer in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/transfer?txnId=400",
+        ),
     },
     errors=[
         ErrorHint(

@@ -8,6 +8,7 @@ from typing import Any
 
 import requests
 
+from app.connectors.quickbooks import deep_links
 from app.http_client import http_client
 
 
@@ -54,11 +55,13 @@ class QuickBooksItemsMixin:
         )
 
         item = result.get("Item", {})
+        item_id = item.get("Id")
         return {
-            "item_id": f"qb:{item.get('Id')}",
+            "item_id": f"qb:{item_id}",
             "name": item.get("Name"),
             "type": item.get("Type"),
             "unit_price": item.get("UnitPrice"),
+            "deep_link": deep_links.item_link(item_id),
         }
 
     def get_item(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -78,13 +81,15 @@ class QuickBooksItemsMixin:
         )
 
         item = result.get("Item", {})
+        it_id = item.get("Id")
         return {
-            "item_id": f"qb:{item.get('Id')}",
+            "item_id": f"qb:{it_id}",
             "name": item.get("Name"),
             "type": item.get("Type"),
             "unit_price": item.get("UnitPrice"),
             "description": item.get("Description"),
             "active": item.get("Active"),
+            "deep_link": deep_links.item_link(it_id),
         }
 
     def list_items(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -121,6 +126,7 @@ class QuickBooksItemsMixin:
                     "name": item.get("Name"),
                     "type": item.get("Type"),
                     "unit_price": item.get("UnitPrice"),
+                    "deep_link": deep_links.item_link(item.get("Id")),
                 }
                 for item in items
             ],
@@ -157,12 +163,14 @@ class QuickBooksItemsMixin:
         )
 
         estimate = result.get("Estimate", {})
+        est_id = estimate.get("Id")
         return {
-            "estimate_id": f"qb:{estimate.get('Id')}",
+            "estimate_id": f"qb:{est_id}",
             "doc_number": estimate.get("DocNumber"),
             "total_amount": estimate.get("TotalAmt"),
             "customer_id": f"qb:{customer_id}",
             "status": estimate.get("TxnStatus"),
+            "deep_link": deep_links.estimate_link(est_id),
         }
 
     def get_estimate(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -182,13 +190,15 @@ class QuickBooksItemsMixin:
         )
 
         estimate = result.get("Estimate", {})
+        est_id = estimate.get("Id")
         return {
-            "estimate_id": f"qb:{estimate.get('Id')}",
+            "estimate_id": f"qb:{est_id}",
             "doc_number": estimate.get("DocNumber"),
             "customer_id": f"qb:{estimate.get('CustomerRef', {}).get('value')}",
             "total_amount": estimate.get("TotalAmt"),
             "expiration_date": estimate.get("ExpirationDate"),
             "status": estimate.get("TxnStatus"),
+            "deep_link": deep_links.estimate_link(est_id),
         }
 
     def create_sales_receipt(
@@ -221,11 +231,13 @@ class QuickBooksItemsMixin:
         )
 
         receipt = result.get("SalesReceipt", {})
+        rcpt_id = receipt.get("Id")
         return {
-            "sales_receipt_id": f"qb:{receipt.get('Id')}",
+            "sales_receipt_id": f"qb:{rcpt_id}",
             "doc_number": receipt.get("DocNumber"),
             "total_amount": receipt.get("TotalAmt"),
             "customer_id": f"qb:{customer_id}",
+            "deep_link": deep_links.sales_receipt_link(rcpt_id),
         }
 
     def create_credit_memo(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -253,12 +265,14 @@ class QuickBooksItemsMixin:
         )
 
         memo = result.get("CreditMemo", {})
+        memo_id = memo.get("Id")
         return {
-            "credit_memo_id": f"qb:{memo.get('Id')}",
+            "credit_memo_id": f"qb:{memo_id}",
             "doc_number": memo.get("DocNumber"),
             "total_amount": memo.get("TotalAmt"),
             "customer_id": f"qb:{customer_id}",
             "balance": memo.get("Balance"),
+            "deep_link": deep_links.credit_memo_link(memo_id),
         }
 
     def upload_attachment(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:

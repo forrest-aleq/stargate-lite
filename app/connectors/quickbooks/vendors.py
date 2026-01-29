@@ -4,6 +4,7 @@ QuickBooks Online connector - Vendors module
 
 from typing import Any
 
+from app.connectors.quickbooks import deep_links
 from app.http_client import http_client
 
 
@@ -46,13 +47,15 @@ class QuickBooksVendorsMixin:
         )
 
         vendor = result.get("Vendor", {})
+        vendor_id = vendor.get("Id")
 
         return {
-            "vendor_id": f"qb:{vendor.get('Id')}",
+            "vendor_id": f"qb:{vendor_id}",
             "display_name": vendor.get("DisplayName"),
             "email": vendor.get("PrimaryEmailAddr", {}).get("Address"),
             "status": "active",
             "created_at": vendor.get("MetaData", {}).get("CreateTime"),
+            "deep_link": deep_links.vendor_link(vendor_id),
         }
 
     def get_vendor(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -72,13 +75,15 @@ class QuickBooksVendorsMixin:
         )
 
         vendor = result.get("Vendor", {})
+        vid = vendor.get("Id")
 
         return {
-            "vendor_id": f"qb:{vendor.get('Id')}",
+            "vendor_id": f"qb:{vid}",
             "display_name": vendor.get("DisplayName"),
             "email": vendor.get("PrimaryEmailAddr", {}).get("Address"),
             "phone": vendor.get("PrimaryPhone", {}).get("FreeFormNumber"),
             "status": "active" if vendor.get("Active") else "inactive",
+            "deep_link": deep_links.vendor_link(vid),
         }
 
     def list_vendors(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -113,6 +118,7 @@ class QuickBooksVendorsMixin:
                     "display_name": v.get("DisplayName"),
                     "email": v.get("PrimaryEmailAddr", {}).get("Address"),
                     "status": "active" if v.get("Active") else "inactive",
+                    "deep_link": deep_links.vendor_link(v.get("Id")),
                 }
                 for v in vendors
             ],
@@ -164,10 +170,12 @@ class QuickBooksVendorsMixin:
         )
 
         vendor = result.get("Vendor", {})
+        vid = vendor.get("Id")
         return {
-            "vendor_id": f"qb:{vendor.get('Id')}",
+            "vendor_id": f"qb:{vid}",
             "display_name": vendor.get("DisplayName"),
             "updated": True,
+            "deep_link": deep_links.vendor_link(vid),
         }
 
     def search_vendors(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -201,6 +209,7 @@ class QuickBooksVendorsMixin:
                     "display_name": v.get("DisplayName"),
                     "email": v.get("PrimaryEmailAddr", {}).get("Address"),
                     "status": "active" if v.get("Active") else "inactive",
+                    "deep_link": deep_links.vendor_link(v.get("Id")),
                 }
                 for v in vendors
             ],

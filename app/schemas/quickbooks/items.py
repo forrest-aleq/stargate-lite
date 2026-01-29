@@ -63,6 +63,11 @@ ITEM_CREATE = CapabilitySchema(
         "name": ReturnFieldSchema(type="string", description="Item name"),
         "type": ReturnFieldSchema(type="string", description="Item type"),
         "unit_price": ReturnFieldSchema(type="number", description="Unit price"),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this item in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/item?itemId=1",
+        ),
     },
     errors=[
         ErrorHint(
@@ -103,6 +108,11 @@ ITEM_GET = CapabilitySchema(
         "unit_price": ReturnFieldSchema(type="number", description="Unit price"),
         "description": ReturnFieldSchema(type="string", description="Description"),
         "active": ReturnFieldSchema(type="boolean", description="Is active"),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this item in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/item?itemId=1",
+        ),
     },
     errors=[
         ErrorHint(
@@ -141,7 +151,10 @@ ITEM_LIST = CapabilitySchema(
         ),
     },
     returns={
-        "items": ReturnFieldSchema(type="array", description="List of items"),
+        "items": ReturnFieldSchema(
+            type="array",
+            description="List of item objects (each includes deep_link URL to QBO)",
+        ),
         "count": ReturnFieldSchema(type="integer", description="Number returned"),
     },
     errors=[

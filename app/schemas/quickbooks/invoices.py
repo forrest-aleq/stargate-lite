@@ -92,6 +92,11 @@ INVOICE_CREATE = CapabilitySchema(
             description="Invoice status",
             example="pending",
         ),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this invoice in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/invoice?txnId=789",
+        ),
     },
     errors=[
         ErrorHint(
@@ -160,6 +165,11 @@ INVOICE_GET = CapabilitySchema(
         "balance": ReturnFieldSchema(type="number", description="Outstanding balance"),
         "due_date": ReturnFieldSchema(type="string", description="Due date"),
         "email_status": ReturnFieldSchema(type="string", description="Email delivery status"),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this invoice in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/invoice?txnId=789",
+        ),
     },
     errors=[
         ErrorHint(
@@ -210,6 +220,11 @@ INVOICE_SEND = CapabilitySchema(
         "email_sent": ReturnFieldSchema(type="boolean", description="True if sent"),
         "sent_to": ReturnFieldSchema(type="string", description="Recipient email"),
         "email_status": ReturnFieldSchema(type="string", description="Delivery status"),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this invoice in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/invoice?txnId=789",
+        ),
     },
     errors=[
         ErrorHint(
@@ -258,6 +273,11 @@ INVOICE_VOID = CapabilitySchema(
         "invoice_id": ReturnFieldSchema(type="string", description="Invoice ID"),
         "voided": ReturnFieldSchema(type="boolean", description="True if voided"),
         "balance": ReturnFieldSchema(type="number", description="Balance (should be 0)"),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this invoice in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/invoice?txnId=789",
+        ),
     },
     errors=[
         ErrorHint(
@@ -308,7 +328,10 @@ INVOICE_LIST = CapabilitySchema(
         ),
     },
     returns={
-        "invoices": ReturnFieldSchema(type="array", description="List of invoices"),
+        "invoices": ReturnFieldSchema(
+            type="array",
+            description="List of invoice objects (each includes deep_link URL to QBO)",
+        ),
         "count": ReturnFieldSchema(type="integer", description="Number returned"),
     },
     errors=[
@@ -349,7 +372,10 @@ INVOICE_LIST_OUTSTANDING = CapabilitySchema(
         ),
     },
     returns={
-        "invoices": ReturnFieldSchema(type="array", description="Outstanding invoices"),
+        "invoices": ReturnFieldSchema(
+            type="array",
+            description="Outstanding invoice objects (each includes deep_link URL to QBO)",
+        ),
         "total_outstanding": ReturnFieldSchema(
             type="number",
             description="Sum of all outstanding balances",
