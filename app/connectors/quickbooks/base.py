@@ -26,6 +26,18 @@ class QuickBooksBase:
         self.client_id = os.getenv("QUICKBOOKS_CLIENT_ID")
         self.client_secret = os.getenv("QUICKBOOKS_CLIENT_SECRET")
         self.environment = os.getenv("QUICKBOOKS_ENVIRONMENT", "sandbox")
+
+        # Safety guard: non-production deploys cannot hit production QBO
+        app_env = os.getenv("ENVIRONMENT", "development")
+        if self.environment == "production" and app_env != "production":
+            logger.warning(
+                "QUICKBOOKS_ENVIRONMENT=production blocked in non-production deploy, "
+                "forcing sandbox",
+                app_environment=app_env,
+                log_event="qbo_env_guard_triggered",
+            )
+            self.environment = "sandbox"
+
         if self.environment == "sandbox":
             self.base_url = self.SANDBOX_BASE_URL
         else:
