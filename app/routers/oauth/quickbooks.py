@@ -77,6 +77,8 @@ def _exchange_quickbooks_tokens(
             org_id=org_id,
             user_id=user_id,
             status_code=response.status_code,
+            response_body=response.text,
+            redirect_uri=redirect_uri,
             duration_ms=round(token_duration_ms, 2),
             log_event="oauth_token_exchange_error",
         )

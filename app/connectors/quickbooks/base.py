@@ -25,7 +25,7 @@ class QuickBooksBase:
     def __init__(self) -> None:
         self.client_id = os.getenv("QUICKBOOKS_CLIENT_ID")
         self.client_secret = os.getenv("QUICKBOOKS_CLIENT_SECRET")
-        self.environment = os.getenv("QUICKBOOKS_ENVIRONMENT", "sandbox")
+        self.environment = os.getenv("QUICKBOOKS_ENVIRONMENT", "sandbox").lower()
 
         # Safety guard: non-production deploys cannot hit production QBO
         app_env = os.getenv("ENVIRONMENT", "development")
