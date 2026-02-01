@@ -1,9 +1,25 @@
 """
 Service constants for Stargate Lite
-Defines OAuth requirements and display names for all services.
+Defines OAuth requirements, enabled services, and display names for all services.
 """
 
-# All services in the registry with OAuth requirements
+# =============================================================================
+# ENABLED SERVICES — Controls what N3 shows on the integrations page.
+#
+# Only services listed here appear in /health/connectors and are available
+# for customers to connect. Add a service here AFTER:
+#   1. Developer/sandbox credentials are configured in Railway
+#   2. OAuth flow is tested end-to-end on staging
+#   3. At least one capability is verified working
+#
+# ALL_SERVICES_OAUTH below is the full internal registry — it stays complete.
+# ENABLED_SERVICES is the customer-facing gate.
+# =============================================================================
+ENABLED_SERVICES: set[str] = {
+    "quickbooks",
+}
+
+# All services in the registry with OAuth requirements (internal — not all are customer-facing)
 ALL_SERVICES_OAUTH: dict[str, bool] = {
     "quickbooks": True,  # requires_oauth
     "stripe": False,

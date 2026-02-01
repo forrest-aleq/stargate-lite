@@ -7,7 +7,7 @@ from datetime import datetime
 
 from fastapi import APIRouter
 
-from app.constants.services import ALL_SERVICES_OAUTH
+from app.constants.services import ALL_SERVICES_OAUTH, ENABLED_SERVICES
 from app.database import CredentialManager
 from app.models import ConnectorHealthResponse, HealthResponse
 from app.observability import increment_metric
@@ -82,16 +82,22 @@ async def connector_health_check() -> ConnectorHealthResponse:
     service_data = group_credentials_by_service(all_credentials)
     now = datetime.utcnow()
 
+    enabled_services = {
+        service: requires_oauth
+        for service, requires_oauth in ALL_SERVICES_OAUTH.items()
+        if service in ENABLED_SERVICES
+    }
+
     connectors = [
         build_connector_status(service, requires_oauth, service_data[service]["connections"], now)
-        for service, requires_oauth in ALL_SERVICES_OAUTH.items()
+        for service, requires_oauth in enabled_services.items()
     ]
     connectors.sort(key=lambda x: x.service)
 
     return ConnectorHealthResponse(
         status="operational",
         version=_get_version(),
-        total_connectors=len(ALL_SERVICES_OAUTH),
+        total_connectors=len(enabled_services),
         total_connections=len(all_credentials),
         connectors=connectors,
     )
