@@ -42,6 +42,7 @@ ALL_SERVICES_OAUTH: dict[str, bool] = {
     "ibkr": False,
     "schwab": True,
     "microsoft": True,
+    "xero": True,
     "ocr": False,
 }
 
@@ -65,4 +66,5 @@ SERVICE_DISPLAY_NAMES: dict[str, str] = {
     "asana": "Asana",
     "powerbi": "Power BI",
     "microsoft": "Microsoft",
+    "xero": "Xero",
 }
