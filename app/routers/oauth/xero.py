@@ -13,7 +13,6 @@ Xero OAuth flow:
 Reference: https://developer.xero.com/documentation/guides/oauth2/auth-flow/
 """
 
-import os
 import time
 from datetime import datetime, timedelta
 from typing import Any
@@ -53,9 +52,7 @@ XERO_SCOPES = (
 )
 
 
-def _exchange_xero_tokens(
-    code: str, org_id: str, user_id: str
-) -> tuple[dict[str, Any], datetime]:
+def _exchange_xero_tokens(code: str, org_id: str, user_id: str) -> tuple[dict[str, Any], datetime]:
     """Exchange authorization code for Xero access/refresh tokens.
 
     Xero uses form-data POST (not Basic Auth) for token exchange.
@@ -154,8 +151,8 @@ def _fetch_xero_tenant_id(access_token: str) -> str | None:
 
         connections = response.json()
         if connections and len(connections) > 0:
-            tenant_id = connections[0].get("tenantId")
-            tenant_name = connections[0].get("tenantName")
+            tenant_id: str | None = connections[0].get("tenantId")
+            tenant_name: str | None = connections[0].get("tenantName")
             logger.info(
                 "Xero tenant retrieved",
                 service="xero",
