@@ -6,7 +6,8 @@ import time
 from datetime import datetime
 from typing import Any
 
-from app.errors import CapabilityNotFoundError, StargateError, classify_exception
+from app.constants.services import build_connect_url
+from app.errors import CapabilityNotFoundError, ErrorCode, StargateError, classify_exception
 from app.logging_config import get_logger
 from app.models import ToolExecutionRequest
 from app.posthog_client import track_capability_called, track_connector_error
@@ -130,6 +131,13 @@ def handle_stargate_error(
     error_dict["tool_used"] = capability["tool_name"] if capability else "unknown"
     error_dict["credential_type"] = capability.get("credential_type") if capability else None
     error_dict["timestamp"] = datetime.utcnow().isoformat()
+
+    # Enrich CREDENTIALS_MISSING with connect_url so Aleq can send the user to OAuth
+    if e.error_code == ErrorCode.CREDENTIALS_MISSING:
+        service = capability["service"] if capability else e.details.get("service", "")
+        connect_url = build_connect_url(service, request.org_id, request.user_id)
+        if connect_url:
+            error_dict["connect_url"] = connect_url
 
     total_duration_ms = (time.time() - start_time) * 1000
 
