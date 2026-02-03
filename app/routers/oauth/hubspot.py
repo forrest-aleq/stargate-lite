@@ -59,6 +59,11 @@ HUBSPOT_SCOPES = " ".join(
         "crm.objects.quotes.read",
         # Products
         "crm.objects.products.read",
+        # Finance & forecasting
+        "crm.objects.invoices.read",
+        "crm.objects.forecasts.read",
+        "crm.objects.goals.read",
+        "crm.objects.goals.write",
         # Lists (for segmentation)
         "crm.lists.read",
     ]

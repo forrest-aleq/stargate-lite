@@ -12,6 +12,7 @@ from typing import Any
 from app.errors import ValidationError
 from app.logging_config import get_logger
 
+from . import deep_links
 from .invoices import InvoicesMixin
 
 logger = get_logger(__name__)
@@ -424,6 +425,7 @@ class BillsMixin(InvoicesMixin):
             ],
             "has_attachments": bill.get("HasAttachments", False),
             "updated_date": bill.get("UpdatedDateUTC"),
+            "deep_link": deep_links.bill_link(bill.get("InvoiceID")),
         }
 
     def _format_bill_line_items_for_api(

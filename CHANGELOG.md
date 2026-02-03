@@ -7,6 +7,24 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-02-02
+
+### Added
+- **Xero deep links**: All Xero entity responses now include a `deep_link` field
+  with a direct URL to open the record in the Xero web interface (go.xero.com).
+  - Supports 9 entity types: invoices (AR), bills (AP), contacts, credit notes
+    (AR/AP routing), bank transactions, bank accounts, bank transfers, manual
+    journals, and payments (links to parent invoice/bill)
+  - Chart of accounts entries link to the CoA list page (no per-account page in Xero)
+  - URL patterns follow official Xero deep linking documentation
+    (https://developer.xero.com/documentation/guides/how-to-guides/deep-link-xero)
+  - Links require the user to be logged into the correct Xero organisation
+  - New module: `app/connectors/xero/deep_links.py`
+
+### Changed
+- All 7 Xero connector modules updated: contacts, invoices, bills, credit_notes,
+  payments, bank, reports
+
 ## [0.10.0] - 2026-01-29
 
 ### Added

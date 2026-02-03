@@ -218,11 +218,26 @@ X-API-Key: {api_key}
     "invoice_id": "inv_123",
     "state": "paid",
     "amount_applied": 875.00,
-    "closed_at": "2025-12-26T12:00:00Z"
+    "closed_at": "2025-12-26T12:00:00Z",
+    "deep_link": "https://go.xero.com/AccountsPayable/View.aspx?InvoiceID=inv_123"
   },
   "logs": ["Payment applied successfully"],
   "timestamp": "2025-12-26T12:00:00.123456"
 }
+```
+
+#### `deep_link` field (v0.11.0+)
+
+Entity responses from QuickBooks and Xero include a `deep_link` string — a direct
+URL to the record in the provider's web UI. MARS should surface this to the user
+when presenting execution results so they can click through to verify or take
+further action. The field is `null` when the entity ID is missing or the provider
+has no dedicated page for that entity type.
+
+| Provider | Base URL | Since |
+|----------|----------|-------|
+| QuickBooks Online | `https://app.qbo.intuit.com/app/...` | v0.10.0 |
+| Xero | `https://go.xero.com/...` | v0.11.0 |
 ```
 
 ### Error Response
@@ -591,12 +606,12 @@ RESPONSE
 
 ## Stargate Production Status
 
-Primitive #17 (stargate.execute) is production ready with 200 capabilities:
+Primitive #17 (stargate.execute) is production ready with 614 capabilities:
 
 | Category | Capabilities | Services |
 |----------|-------------|----------|
 | Pure utilities | 17 | Financial Calculator (6), Summarizer (5), Web Search (4), OCR Gemini (2) |
 | API key services | 84 | Stripe (61), Recurly (12), Plaid (11) |
-| OAuth services | 99 | QuickBooks (45), NetSuite (15), Gmail (25), Slack (6), HubSpot (4), Bill.com (9) |
+| OAuth services | 513 | QuickBooks (45), Xero (61), NetSuite (15), Gmail (25), Slack (6), HubSpot (4), Bill.com (9), Gusto, Shopify, Square, DocuSign, Airtable, Sage Intacct |
 
 **Stargate is ready. MARS primitives 1, 2, 8 are the blocker.**

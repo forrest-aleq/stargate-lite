@@ -7,7 +7,7 @@ import os
 
 # Version - Single source of truth
 # Update this on every release (see RELEASE_GUIDE.md)
-VERSION = "0.10.0"
+VERSION = "0.11.0"
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

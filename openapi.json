@@ -656,7 +656,7 @@
   "info": {
     "description": "Execution Layer ('The Hands') for Aleq MIND",
     "title": "Stargate Lite",
-    "version": "0.9.0"
+    "version": "0.11.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -3965,6 +3965,118 @@
           }
         },
         "summary": "Stripe Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/xero/authorize": {
+      "get": {
+        "description": "Initiate Xero OAuth flow\n\nRedirects user to Xero authorization page with accounting scopes.",
+        "operationId": "xero_oauth_authorize_oauth_xero_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Xero Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/xero/callback": {
+      "get": {
+        "description": "Handle Xero OAuth callback\n\nExchange authorization code for tokens, fetch tenant ID from\n/connections, and store credentials.",
+        "operationId": "xero_oauth_callback_oauth_xero_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Xero Oauth Callback",
         "tags": [
           "oauth",
           "oauth"

@@ -15,6 +15,7 @@ from typing import Any
 from app.errors import ValidationError
 from app.logging_config import get_logger
 
+from . import deep_links
 from .contacts import ContactsMixin
 
 logger = get_logger(__name__)
@@ -498,6 +499,7 @@ class InvoicesMixin(ContactsMixin):
             "has_attachments": invoice.get("HasAttachments", False),
             "online_invoice_url": invoice.get("OnlineInvoiceUrl"),
             "updated_date": invoice.get("UpdatedDateUTC"),
+            "deep_link": deep_links.invoice_link(invoice.get("InvoiceID")),
         }
 
     def _format_line_items_for_api(self, line_items: list[dict[str, Any]]) -> list[dict[str, Any]]:

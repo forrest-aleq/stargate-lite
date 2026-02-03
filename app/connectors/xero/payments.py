@@ -12,6 +12,7 @@ from typing import Any
 from app.errors import ValidationError
 from app.logging_config import get_logger
 
+from . import deep_links
 from .bills import BillsMixin
 
 logger = get_logger(__name__)
@@ -343,4 +344,5 @@ class PaymentsMixin(BillsMixin):
                 "name": account.get("Name"),
             },
             "updated_date": payment.get("UpdatedDateUTC"),
+            "deep_link": deep_links.payment_link(invoice.get("InvoiceID"), invoice.get("Type")),
         }

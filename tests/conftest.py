@@ -14,7 +14,7 @@ os.environ.setdefault("DD_TRACE_ENABLED", "false")
 os.environ.setdefault("DD_PATCH_MODULES", "none")
 
 # Now safe to import pytest
-import pytest  # noqa: E402
+import pytest
 
 
 @pytest.fixture(autouse=True)

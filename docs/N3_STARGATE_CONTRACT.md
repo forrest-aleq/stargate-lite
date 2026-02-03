@@ -72,7 +72,7 @@ Body:
 {
   "org_id": "org_xxx",
   "user_id": "user_xxx",
-  "services": ["quickbooks", "xero", "stripe", "plaid", "mercury", "slack", "gmail"]
+  "services": ["quickbooks", "xero", "stripe", "plaid", "mercury", "slack", "gmail", "gusto", "shopify", "square", "docusign", "airtable"]
 }
 
 Response:
@@ -105,13 +105,18 @@ Headers:
 
 Providers:
   - /oauth/quickbooks/authorize
-  - /oauth/xero/authorize
+  - /oauth/xero/authorize        # 61 capabilities, deep links v0.11.0+
   - /oauth/stripe/authorize
   - /oauth/plaid/authorize
   - /oauth/mercury/authorize
   - /oauth/slack/authorize
   - /oauth/google/authorize (Gmail)
   - /oauth/hubspot/authorize
+  - /oauth/gusto/authorize
+  - /oauth/shopify/authorize
+  - /oauth/square/authorize
+  - /oauth/docusign/authorize
+  - /oauth/airtable/authorize
 
 Response: 302 Redirect to OAuth provider
 ```
@@ -201,7 +206,7 @@ Response:
     "service": "quickbooks",
     "description": "Create vendor"
   }
-  // ... 614 total
+  // ... 614 total (v0.11.0)
 ]
 ```
 

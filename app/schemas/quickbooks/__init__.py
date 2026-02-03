@@ -7,6 +7,7 @@ Complete coverage of all 71+ QuickBooks capabilities.
 
 from app.schemas.base import CapabilitySchema
 from app.schemas.quickbooks.accounting import ACCOUNTING_SCHEMAS
+from app.schemas.quickbooks.billpayments import BILLPAYMENT_SCHEMAS
 from app.schemas.quickbooks.bills import BILL_SCHEMAS
 from app.schemas.quickbooks.customers import CUSTOMER_SCHEMAS
 from app.schemas.quickbooks.invoices import INVOICE_SCHEMAS
@@ -21,7 +22,8 @@ from app.schemas.quickbooks.vendors import VENDOR_SCHEMAS
 # All QuickBooks schemas - complete coverage
 QUICKBOOKS_SCHEMAS: dict[str, CapabilitySchema] = {
     **VENDOR_SCHEMAS,  # 5 capabilities
-    **BILL_SCHEMAS,  # 5 capabilities
+    **BILL_SCHEMAS,  # 3 capabilities
+    **BILLPAYMENT_SCHEMAS,  # 2 capabilities
     **CUSTOMER_SCHEMAS,  # 9 capabilities (5 + 4 aliases)
     **INVOICE_SCHEMAS,  # 11 capabilities (6 + 5 aliases)
     **ITEM_SCHEMAS,  # 3 capabilities
