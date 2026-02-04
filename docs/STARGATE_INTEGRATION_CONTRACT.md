@@ -1,7 +1,8 @@
-# Stargate Integration Contract v1.1
-**Last Updated:** November 23, 2025
+# Stargate Integration Contract v1.2
+**Last Updated:** February 3, 2026
 **Status:** DRAFT - Requires agreement from MARS, NAOS, and Stargate teams
 **Purpose:** Define explicit integration contract between Stargate and consuming systems
+**Total Capabilities:** 711 across 34 services
 
 ---
 
@@ -563,6 +564,34 @@ Stargate supports **two credential types:**
 - ⏳ Partial success handling
 - ⏳ Rate limiting strategy
 - ⏳ Idempotency TTL configuration
+
+---
+
+## Changelog
+
+### v1.2 - February 3, 2026
+**Added 36 new capabilities:**
+- **Google Workspace (6):** Drive file delete/search, Calendar get event/list calendars, Sheets batch get ranges/create spreadsheet
+- **Microsoft 365 (4):** OneDrive file delete/search, Outlook Calendar get event/list calendars
+- **Dropbox (3):** File delete, move, search
+- **DocuSign (3):** Envelope audit trail, signing URL, status details
+- **Power BI (2):** List workspaces, delete datasets
+- **Stripe (6):** Coupons (create/retrieve/update/delete), Events (list/retrieve)
+- **QuickBooks (6):** Journal entries (CRUD operations)
+- **HubSpot (6):** Associations, notes, owners, pipelines, properties, tickets
+
+**Total:** 711 capabilities across 34 services
+
+### v1.1 - November 23, 2025
+- Added retry strategy classification
+- Clarified idempotency contract with `turn_id`
+- Added error taxonomy details
+- Documented open questions for alignment
+
+### v1.0 - Initial Release
+- Basic execution contract
+- Error classification
+- Multi-tenant credential isolation
 
 ---
 

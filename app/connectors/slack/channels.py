@@ -49,7 +49,7 @@ class ChannelsMixin(MessagingMixin):
         client = WebClient(token=token)
 
         try:
-            name = args.get("name")
+            name = str(args.get("name", ""))
             is_private = args.get("is_private", False)
 
             response = client.conversations_create(name=name, is_private=is_private)
@@ -70,8 +70,8 @@ class ChannelsMixin(MessagingMixin):
         client = WebClient(token=token)
 
         try:
-            channel_id = args.get("channel_id")
-            user_ids = args.get("user_ids")
+            channel_id = str(args.get("channel_id", ""))
+            user_ids = str(args.get("user_ids", ""))
 
             response = client.conversations_invite(channel=channel_id, users=user_ids)
 
@@ -92,7 +92,7 @@ class ChannelsMixin(MessagingMixin):
         client = WebClient(token=token)
 
         try:
-            channel_id = args.get("channel_id")
+            channel_id = str(args.get("channel_id", ""))
             limit = args.get("limit", 100)
 
             response = client.conversations_history(channel=channel_id, limit=limit)
@@ -149,7 +149,7 @@ class ChannelsMixin(MessagingMixin):
         client = WebClient(token=token)
 
         try:
-            channel_id = args.get("channel_id")
+            channel_id = str(args.get("channel_id", ""))
 
             response = client.conversations_info(channel=channel_id)
             ch = response["channel"]
@@ -174,7 +174,7 @@ class ChannelsMixin(MessagingMixin):
         client = WebClient(token=token)
 
         try:
-            channel_id = args.get("channel_id")
+            channel_id = str(args.get("channel_id", ""))
 
             client.conversations_archive(channel=channel_id)
 
@@ -189,8 +189,8 @@ class ChannelsMixin(MessagingMixin):
         client = WebClient(token=token)
 
         try:
-            channel_id = args.get("channel_id")
-            topic = args.get("topic", "")
+            channel_id = str(args.get("channel_id", ""))
+            topic = str(args.get("topic", ""))
 
             response = client.conversations_setTopic(channel=channel_id, topic=topic)
 
@@ -211,8 +211,8 @@ class ChannelsMixin(MessagingMixin):
         client = WebClient(token=token)
 
         try:
-            channel_id = args.get("channel_id")
-            purpose = args.get("purpose", "")
+            channel_id = str(args.get("channel_id", ""))
+            purpose = str(args.get("purpose", ""))
 
             response = client.conversations_setPurpose(channel=channel_id, purpose=purpose)
 
@@ -260,7 +260,7 @@ class ChannelsMixin(MessagingMixin):
         client = WebClient(token=token)
 
         try:
-            slack_user_id = args.get("user_id")
+            slack_user_id = str(args.get("user_id", ""))
 
             response = client.users_info(user=slack_user_id)
             user = response["user"]

@@ -1,9 +1,10 @@
 """
 Tool Registry for Stargate Lite
 Maps capability keys to actual tool implementations
-Updated January 2026 - 20 PLATFORMS + Cognitive Utilities + Financial Ops - 322 ENDPOINTS
+Updated February 2026 - 34 SERVICES + Cognitive Utilities + Financial Ops - 711 CAPABILITIES
 + Cognitive Utilities Phase 1: web_search, summarizer, financial_calculator
 + Financial Operations: reconciliation, matching, covenants, waterfall, tiered_fees, forecasting
++ Recent additions: Google Workspace, Microsoft 365, Dropbox, DocuSign, Power BI expansions
 
 This module combines all sub-registries into a unified CAPABILITY_REGISTRY.
 

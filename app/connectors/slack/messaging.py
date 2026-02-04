@@ -19,8 +19,8 @@ class MessagingMixin(SlackBase):
         client = WebClient(token=token)
 
         try:
-            channel = args.get("channel")
-            text = args.get("text")
+            channel = str(args.get("channel", ""))
+            text = str(args.get("text", ""))
             blocks = args.get("blocks")
             thread_ts = args.get("thread_ts")
 
@@ -47,7 +47,7 @@ class MessagingMixin(SlackBase):
 
         try:
             slack_user_id = args.get("user_id")
-            text = args.get("text")
+            text = str(args.get("text", ""))
 
             dm_response = client.conversations_open(users=slack_user_id)
             channel_id = dm_response["channel"]["id"]
@@ -70,9 +70,9 @@ class MessagingMixin(SlackBase):
         client = WebClient(token=token)
 
         try:
-            channel = args.get("channel_id")
-            ts = args.get("timestamp")
-            text = args.get("text")
+            channel = str(args.get("channel_id", ""))
+            ts = str(args.get("timestamp", ""))
+            text = str(args.get("text", ""))
 
             response = client.chat_update(channel=channel, ts=ts, text=text)
 
@@ -92,8 +92,8 @@ class MessagingMixin(SlackBase):
         client = WebClient(token=token)
 
         try:
-            channel = args.get("channel_id")
-            ts = args.get("timestamp")
+            channel = str(args.get("channel_id", ""))
+            ts = str(args.get("timestamp", ""))
 
             client.chat_delete(channel=channel, ts=ts)
 
@@ -108,8 +108,8 @@ class MessagingMixin(SlackBase):
         client = WebClient(token=token)
 
         try:
-            channel = args.get("channel_id")
-            ts = args.get("timestamp")
+            channel = str(args.get("channel_id", ""))
+            ts = str(args.get("timestamp", ""))
 
             client.pins_add(channel=channel, timestamp=ts)
 
@@ -124,8 +124,8 @@ class MessagingMixin(SlackBase):
         client = WebClient(token=token)
 
         try:
-            channel = args.get("channel_id")
-            ts = args.get("timestamp")
+            channel = str(args.get("channel_id", ""))
+            ts = str(args.get("timestamp", ""))
 
             client.pins_remove(channel=channel, timestamp=ts)
 
@@ -140,9 +140,9 @@ class MessagingMixin(SlackBase):
         client = WebClient(token=token)
 
         try:
-            channel = args.get("channel_id")
-            text = args.get("text")
-            post_at = args.get("post_at")
+            channel = str(args.get("channel_id", ""))
+            text = str(args.get("text", ""))
+            post_at = int(args.get("post_at", 0))
 
             response = client.chat_scheduleMessage(channel=channel, text=text, post_at=post_at)
 
@@ -162,8 +162,8 @@ class MessagingMixin(SlackBase):
         client = WebClient(token=token)
 
         try:
-            channel = args.get("channel_id")
-            ts = args.get("timestamp")
+            channel = str(args.get("channel_id", ""))
+            ts = str(args.get("timestamp", ""))
             limit = args.get("limit", 100)
 
             response = client.conversations_replies(channel=channel, ts=ts, limit=limit)
@@ -194,9 +194,9 @@ class MessagingMixin(SlackBase):
         client = WebClient(token=token)
 
         try:
-            channel_id = args.get("channel_id")
-            timestamp = args.get("timestamp")
-            name = args.get("name")
+            channel_id = str(args.get("channel_id", ""))
+            timestamp = str(args.get("timestamp", ""))
+            name = str(args.get("name", ""))
 
             client.reactions_add(channel=channel_id, timestamp=timestamp, name=name)
 
@@ -216,9 +216,9 @@ class MessagingMixin(SlackBase):
         client = WebClient(token=token)
 
         try:
-            channel_id = args.get("channel_id")
-            timestamp = args.get("timestamp")
-            name = args.get("name")
+            channel_id = str(args.get("channel_id", ""))
+            timestamp = str(args.get("timestamp", ""))
+            name = str(args.get("name", ""))
 
             client.reactions_remove(channel=channel_id, timestamp=timestamp, name=name)
 
@@ -238,7 +238,7 @@ class MessagingMixin(SlackBase):
         client = WebClient(token=token)
 
         try:
-            query = args.get("query")
+            query = str(args.get("query", ""))
             count = args.get("count", 20)
             sort = args.get("sort", "timestamp")
             sort_dir = args.get("sort_dir", "desc")
