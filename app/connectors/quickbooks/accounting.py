@@ -1,5 +1,5 @@
 """
-QuickBooks Online connector - Accounting module (Journal entries, Chart of Accounts, etc.)
+QuickBooks Online connector - Accounting module (Chart of Accounts, employees, etc.)
 """
 
 from datetime import datetime
@@ -17,45 +17,6 @@ class QuickBooksAccountingMixin:
     def _get_access_token(self, org_id: str, user_id: str) -> dict[str, Any]:
         """Get valid access token - implemented in base class"""
         raise NotImplementedError
-
-    def create_journal_entry(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
-        """Create a journal entry in QuickBooks"""
-        cred = self._get_access_token(org_id, user_id)
-        realm_id = cred["realm_id"]
-
-        journal_data: dict[str, Any] = {
-            "Line": args.get("lines"),
-            "TxnDate": args.get("txn_date", datetime.now().strftime("%Y-%m-%d")),
-            "PrivateNote": args.get("memo", ""),
-        }
-
-        if args.get("doc_number"):
-            journal_data["DocNumber"] = args["doc_number"]
-
-        url = f"{self.base_url}/{realm_id}/journalentry"
-        result = http_client.post(
-            url=url,
-            service="quickbooks",
-            headers={
-                "Authorization": f"Bearer {cred['access_token']}",
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-            },
-            json=journal_data,
-        )
-
-        je = result.get("JournalEntry", {})
-        je_id = je.get("Id")
-        return {
-            "journal_entry_id": f"qb:{je_id}",
-            "doc_number": je.get("DocNumber"),
-            "txn_date": je.get("TxnDate"),
-            "total_amount": je.get("TotalAmt"),
-            "memo": je.get("PrivateNote"),
-            "deep_link": deep_links.journal_entry_link(je_id),
-        }
 
     def get_chart_of_accounts(
         self, org_id: str, user_id: str, args: dict[str, Any]

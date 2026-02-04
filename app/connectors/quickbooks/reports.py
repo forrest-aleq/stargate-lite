@@ -265,3 +265,26 @@ class QuickBooksReportsMixin:
                 "Accept": "application/json",
             },
         )
+
+    def get_trial_balance(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Get trial balance report from QuickBooks"""
+        cred = self._get_access_token(org_id, user_id)
+        realm_id = cred["realm_id"]
+
+        params: dict[str, Any] = {}
+        if args.get("start_date"):
+            params["start_date"] = args["start_date"]
+        if args.get("end_date"):
+            params["end_date"] = args["end_date"]
+
+        query_str = urlencode(params)
+        url = f"{self.base_url}/{realm_id}/reports/TrialBalance?{query_str}"
+
+        return http_client.get(
+            url=url,
+            service="quickbooks",
+            headers={
+                "Authorization": f"Bearer {cred['access_token']}",
+                "Accept": "application/json",
+            },
+        )

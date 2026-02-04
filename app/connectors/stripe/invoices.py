@@ -240,3 +240,117 @@ class StripeInvoicesMixin:
 
         deleted = stripe.Invoice.delete(invoice_id, **delete_kwargs)
         return {"invoice_id": deleted.id, "deleted": deleted.deleted}
+
+    @requires_stripe_config
+    def create_invoice_item(
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Create an invoice item (line item) for a customer"""
+        customer_id = args.get("customer_id")
+        amount = args.get("amount")
+        currency = args.get("currency", "usd")
+        description = args.get("description")
+        invoice_id = args.get("invoice_id")
+        price_id = args.get("price_id")
+        quantity = args.get("quantity")
+
+        create_kwargs: dict[str, Any] = {"customer": customer_id}
+        if amount is not None:
+            create_kwargs["amount"] = amount
+            create_kwargs["currency"] = currency
+        if description:
+            create_kwargs["description"] = description
+        if invoice_id:
+            create_kwargs["invoice"] = invoice_id
+        if price_id:
+            create_kwargs["price"] = price_id
+        if quantity is not None:
+            create_kwargs["quantity"] = quantity
+        if stripe_config and stripe_config.get("stripe_account"):
+            create_kwargs["stripe_account"] = stripe_config["stripe_account"]
+
+        item = stripe.InvoiceItem.create(**create_kwargs)
+        return {
+            "invoice_item_id": item.id,
+            "customer": item.customer,
+            "amount": item.amount,
+            "currency": item.currency,
+            "description": item.description,
+            "invoice": item.invoice,
+        }
+
+    @requires_stripe_config
+    def list_invoice_items(
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """List invoice items"""
+        limit = args.get("limit", 10)
+        customer = args.get("customer_id")
+        invoice = args.get("invoice_id")
+
+        params: dict[str, Any] = {"limit": limit}
+        if customer:
+            params["customer"] = customer
+        if invoice:
+            params["invoice"] = invoice
+        if stripe_config and stripe_config.get("stripe_account"):
+            params["stripe_account"] = stripe_config["stripe_account"]
+
+        items = stripe.InvoiceItem.list(**params)
+        return {
+            "invoice_items": [
+                {
+                    "invoice_item_id": item.id,
+                    "customer": item.customer,
+                    "amount": item.amount,
+                    "currency": item.currency,
+                    "description": item.description,
+                }
+                for item in items.data
+            ],
+            "has_more": items.has_more,
+        }
+
+    @requires_stripe_config
+    def get_upcoming_invoice(
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Retrieve the upcoming invoice for a customer"""
+        customer_id = args.get("customer_id")
+        subscription_id = args.get("subscription_id")
+
+        params: dict[str, Any] = {"customer": customer_id}
+        if subscription_id:
+            params["subscription"] = subscription_id
+        if stripe_config and stripe_config.get("stripe_account"):
+            params["stripe_account"] = stripe_config["stripe_account"]
+
+        invoice = stripe.Invoice.upcoming(**params)
+        return {
+            "customer": invoice.customer,
+            "amount_due": invoice.amount_due,
+            "currency": invoice.currency,
+            "subtotal": invoice.subtotal,
+            "total": invoice.total,
+            "next_payment_attempt": invoice.next_payment_attempt,
+            "lines": [
+                {
+                    "amount": line.amount,
+                    "description": line.description,
+                    "quantity": line.quantity,
+                }
+                for line in invoice.lines.data[:20]
+            ],
+        }

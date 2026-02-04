@@ -325,3 +325,61 @@ class GoogleCalendarConnector:
 
         except HttpError as error:
             raise Exception(f"Google Calendar API error: {error}") from error
+
+    def get_event(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Get a single calendar event"""
+        creds = self._get_credentials(org_id, user_id)
+
+        try:
+            service = build("calendar", "v3", credentials=creds)
+
+            event_id = args.get("event_id")
+            calendar_id = args.get("calendar_id", "primary")
+
+            event = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
+
+            return {
+                "event_id": event.get("id"),
+                "summary": event.get("summary"),
+                "description": event.get("description", ""),
+                "start": event.get("start"),
+                "end": event.get("end"),
+                "status": event.get("status"),
+                "attendees": [
+                    {
+                        "email": att.get("email"),
+                        "response_status": att.get("responseStatus"),
+                    }
+                    for att in event.get("attendees", [])
+                ],
+            }
+
+        except HttpError as error:
+            raise Exception(f"Google Calendar API error: {error}") from error
+
+    def list_calendars(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """List user's calendars"""
+        creds = self._get_credentials(org_id, user_id)
+
+        try:
+            service = build("calendar", "v3", credentials=creds)
+
+            calendar_list = service.calendarList().list().execute()
+
+            calendars = calendar_list.get("items", [])
+
+            return {
+                "calendars": [
+                    {
+                        "calendar_id": cal.get("id"),
+                        "summary": cal.get("summary"),
+                        "primary": cal.get("primary", False),
+                        "timezone": cal.get("timeZone"),
+                    }
+                    for cal in calendars
+                ],
+                "count": len(calendars),
+            }
+
+        except HttpError as error:
+            raise Exception(f"Google Calendar API error: {error}") from error

@@ -54,6 +54,58 @@ class QuickBooksBillsMixin:
             "deep_link": deep_links.bill_link(bill_id),
         }
 
+    def update_bill(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Update a bill in QuickBooks (sparse update)"""
+        cred = self._get_access_token(org_id, user_id)
+        realm_id = cred["realm_id"]
+        bill_id = args.get("bill_id", "").replace("qb:", "")
+
+        # Fetch current bill to get SyncToken
+        url = f"{self.base_url}/{realm_id}/bill/{bill_id}"
+        current = http_client.get(
+            url=url,
+            service="quickbooks",
+            headers={
+                "Authorization": f"Bearer {cred['access_token']}",
+                "Accept": "application/json",
+            },
+        )
+        current_bill = current.get("Bill", {})
+
+        update_data: dict[str, Any] = {
+            "Id": bill_id,
+            "SyncToken": current_bill.get("SyncToken"),
+            "sparse": True,
+        }
+        if args.get("line_items"):
+            update_data["Line"] = args["line_items"]
+        if args.get("due_date"):
+            update_data["DueDate"] = args["due_date"]
+        if args.get("private_note"):
+            update_data["PrivateNote"] = args["private_note"]
+
+        url = f"{self.base_url}/{realm_id}/bill"
+        result = http_client.post(
+            url=url,
+            service="quickbooks",
+            headers={
+                "Authorization": f"Bearer {cred['access_token']}",
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            },
+            json=update_data,
+        )
+        bill = result.get("Bill", {})
+        bid = bill.get("Id")
+        return {
+            "bill_id": f"qb:{bid}",
+            "doc_number": bill.get("DocNumber"),
+            "total_amount": bill.get("TotalAmt"),
+            "balance": bill.get("Balance"),
+            "status": "updated",
+            "deep_link": deep_links.bill_link(bid),
+        }
+
     def get_bill(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get bill details from QuickBooks"""
         cred = self._get_access_token(org_id, user_id)

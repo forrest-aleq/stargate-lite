@@ -234,3 +234,87 @@ class StripeBalanceMixin:
             ],
             "has_more": transfers.has_more,
         }
+
+    @requires_stripe_config
+    def retrieve_balance_transaction(
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Retrieve a specific balance transaction"""
+        txn_id = args.get("balance_transaction_id")
+
+        retrieve_kwargs: dict[str, Any] = {}
+        if stripe_config and stripe_config.get("stripe_account"):
+            retrieve_kwargs["stripe_account"] = stripe_config["stripe_account"]
+
+        txn = stripe.BalanceTransaction.retrieve(txn_id, **retrieve_kwargs)
+        return {
+            "id": txn.id,
+            "amount": txn.amount,
+            "currency": txn.currency,
+            "type": txn.type,
+            "net": txn.net,
+            "fee": txn.fee,
+            "status": txn.status,
+            "created": txn.created,
+            "source": txn.source,
+            "description": txn.description,
+        }
+
+    @requires_stripe_config
+    def create_payout(
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Create a payout to a bank account or debit card"""
+        amount = args.get("amount")
+        currency = args.get("currency", "usd")
+        description = args.get("description")
+        destination = args.get("destination")
+        metadata = args.get("metadata", {})
+
+        logger.info(
+            "Creating payout",
+            service="stripe",
+            amount=amount,
+            currency=currency,
+            log_event="stripe_payout_create",
+        )
+
+        metadata.update({"org_id": org_id, "user_id": user_id})
+
+        payout_params: dict[str, Any] = {
+            "amount": amount,
+            "currency": currency,
+            "metadata": metadata,
+        }
+        if description:
+            payout_params["description"] = description
+        if destination:
+            payout_params["destination"] = destination
+        if stripe_config and stripe_config.get("stripe_account"):
+            payout_params["stripe_account"] = stripe_config["stripe_account"]
+
+        payout = stripe.Payout.create(**payout_params)
+
+        logger.info(
+            "Payout created",
+            service="stripe",
+            payout_id=payout.id,
+            amount=payout.amount,
+            log_event="stripe_payout_created",
+        )
+
+        return {
+            "payout_id": payout.id,
+            "amount": payout.amount,
+            "currency": payout.currency,
+            "status": payout.status,
+            "arrival_date": payout.arrival_date,
+        }

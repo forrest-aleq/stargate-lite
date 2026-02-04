@@ -330,3 +330,100 @@ class DropboxConnector:
             "size_bytes": result.get("size"),
             "modified_time": result.get("server_modified"),
         }
+
+    def delete_file(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Delete a file or folder from Dropbox"""
+        token = self._get_access_token(org_id, user_id)
+
+        path = args.get("path")
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+
+        data = {"path": path}
+
+        response = requests.post(
+            f"{self.api_url}/files/delete_v2",
+            headers=headers,
+            json=data,
+            timeout=30,
+        )
+
+        self._handle_error(response)
+
+        return {
+            "path": path,
+            "status": "deleted",
+        }
+
+    def move_file(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Move or rename a file or folder in Dropbox"""
+        token = self._get_access_token(org_id, user_id)
+
+        from_path = args.get("from_path")
+        to_path = args.get("to_path")
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+
+        data = {"from_path": from_path, "to_path": to_path}
+
+        response = requests.post(
+            f"{self.api_url}/files/move_v2",
+            headers=headers,
+            json=data,
+            timeout=30,
+        )
+
+        self._handle_error(response)
+        result = response.json()
+
+        return {
+            "file_id": result["metadata"]["id"],
+            "from_path": from_path,
+            "to_path": to_path,
+            "status": "moved",
+        }
+
+    def search_files(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Search for files in Dropbox"""
+        token = self._get_access_token(org_id, user_id)
+
+        query = args.get("query")
+        max_results = args.get("max_results", 25)
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+
+        data = {"query": query, "options": {"max_results": max_results}}
+
+        response = requests.post(
+            f"{self.api_url}/files/search_v2",
+            headers=headers,
+            json=data,
+            timeout=30,
+        )
+
+        self._handle_error(response)
+        result = response.json()
+
+        matches = result.get("matches", [])
+
+        return {
+            "matches": [
+                {
+                    "file_id": match.get("metadata", {}).get("metadata", {}).get("id"),
+                    "name": match.get("metadata", {}).get("metadata", {}).get("name"),
+                    "path": match.get("metadata", {}).get("metadata", {}).get("path_display"),
+                }
+                for match in matches
+            ],
+            "count": len(matches),
+            "has_more": result.get("has_more", False),
+        }

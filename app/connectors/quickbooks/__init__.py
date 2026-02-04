@@ -22,6 +22,7 @@ from app.connectors.quickbooks.bills import QuickBooksBillsMixin
 from app.connectors.quickbooks.customers import QuickBooksCustomersMixin
 from app.connectors.quickbooks.invoices import QuickBooksInvoicesMixin
 from app.connectors.quickbooks.items import QuickBooksItemsMixin
+from app.connectors.quickbooks.journals import QuickBooksJournalsMixin
 from app.connectors.quickbooks.payments import QuickBooksPaymentsMixin
 from app.connectors.quickbooks.reports import QuickBooksReportsMixin
 from app.connectors.quickbooks.vendors import QuickBooksVendorsMixin
@@ -37,6 +38,7 @@ class QuickBooksConnector(
     QuickBooksItemsMixin,
     QuickBooksReportsMixin,
     QuickBooksAccountingMixin,
+    QuickBooksJournalsMixin,
 ):
     """
     QuickBooks Online API connector.

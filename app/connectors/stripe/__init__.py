@@ -25,8 +25,10 @@ from app.connectors.stripe.base import (
     requires_stripe_init,
 )
 from app.connectors.stripe.checkout import StripeCheckoutMixin
+from app.connectors.stripe.coupons import StripeCouponsMixin
 from app.connectors.stripe.customers import StripeCustomersMixin
 from app.connectors.stripe.disputes import StripeDisputesMixin
+from app.connectors.stripe.events import StripeEventsMixin
 from app.connectors.stripe.invoices import StripeInvoicesMixin
 from app.connectors.stripe.payment_methods import StripePaymentMethodsMixin
 from app.connectors.stripe.payments import StripePaymentsMixin
@@ -45,6 +47,8 @@ class StripeConnector(
     StripeBalanceMixin,
     StripePaymentMethodsMixin,
     StripeDisputesMixin,
+    StripeCouponsMixin,
+    StripeEventsMixin,
 ):
     """
     Stripe API connector.

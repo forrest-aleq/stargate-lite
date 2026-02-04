@@ -305,3 +305,118 @@ class StripePaymentsMixin:
             ],
             "has_more": charges.has_more,
         }
+
+    @requires_stripe_config
+    def list_payment_intents(
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """List payment intents"""
+        limit = args.get("limit", 10)
+        customer = args.get("customer_id")
+
+        params: dict[str, Any] = {"limit": limit}
+        if customer:
+            params["customer"] = customer
+        if stripe_config and stripe_config.get("stripe_account"):
+            params["stripe_account"] = stripe_config["stripe_account"]
+
+        payment_intents = stripe.PaymentIntent.list(**params)
+        return {
+            "payment_intents": [
+                {
+                    "payment_intent_id": pi.id,
+                    "amount": pi.amount,
+                    "currency": pi.currency,
+                    "status": pi.status,
+                    "customer": pi.customer,
+                }
+                for pi in payment_intents.data
+            ],
+            "has_more": payment_intents.has_more,
+        }
+
+    @requires_stripe_config
+    def capture_payment_intent(
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Capture a payment intent that requires capture"""
+        payment_intent_id = args.get("payment_intent_id")
+        amount_to_capture = args.get("amount_to_capture")
+
+        logger.info(
+            "Capturing payment intent",
+            service="stripe",
+            payment_intent_id=payment_intent_id,
+            log_event="stripe_payment_intent_capture",
+        )
+
+        capture_kwargs: dict[str, Any] = {}
+        if amount_to_capture:
+            capture_kwargs["amount_to_capture"] = amount_to_capture
+        if stripe_config and stripe_config.get("stripe_account"):
+            capture_kwargs["stripe_account"] = stripe_config["stripe_account"]
+
+        pi = stripe.PaymentIntent.capture(payment_intent_id, **capture_kwargs)
+
+        logger.info(
+            "Payment intent captured",
+            service="stripe",
+            payment_intent_id=pi.id,
+            status=pi.status,
+            log_event="stripe_payment_intent_captured",
+        )
+
+        return {
+            "payment_intent_id": pi.id,
+            "amount": pi.amount,
+            "amount_capturable": pi.amount_capturable,
+            "status": pi.status,
+        }
+
+    @requires_stripe_config
+    def cancel_payment_intent(
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Cancel a payment intent"""
+        payment_intent_id = args.get("payment_intent_id")
+        cancellation_reason = args.get("cancellation_reason")
+
+        logger.info(
+            "Canceling payment intent",
+            service="stripe",
+            payment_intent_id=payment_intent_id,
+            log_event="stripe_payment_intent_cancel",
+        )
+
+        cancel_kwargs: dict[str, Any] = {}
+        if cancellation_reason:
+            cancel_kwargs["cancellation_reason"] = cancellation_reason
+        if stripe_config and stripe_config.get("stripe_account"):
+            cancel_kwargs["stripe_account"] = stripe_config["stripe_account"]
+
+        pi = stripe.PaymentIntent.cancel(payment_intent_id, **cancel_kwargs)
+
+        logger.info(
+            "Payment intent canceled",
+            service="stripe",
+            payment_intent_id=pi.id,
+            status=pi.status,
+            log_event="stripe_payment_intent_canceled",
+        )
+
+        return {
+            "payment_intent_id": pi.id,
+            "status": pi.status,
+        }

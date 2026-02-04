@@ -127,10 +127,18 @@ async def ramp_oauth_authorize(
     if not client_id:
         raise HTTPException(status_code=500, detail="Ramp OAuth not configured")
 
-    state = f"{org_id}:{user_id}:{credential_type}"
+    # State is cryptographically signed to prevent CSRF/tampering
+    state = build_signed_state_3parts(org_id, user_id, credential_type)
 
-    # Ramp scopes
-    scope = "cards:read cards:write transactions:read users:read"
+    # Ramp scopes — read-only across all resource types
+    scope = (
+        "accounting:read bank_accounts:read bills:read cards:read cashbacks:read "
+        "departments:read entities:read item_receipts:read limits:read locations:read "
+        "memos:read merchants:read offline_access purchase_orders:read "
+        "receipt_integrations:read receipts:read reimbursements:read repayments:read "
+        "spend_programs:read statements:read transactions:read transfers:read "
+        "treasury:read users:read vendors:read"
+    )
 
     params = {
         "client_id": client_id,
@@ -214,7 +222,8 @@ async def chase_oauth_authorize(
     if not client_id:
         raise HTTPException(status_code=500, detail="Chase OAuth not configured")
 
-    state = f"{org_id}:{user_id}:{credential_type}"
+    # State is cryptographically signed to prevent CSRF/tampering
+    state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     # Chase commercial banking scopes
     scope = "accounts:read transactions:read payments:read"
@@ -298,7 +307,8 @@ async def schwab_oauth_authorize(
     if not client_id:
         raise HTTPException(status_code=500, detail="Schwab OAuth not configured")
 
-    state = f"{org_id}:{user_id}:{credential_type}"
+    # State is cryptographically signed to prevent CSRF/tampering
+    state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     params = {"client_id": client_id, "redirect_uri": redirect_uri, "state": state}
 

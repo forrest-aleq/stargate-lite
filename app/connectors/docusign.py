@@ -1,7 +1,6 @@
 """
 DocuSign connector for Stargate Lite
-Handles envelopes, recipients, documents, and templates
-Uses DocuSign eSignature REST API
+Handles envelopes, recipients, documents, and templates via eSignature REST API
 """
 
 import base64
@@ -422,6 +421,78 @@ class DocuSignConnector:
         return {
             "envelope_id": result["envelopeId"],
             "status": result.get("status"),
+        }
+
+    def get_envelope_audit(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Get audit events for an envelope"""
+        cred = self._get_access_token(org_id, user_id)
+        account_id = cred.get("account_id") or args.get("account_id")
+        base_url = self._get_base_url(account_id)
+        envelope_id = args["envelope_id"]
+
+        result = http_client.get(
+            url=f"{base_url}/envelopes/{envelope_id}/audit_events",
+            service="docusign",
+            headers=self._get_headers(cred["access_token"]),
+        )
+
+        return {
+            "envelope_id": envelope_id,
+            "audit_events": result.get("auditEvents", []),
+        }
+
+    def get_signing_url(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Get an embedded signing URL for a recipient"""
+        cred = self._get_access_token(org_id, user_id)
+        account_id = cred.get("account_id") or args.get("account_id")
+        base_url = self._get_base_url(account_id)
+        envelope_id = args["envelope_id"]
+
+        recipient_view_data = {
+            "recipientName": args["recipient_name"],
+            "recipientEmail": args["recipient_email"],
+            "returnUrl": args["return_url"],
+            "authenticationMethod": "none",
+        }
+
+        result = http_client.post(
+            url=f"{base_url}/envelopes/{envelope_id}/views/recipient",
+            service="docusign",
+            headers=self._get_headers(cred["access_token"]),
+            json=recipient_view_data,
+        )
+
+        return {
+            "envelope_id": envelope_id,
+            "signing_url": result.get("url"),
+        }
+
+    def get_envelope_status(
+        self, org_id: str, user_id: str, args: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Get envelope status details"""
+        cred = self._get_access_token(org_id, user_id)
+        account_id = cred.get("account_id") or args.get("account_id")
+        base_url = self._get_base_url(account_id)
+        envelope_id = args["envelope_id"]
+
+        result = http_client.get(
+            url=f"{base_url}/envelopes/{envelope_id}",
+            service="docusign",
+            headers=self._get_headers(cred["access_token"]),
+        )
+
+        return {
+            "envelope_id": result["envelopeId"],
+            "status": result.get("status"),
+            "status_changed_date_time": result.get("statusChangedDateTime"),
+            "sent_date_time": result.get("sentDateTime"),
+            "delivered_date_time": result.get("deliveredDateTime"),
+            "completed_date_time": result.get("completedDateTime"),
+            "voided_date_time": result.get("voidedDateTime"),
+            "voided_reason": result.get("voidedReason"),
+            "sender": result.get("sender"),
+            "recipients_uri": result.get("recipientsUri"),
         }
 
 

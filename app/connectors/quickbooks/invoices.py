@@ -205,6 +205,91 @@ class QuickBooksInvoicesMixin:
             "count": len(invoices),
         }
 
+    def update_invoice(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Update an invoice in QuickBooks (sparse update)"""
+        cred = self._get_access_token(org_id, user_id)
+        realm_id = cred["realm_id"]
+        invoice_id = args.get("invoice_id", "").replace("qb:", "")
+
+        # Fetch current invoice to get SyncToken
+        url = f"{self.base_url}/{realm_id}/invoice/{invoice_id}"
+        current = http_client.get(
+            url=url,
+            service="quickbooks",
+            headers={
+                "Authorization": f"Bearer {cred['access_token']}",
+                "Accept": "application/json",
+            },
+        )
+        current_inv = current.get("Invoice", {})
+
+        update_data: dict[str, Any] = {
+            "Id": invoice_id,
+            "SyncToken": current_inv.get("SyncToken"),
+            "sparse": True,
+        }
+        if args.get("line_items"):
+            update_data["Line"] = args["line_items"]
+        if args.get("due_date"):
+            update_data["DueDate"] = args["due_date"]
+        if args.get("customer_memo"):
+            update_data["CustomerMemo"] = {"value": args["customer_memo"]}
+        if args.get("private_note"):
+            update_data["PrivateNote"] = args["private_note"]
+
+        url = f"{self.base_url}/{realm_id}/invoice"
+        result = http_client.post(
+            url=url,
+            service="quickbooks",
+            headers={
+                "Authorization": f"Bearer {cred['access_token']}",
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            },
+            json=update_data,
+        )
+        invoice = result.get("Invoice", {})
+        inv_id = invoice.get("Id")
+        return {
+            "invoice_id": f"qb:{inv_id}",
+            "doc_number": invoice.get("DocNumber"),
+            "total_amount": invoice.get("TotalAmt"),
+            "balance": invoice.get("Balance"),
+            "status": "updated",
+            "deep_link": deep_links.invoice_link(inv_id),
+        }
+
+    def delete_invoice(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Delete an invoice from QuickBooks"""
+        cred = self._get_access_token(org_id, user_id)
+        realm_id = cred["realm_id"]
+        invoice_id = args.get("invoice_id", "").replace("qb:", "")
+
+        # Fetch current invoice to get SyncToken
+        url = f"{self.base_url}/{realm_id}/invoice/{invoice_id}"
+        current = http_client.get(
+            url=url,
+            service="quickbooks",
+            headers={
+                "Authorization": f"Bearer {cred['access_token']}",
+                "Accept": "application/json",
+            },
+        )
+        current_inv = current.get("Invoice", {})
+
+        url = f"{self.base_url}/{realm_id}/invoice?operation=delete"
+        http_client.post(
+            url=url,
+            service="quickbooks",
+            headers={
+                "Authorization": f"Bearer {cred['access_token']}",
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            },
+            json={"Id": invoice_id, "SyncToken": current_inv.get("SyncToken")},
+        )
+        return {"invoice_id": f"qb:{invoice_id}", "deleted": True}
+
     def list_outstanding_invoices(
         self, org_id: str, user_id: str, args: dict[str, Any]
     ) -> dict[str, Any]:

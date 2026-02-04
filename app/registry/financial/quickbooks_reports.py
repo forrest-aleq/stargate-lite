@@ -48,6 +48,15 @@ QUICKBOOKS_REPORT_CAPABILITIES = {
         "credential_type": "customer",
         "supports_delegation": False,
     },
+    "report.trialbalance": {
+        "handler": qb_connector.get_trial_balance,
+        "tool_name": "quickbooks.get_trial_balance",
+        "description": "Get Trial Balance report from QuickBooks",
+        "requires_oauth": True,
+        "service": "quickbooks",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
     "report.generalledger": {
         "handler": qb_connector.get_general_ledger,
         "tool_name": "quickbooks.get_general_ledger",
