@@ -12,9 +12,7 @@ from .pipelines import PipelinesMixin
 class OwnersMixin(PipelinesMixin):
     """Mixin with owner operations."""
 
-    def list_owners(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_owners(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List owners in HubSpot"""
         cred = self._get_access_token(org_id, user_id)
         limit = args.get("limit", 100)
@@ -39,9 +37,7 @@ class OwnersMixin(PipelinesMixin):
 
         return {"owners": owners, "count": len(owners)}
 
-    def get_owner(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_owner(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get owner details from HubSpot"""
         cred = self._get_access_token(org_id, user_id)
         owner_id = args.get("owner_id")

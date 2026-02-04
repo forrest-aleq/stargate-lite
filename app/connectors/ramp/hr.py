@@ -10,9 +10,7 @@ from .treasury import TreasuryMixin
 class HRMixin(TreasuryMixin):
     """Mixin with HR and organizational operations."""
 
-    def get_users(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_users(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List Ramp users."""
         result = self._make_request("GET", "/users", org_id, user_id)
 
@@ -56,9 +54,7 @@ class HRMixin(TreasuryMixin):
     ) -> dict[str, Any]:
         """List reimbursements."""
         params: dict[str, Any] = {"page_size": args.get("page_size", 50)}
-        result = self._make_request(
-            "GET", "/reimbursements", org_id, user_id, params=params
-        )
+        result = self._make_request("GET", "/reimbursements", org_id, user_id, params=params)
 
         return {
             "reimbursements": [
@@ -74,9 +70,7 @@ class HRMixin(TreasuryMixin):
             "page": result.get("page"),
         }
 
-    def list_departments(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_departments(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List departments."""
         result = self._make_request("GET", "/departments", org_id, user_id)
 
@@ -90,23 +84,17 @@ class HRMixin(TreasuryMixin):
             ],
         }
 
-    def get_department(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_department(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get a single department by ID."""
         department_id = args.get("department_id")
-        result = self._make_request(
-            "GET", f"/departments/{department_id}", org_id, user_id
-        )
+        result = self._make_request("GET", f"/departments/{department_id}", org_id, user_id)
 
         return {
             "id": result["id"],
             "name": result.get("name"),
         }
 
-    def list_locations(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_locations(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List locations."""
         result = self._make_request("GET", "/locations", org_id, user_id)
 
@@ -120,14 +108,10 @@ class HRMixin(TreasuryMixin):
             ],
         }
 
-    def get_location(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_location(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get a single location by ID."""
         location_id = args.get("location_id")
-        result = self._make_request(
-            "GET", f"/locations/{location_id}", org_id, user_id
-        )
+        result = self._make_request("GET", f"/locations/{location_id}", org_id, user_id)
 
         return {
             "id": result["id"],
@@ -135,14 +119,10 @@ class HRMixin(TreasuryMixin):
             "address": result.get("address"),
         }
 
-    def list_merchants(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_merchants(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List merchants."""
         params: dict[str, Any] = {"page_size": args.get("page_size", 50)}
-        result = self._make_request(
-            "GET", "/merchants", org_id, user_id, params=params
-        )
+        result = self._make_request("GET", "/merchants", org_id, user_id, params=params)
 
         return {
             "merchants": [
@@ -156,14 +136,10 @@ class HRMixin(TreasuryMixin):
             "page": result.get("page"),
         }
 
-    def get_merchant(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_merchant(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get a single merchant by ID."""
         merchant_id = args.get("merchant_id")
-        result = self._make_request(
-            "GET", f"/merchants/{merchant_id}", org_id, user_id
-        )
+        result = self._make_request("GET", f"/merchants/{merchant_id}", org_id, user_id)
 
         return {
             "id": result["id"],
@@ -171,14 +147,10 @@ class HRMixin(TreasuryMixin):
             "category": result.get("category"),
         }
 
-    def list_receipts(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_receipts(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List receipts."""
         params: dict[str, Any] = {"page_size": args.get("page_size", 50)}
-        result = self._make_request(
-            "GET", "/receipts", org_id, user_id, params=params
-        )
+        result = self._make_request("GET", "/receipts", org_id, user_id, params=params)
 
         return {
             "receipts": [
@@ -192,14 +164,10 @@ class HRMixin(TreasuryMixin):
             "page": result.get("page"),
         }
 
-    def get_receipt(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_receipt(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get a single receipt by ID."""
         receipt_id = args.get("receipt_id")
-        result = self._make_request(
-            "GET", f"/receipts/{receipt_id}", org_id, user_id
-        )
+        result = self._make_request("GET", f"/receipts/{receipt_id}", org_id, user_id)
 
         return {
             "id": result["id"],
@@ -225,14 +193,10 @@ class HRMixin(TreasuryMixin):
             ],
         }
 
-    def list_limits(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_limits(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List spending limits."""
         params: dict[str, Any] = {"page_size": args.get("page_size", 50)}
-        result = self._make_request(
-            "GET", "/limits", org_id, user_id, params=params
-        )
+        result = self._make_request("GET", "/limits", org_id, user_id, params=params)
 
         return {
             "limits": [

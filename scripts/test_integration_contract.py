@@ -212,9 +212,9 @@ def main():
     )
     args = parser.parse_args()
 
-    print(f"\n{BLUE}{'='*60}{RESET}")
+    print(f"\n{BLUE}{'=' * 60}{RESET}")
     print(f"{BLUE}Stargate Contract v1.0 Integration Tests{RESET}")
-    print(f"{BLUE}{'='*60}{RESET}")
+    print(f"{BLUE}{'=' * 60}{RESET}")
     print(f"Base URL: {args.url}")
     print(f"API Key: {'*' * 20}")
 
@@ -226,9 +226,9 @@ def main():
     results.append(("Health endpoint", test_health_endpoint(args.url)))
 
     # Summary
-    print(f"\n{BLUE}{'='*60}{RESET}")
+    print(f"\n{BLUE}{'=' * 60}{RESET}")
     print(f"{BLUE}Test Summary{RESET}")
-    print(f"{BLUE}{'='*60}{RESET}")
+    print(f"{BLUE}{'=' * 60}{RESET}")
 
     passed = sum(1 for _, result in results if result)
     total = len(results)

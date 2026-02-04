@@ -11,14 +11,10 @@ from .cards import CardsMixin
 class AccountingMixin(CardsMixin):
     """Mixin with vendor, bill, and accounting operations."""
 
-    def list_vendors(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_vendors(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List accounting vendors."""
         params: dict[str, Any] = {"page_size": args.get("page_size", 50)}
-        result = self._make_request(
-            "GET", "/accounting/vendors", org_id, user_id, params=params
-        )
+        result = self._make_request("GET", "/accounting/vendors", org_id, user_id, params=params)
 
         return {
             "vendors": [
@@ -32,14 +28,10 @@ class AccountingMixin(CardsMixin):
             "page": result.get("page"),
         }
 
-    def get_vendor(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_vendor(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get a single accounting vendor by ID."""
         vendor_id = args.get("vendor_id")
-        result = self._make_request(
-            "GET", f"/accounting/vendors/{vendor_id}", org_id, user_id
-        )
+        result = self._make_request("GET", f"/accounting/vendors/{vendor_id}", org_id, user_id)
 
         return {
             "id": result["id"],
@@ -48,14 +40,10 @@ class AccountingMixin(CardsMixin):
             "address": result.get("address"),
         }
 
-    def list_bills(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_bills(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List bills."""
         params: dict[str, Any] = {"page_size": args.get("page_size", 50)}
-        result = self._make_request(
-            "GET", "/bills", org_id, user_id, params=params
-        )
+        result = self._make_request("GET", "/bills", org_id, user_id, params=params)
 
         return {
             "bills": [
@@ -71,14 +59,10 @@ class AccountingMixin(CardsMixin):
             "page": result.get("page"),
         }
 
-    def get_bill(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_bill(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get a single bill by ID."""
         bill_id = args.get("bill_id")
-        result = self._make_request(
-            "GET", f"/bills/{bill_id}", org_id, user_id
-        )
+        result = self._make_request("GET", f"/bills/{bill_id}", org_id, user_id)
 
         return {
             "id": result["id"],
@@ -93,9 +77,7 @@ class AccountingMixin(CardsMixin):
         self, org_id: str, user_id: str, args: dict[str, Any]
     ) -> dict[str, Any]:
         """Get active accounting connection."""
-        result = self._make_request(
-            "GET", "/accounting/connection", org_id, user_id
-        )
+        result = self._make_request("GET", "/accounting/connection", org_id, user_id)
 
         return {
             "id": result.get("id"),
@@ -108,9 +90,7 @@ class AccountingMixin(CardsMixin):
     ) -> dict[str, Any]:
         """List GL accounts from connected accounting provider."""
         params: dict[str, Any] = {"page_size": args.get("page_size", 50)}
-        result = self._make_request(
-            "GET", "/accounting/accounts", org_id, user_id, params=params
-        )
+        result = self._make_request("GET", "/accounting/accounts", org_id, user_id, params=params)
 
         return {
             "gl_accounts": [

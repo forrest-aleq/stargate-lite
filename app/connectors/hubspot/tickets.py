@@ -12,9 +12,7 @@ from .companies import CompaniesMixin
 class TicketsMixin(CompaniesMixin):
     """Mixin with ticket operations."""
 
-    def create_ticket(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def create_ticket(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Create a ticket in HubSpot"""
         cred = self._get_access_token(org_id, user_id)
 
@@ -44,9 +42,7 @@ class TicketsMixin(CompaniesMixin):
             "created_at": result["createdAt"],
         }
 
-    def get_ticket(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_ticket(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get ticket details from HubSpot"""
         cred = self._get_access_token(org_id, user_id)
         ticket_id = args.get("ticket_id", "").replace("hs:", "")
@@ -66,9 +62,7 @@ class TicketsMixin(CompaniesMixin):
             "priority": result["properties"].get("hs_ticket_priority"),
         }
 
-    def list_tickets(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_tickets(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List tickets from HubSpot"""
         cred = self._get_access_token(org_id, user_id)
         limit = args.get("limit", 100)
@@ -92,9 +86,7 @@ class TicketsMixin(CompaniesMixin):
 
         return {"tickets": tickets, "count": len(tickets)}
 
-    def update_ticket(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def update_ticket(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Update a ticket in HubSpot"""
         cred = self._get_access_token(org_id, user_id)
         ticket_id = args.get("ticket_id", "").replace("hs:", "")
@@ -126,9 +118,7 @@ class TicketsMixin(CompaniesMixin):
             "updated_at": result.get("updatedAt"),
         }
 
-    def delete_ticket(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def delete_ticket(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Delete a ticket from HubSpot"""
         cred = self._get_access_token(org_id, user_id)
         ticket_id = args.get("ticket_id", "").replace("hs:", "")
@@ -142,9 +132,7 @@ class TicketsMixin(CompaniesMixin):
 
         return {"ticket_id": f"hs:{ticket_id}", "status": "deleted"}
 
-    def search_tickets(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def search_tickets(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Search tickets in HubSpot"""
         cred = self._get_access_token(org_id, user_id)
         query = args.get("query", "")

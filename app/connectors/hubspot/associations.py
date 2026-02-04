@@ -12,9 +12,7 @@ from .tickets import TicketsMixin
 class AssociationsMixin(TicketsMixin):
     """Mixin with association operations."""
 
-    def create_association(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def create_association(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Create an association between two objects"""
         cred = self._get_access_token(org_id, user_id)
 
@@ -24,10 +22,7 @@ class AssociationsMixin(TicketsMixin):
         to_id = args.get("to_id", "").replace("hs:", "")
         association_type = args.get("association_type")
 
-        url = (
-            f"{self.BASE_URL}/crm/v4/objects/{from_type}/{from_id}"
-            f"/associations/{to_type}/{to_id}"
-        )
+        url = f"{self.BASE_URL}/crm/v4/objects/{from_type}/{from_id}/associations/{to_type}/{to_id}"
 
         result = http_client.put(
             url=url,
@@ -51,9 +46,7 @@ class AssociationsMixin(TicketsMixin):
             "labels": result.get("labels", []),
         }
 
-    def list_associations(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_associations(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List associations for an object"""
         cred = self._get_access_token(org_id, user_id)
 
@@ -61,10 +54,7 @@ class AssociationsMixin(TicketsMixin):
         from_id = args.get("from_id", "").replace("hs:", "")
         to_type = args.get("to_type")
 
-        url = (
-            f"{self.BASE_URL}/crm/v4/objects/{from_type}/{from_id}"
-            f"/associations/{to_type}"
-        )
+        url = f"{self.BASE_URL}/crm/v4/objects/{from_type}/{from_id}/associations/{to_type}"
 
         result = http_client.get(
             url=url,
@@ -87,9 +77,7 @@ class AssociationsMixin(TicketsMixin):
             "count": len(associations),
         }
 
-    def delete_association(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def delete_association(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Delete an association between two objects"""
         cred = self._get_access_token(org_id, user_id)
 
@@ -98,10 +86,7 @@ class AssociationsMixin(TicketsMixin):
         to_type = args.get("to_type")
         to_id = args.get("to_id", "").replace("hs:", "")
 
-        url = (
-            f"{self.BASE_URL}/crm/v4/objects/{from_type}/{from_id}"
-            f"/associations/{to_type}/{to_id}"
-        )
+        url = f"{self.BASE_URL}/crm/v4/objects/{from_type}/{from_id}/associations/{to_type}/{to_id}"
 
         http_client.delete(
             url=url,

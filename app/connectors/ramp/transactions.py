@@ -10,9 +10,7 @@ from .base import RampBase
 class TransactionsMixin(RampBase):
     """Mixin with transaction operations."""
 
-    def list_transactions(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_transactions(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List card transactions."""
         params = {
             "start": args.get("start_date"),
@@ -38,14 +36,10 @@ class TransactionsMixin(RampBase):
             "page": result.get("page"),
         }
 
-    def get_transaction(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_transaction(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get a single transaction by ID."""
         transaction_id = args.get("transaction_id")
-        result = self._make_request(
-            "GET", f"/transactions/{transaction_id}", org_id, user_id
-        )
+        result = self._make_request("GET", f"/transactions/{transaction_id}", org_id, user_id)
 
         return {
             "id": result["id"],

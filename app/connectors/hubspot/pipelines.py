@@ -12,9 +12,7 @@ from .associations import AssociationsMixin
 class PipelinesMixin(AssociationsMixin):
     """Mixin with pipeline operations."""
 
-    def list_pipelines(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_pipelines(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List pipelines for an object type"""
         cred = self._get_access_token(org_id, user_id)
         object_type = args.get("object_type", "deals")
@@ -38,9 +36,7 @@ class PipelinesMixin(AssociationsMixin):
 
         return {"object_type": object_type, "pipelines": pipelines}
 
-    def get_pipeline(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_pipeline(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get pipeline details with stages"""
         cred = self._get_access_token(org_id, user_id)
         object_type = args.get("object_type", "deals")
@@ -77,10 +73,7 @@ class PipelinesMixin(AssociationsMixin):
         object_type = args.get("object_type", "deals")
         pipeline_id = args.get("pipeline_id")
 
-        url = (
-            f"{self.BASE_URL}/crm/v3/pipelines"
-            f"/{object_type}/{pipeline_id}/stages"
-        )
+        url = f"{self.BASE_URL}/crm/v3/pipelines/{object_type}/{pipeline_id}/stages"
         result = http_client.get(
             url=url,
             service="hubspot",

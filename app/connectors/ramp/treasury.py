@@ -11,14 +11,10 @@ from .accounting import AccountingMixin
 class TreasuryMixin(AccountingMixin):
     """Mixin with treasury operations."""
 
-    def get_bank_account(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_bank_account(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get bank account by ID."""
         bank_account_id = args.get("bank_account_id")
-        result = self._make_request(
-            "GET", f"/bank-accounts/{bank_account_id}", org_id, user_id
-        )
+        result = self._make_request("GET", f"/bank-accounts/{bank_account_id}", org_id, user_id)
 
         return {
             "id": result["id"],
@@ -27,9 +23,7 @@ class TreasuryMixin(AccountingMixin):
             "status": result.get("status"),
         }
 
-    def list_entities(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_entities(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List business entities."""
         result = self._make_request("GET", "/entities", org_id, user_id)
 
@@ -44,14 +38,10 @@ class TreasuryMixin(AccountingMixin):
             ],
         }
 
-    def get_entity(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_entity(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get a single entity by ID."""
         entity_id = args.get("entity_id")
-        result = self._make_request(
-            "GET", f"/entities/{entity_id}", org_id, user_id
-        )
+        result = self._make_request("GET", f"/entities/{entity_id}", org_id, user_id)
 
         return {
             "id": result["id"],
@@ -59,14 +49,10 @@ class TreasuryMixin(AccountingMixin):
             "status": result.get("status"),
         }
 
-    def list_cashbacks(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_cashbacks(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List cashback earnings."""
         params: dict[str, Any] = {"page_size": args.get("page_size", 50)}
-        result = self._make_request(
-            "GET", "/cashbacks", org_id, user_id, params=params
-        )
+        result = self._make_request("GET", "/cashbacks", org_id, user_id, params=params)
 
         return {
             "cashbacks": [
@@ -80,9 +66,7 @@ class TreasuryMixin(AccountingMixin):
             "page": result.get("page"),
         }
 
-    def get_business(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_business(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get company/business info."""
         result = self._make_request("GET", "/business", org_id, user_id)
 
@@ -96,9 +80,7 @@ class TreasuryMixin(AccountingMixin):
         self, org_id: str, user_id: str, args: dict[str, Any]
     ) -> dict[str, Any]:
         """Get business balance."""
-        result = self._make_request(
-            "GET", "/business/balance", org_id, user_id
-        )
+        result = self._make_request("GET", "/business/balance", org_id, user_id)
 
         return {
             "balance": result.get("balance"),

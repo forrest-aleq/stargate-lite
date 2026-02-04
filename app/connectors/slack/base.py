@@ -3,7 +3,6 @@ Slack connector base with authentication.
 """
 
 import os
-from typing import Any
 
 from app.database import CredentialManager
 from app.logging_config import get_logger
@@ -25,9 +24,7 @@ class SlackBase:
         cred = CredentialManager.get_credential(org_id, user_id, "slack")
 
         if not cred:
-            raise ValueError(
-                f"No Slack credentials found for org_id={org_id}, user_id={user_id}"
-            )
+            raise ValueError(f"No Slack credentials found for org_id={org_id}, user_id={user_id}")
 
         # Slack tokens don't expire in the same way as other OAuth tokens
         # They remain valid until revoked

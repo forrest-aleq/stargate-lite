@@ -13,9 +13,7 @@ from .base import SlackBase
 class MessagingMixin(SlackBase):
     """Mixin with message operations."""
 
-    def send_message(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def send_message(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Send a message to a Slack channel or user"""
         token = self._get_access_token(org_id, user_id)
         client = WebClient(token=token)
@@ -66,9 +64,7 @@ class MessagingMixin(SlackBase):
         except SlackApiError as e:
             raise Exception(f"Slack API error: {e.response['error']}") from e
 
-    def update_message(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def update_message(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Update (edit) a message"""
         token = self._get_access_token(org_id, user_id)
         client = WebClient(token=token)
@@ -90,9 +86,7 @@ class MessagingMixin(SlackBase):
         except SlackApiError as e:
             raise Exception(f"Slack API error: {e.response['error']}") from e
 
-    def delete_message(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def delete_message(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Delete a message"""
         token = self._get_access_token(org_id, user_id)
         client = WebClient(token=token)
@@ -108,9 +102,7 @@ class MessagingMixin(SlackBase):
         except SlackApiError as e:
             raise Exception(f"Slack API error: {e.response['error']}") from e
 
-    def pin_message(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def pin_message(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Pin a message to a channel"""
         token = self._get_access_token(org_id, user_id)
         client = WebClient(token=token)
@@ -126,9 +118,7 @@ class MessagingMixin(SlackBase):
         except SlackApiError as e:
             raise Exception(f"Slack API error: {e.response['error']}") from e
 
-    def unpin_message(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def unpin_message(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Unpin a message from a channel"""
         token = self._get_access_token(org_id, user_id)
         client = WebClient(token=token)
@@ -144,9 +134,7 @@ class MessagingMixin(SlackBase):
         except SlackApiError as e:
             raise Exception(f"Slack API error: {e.response['error']}") from e
 
-    def schedule_message(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def schedule_message(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Schedule a message for future delivery"""
         token = self._get_access_token(org_id, user_id)
         client = WebClient(token=token)
@@ -156,9 +144,7 @@ class MessagingMixin(SlackBase):
             text = args.get("text")
             post_at = args.get("post_at")
 
-            response = client.chat_scheduleMessage(
-                channel=channel, text=text, post_at=post_at
-            )
+            response = client.chat_scheduleMessage(channel=channel, text=text, post_at=post_at)
 
             return {
                 "scheduled_message_id": response["scheduled_message_id"],
@@ -170,9 +156,7 @@ class MessagingMixin(SlackBase):
         except SlackApiError as e:
             raise Exception(f"Slack API error: {e.response['error']}") from e
 
-    def get_thread_replies(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_thread_replies(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get replies in a message thread"""
         token = self._get_access_token(org_id, user_id)
         client = WebClient(token=token)
@@ -182,9 +166,7 @@ class MessagingMixin(SlackBase):
             ts = args.get("timestamp")
             limit = args.get("limit", 100)
 
-            response = client.conversations_replies(
-                channel=channel, ts=ts, limit=limit
-            )
+            response = client.conversations_replies(channel=channel, ts=ts, limit=limit)
 
             messages = [
                 {
@@ -206,9 +188,7 @@ class MessagingMixin(SlackBase):
         except SlackApiError as e:
             raise Exception(f"Slack API error: {e.response['error']}") from e
 
-    def add_reaction(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def add_reaction(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Add a reaction to a message"""
         token = self._get_access_token(org_id, user_id)
         client = WebClient(token=token)
@@ -218,9 +198,7 @@ class MessagingMixin(SlackBase):
             timestamp = args.get("timestamp")
             name = args.get("name")
 
-            client.reactions_add(
-                channel=channel_id, timestamp=timestamp, name=name
-            )
+            client.reactions_add(channel=channel_id, timestamp=timestamp, name=name)
 
             return {
                 "channel_id": channel_id,
@@ -232,9 +210,7 @@ class MessagingMixin(SlackBase):
         except SlackApiError as e:
             raise Exception(f"Slack API error: {e.response['error']}") from e
 
-    def remove_reaction(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def remove_reaction(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Remove a reaction from a message"""
         token = self._get_access_token(org_id, user_id)
         client = WebClient(token=token)
@@ -244,9 +220,7 @@ class MessagingMixin(SlackBase):
             timestamp = args.get("timestamp")
             name = args.get("name")
 
-            client.reactions_remove(
-                channel=channel_id, timestamp=timestamp, name=name
-            )
+            client.reactions_remove(channel=channel_id, timestamp=timestamp, name=name)
 
             return {
                 "channel_id": channel_id,
@@ -258,9 +232,7 @@ class MessagingMixin(SlackBase):
         except SlackApiError as e:
             raise Exception(f"Slack API error: {e.response['error']}") from e
 
-    def search_messages(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def search_messages(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Search for messages in the workspace"""
         token = self._get_access_token(org_id, user_id)
         client = WebClient(token=token)

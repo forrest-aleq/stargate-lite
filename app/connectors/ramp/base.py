@@ -34,9 +34,7 @@ class RampBase:
             raise CredentialMissingError("ramp", org_id, user_id)
 
         # Ramp tokens expire after 1 hour — refresh if within 5 minutes
-        if cred["token_expiry"] and cred["token_expiry"] < datetime.utcnow() + timedelta(
-            minutes=5
-        ):
+        if cred["token_expiry"] and cred["token_expiry"] < datetime.utcnow() + timedelta(minutes=5):
             logger.info(
                 "Token expired or expiring soon, refreshing",
                 service="ramp",
@@ -48,9 +46,7 @@ class RampBase:
 
         return cred
 
-    def _refresh_token(
-        self, org_id: str, user_id: str, refresh_token: str
-    ) -> dict[str, Any]:
+    def _refresh_token(self, org_id: str, user_id: str, refresh_token: str) -> dict[str, Any]:
         """Refresh the access token."""
         logger.info(
             "Refreshing Ramp token",
@@ -73,9 +69,7 @@ class RampBase:
                 },
             )
 
-            new_expiry = datetime.utcnow() + timedelta(
-                seconds=token_data["expires_in"]
-            )
+            new_expiry = datetime.utcnow() + timedelta(seconds=token_data["expires_in"])
 
             CredentialManager.store_credential(
                 org_id=org_id,
@@ -146,9 +140,7 @@ class RampBase:
         headers = self._get_headers(cred["access_token"])
 
         if method == "GET":
-            return http_client.get(
-                url=url, service="ramp", headers=headers, params=params or data
-            )
+            return http_client.get(url=url, service="ramp", headers=headers, params=params or data)
 
         result: dict[str, Any] = http_client.request(
             method=method, url=url, service="ramp", headers=headers, json=data

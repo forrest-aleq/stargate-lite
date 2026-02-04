@@ -12,9 +12,7 @@ from .notes import NotesMixin
 class PropertiesMixin(NotesMixin):
     """Mixin with property operations."""
 
-    def list_properties(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_properties(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List properties for an object type"""
         cred = self._get_access_token(org_id, user_id)
         object_type = args.get("object_type", "contacts")

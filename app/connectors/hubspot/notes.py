@@ -12,9 +12,7 @@ from .owners import OwnersMixin
 class NotesMixin(OwnersMixin):
     """Mixin with note operations."""
 
-    def create_note(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def create_note(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Create a note in HubSpot"""
         cred = self._get_access_token(org_id, user_id)
 
@@ -42,9 +40,7 @@ class NotesMixin(OwnersMixin):
             "created_at": result["createdAt"],
         }
 
-    def list_notes(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_notes(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List notes from HubSpot"""
         cred = self._get_access_token(org_id, user_id)
         limit = args.get("limit", 100)
@@ -68,9 +64,7 @@ class NotesMixin(OwnersMixin):
 
         return {"notes": notes, "count": len(notes)}
 
-    def get_note(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_note(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get note details from HubSpot"""
         cred = self._get_access_token(org_id, user_id)
         note_id = args.get("note_id", "").replace("hs:", "")

@@ -13,9 +13,7 @@ from .messaging import MessagingMixin
 class ChannelsMixin(MessagingMixin):
     """Mixin with channel and user operations."""
 
-    def upload_file(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def upload_file(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Upload a file to Slack"""
         token = self._get_access_token(org_id, user_id)
         client = WebClient(token=token)
@@ -45,9 +43,7 @@ class ChannelsMixin(MessagingMixin):
         except SlackApiError as e:
             raise Exception(f"Slack API error: {e.response['error']}") from e
 
-    def create_channel(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def create_channel(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Create a Slack channel"""
         token = self._get_access_token(org_id, user_id)
         client = WebClient(token=token)
@@ -56,9 +52,7 @@ class ChannelsMixin(MessagingMixin):
             name = args.get("name")
             is_private = args.get("is_private", False)
 
-            response = client.conversations_create(
-                name=name, is_private=is_private
-            )
+            response = client.conversations_create(name=name, is_private=is_private)
 
             return {
                 "channel_id": response["channel"]["id"],
@@ -70,9 +64,7 @@ class ChannelsMixin(MessagingMixin):
         except SlackApiError as e:
             raise Exception(f"Slack API error: {e.response['error']}") from e
 
-    def invite_to_channel(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def invite_to_channel(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Invite users to a Slack channel"""
         token = self._get_access_token(org_id, user_id)
         client = WebClient(token=token)
@@ -81,9 +73,7 @@ class ChannelsMixin(MessagingMixin):
             channel_id = args.get("channel_id")
             user_ids = args.get("user_ids")
 
-            response = client.conversations_invite(
-                channel=channel_id, users=user_ids
-            )
+            response = client.conversations_invite(channel=channel_id, users=user_ids)
 
             return {
                 "channel_id": response["channel"]["id"],
@@ -105,9 +95,7 @@ class ChannelsMixin(MessagingMixin):
             channel_id = args.get("channel_id")
             limit = args.get("limit", 100)
 
-            response = client.conversations_history(
-                channel=channel_id, limit=limit
-            )
+            response = client.conversations_history(channel=channel_id, limit=limit)
 
             messages = [
                 {
@@ -128,9 +116,7 @@ class ChannelsMixin(MessagingMixin):
         except SlackApiError as e:
             raise Exception(f"Slack API error: {e.response['error']}") from e
 
-    def list_channels(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_channels(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List all channels in the workspace"""
         token = self._get_access_token(org_id, user_id)
         client = WebClient(token=token)
@@ -157,9 +143,7 @@ class ChannelsMixin(MessagingMixin):
         except SlackApiError as e:
             raise Exception(f"Slack API error: {e.response['error']}") from e
 
-    def get_channel_info(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_channel_info(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get detailed information about a channel"""
         token = self._get_access_token(org_id, user_id)
         client = WebClient(token=token)
@@ -184,9 +168,7 @@ class ChannelsMixin(MessagingMixin):
         except SlackApiError as e:
             raise Exception(f"Slack API error: {e.response['error']}") from e
 
-    def archive_channel(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def archive_channel(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Archive a Slack channel"""
         token = self._get_access_token(org_id, user_id)
         client = WebClient(token=token)
@@ -201,9 +183,7 @@ class ChannelsMixin(MessagingMixin):
         except SlackApiError as e:
             raise Exception(f"Slack API error: {e.response['error']}") from e
 
-    def set_channel_topic(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def set_channel_topic(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Set the topic for a Slack channel"""
         token = self._get_access_token(org_id, user_id)
         client = WebClient(token=token)
@@ -212,9 +192,7 @@ class ChannelsMixin(MessagingMixin):
             channel_id = args.get("channel_id")
             topic = args.get("topic", "")
 
-            response = client.conversations_setTopic(
-                channel=channel_id, topic=topic
-            )
+            response = client.conversations_setTopic(channel=channel_id, topic=topic)
 
             return {
                 "channel_id": response["channel"]["id"],
@@ -236,9 +214,7 @@ class ChannelsMixin(MessagingMixin):
             channel_id = args.get("channel_id")
             purpose = args.get("purpose", "")
 
-            response = client.conversations_setPurpose(
-                channel=channel_id, purpose=purpose
-            )
+            response = client.conversations_setPurpose(channel=channel_id, purpose=purpose)
 
             return {
                 "channel_id": response["channel"]["id"],
@@ -249,9 +225,7 @@ class ChannelsMixin(MessagingMixin):
         except SlackApiError as e:
             raise Exception(f"Slack API error: {e.response['error']}") from e
 
-    def list_users(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_users(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List all users in the workspace"""
         token = self._get_access_token(org_id, user_id)
         client = WebClient(token=token)
@@ -266,9 +240,7 @@ class ChannelsMixin(MessagingMixin):
                     "user_id": user["id"],
                     "name": user.get("name"),
                     "real_name": user.get("real_name"),
-                    "display_name": user.get("profile", {}).get(
-                        "display_name"
-                    ),
+                    "display_name": user.get("profile", {}).get("display_name"),
                     "email": user.get("profile", {}).get("email"),
                     "is_bot": user.get("is_bot", False),
                     "is_admin": user.get("is_admin", False),
@@ -282,9 +254,7 @@ class ChannelsMixin(MessagingMixin):
         except SlackApiError as e:
             raise Exception(f"Slack API error: {e.response['error']}") from e
 
-    def get_user_info(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_user_info(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get detailed information about a user"""
         token = self._get_access_token(org_id, user_id)
         client = WebClient(token=token)

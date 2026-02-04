@@ -10,9 +10,7 @@ from .transactions import TransactionsMixin
 class CardsMixin(TransactionsMixin):
     """Mixin with card operations."""
 
-    def list_cards(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def list_cards(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List all cards."""
         params: dict[str, Any] = {"page_size": args.get("page_size", 50)}
         if args.get("user_id_filter"):
@@ -35,9 +33,7 @@ class CardsMixin(TransactionsMixin):
             "page": result.get("page"),
         }
 
-    def get_card(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_card(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get a single card by ID."""
         card_id = args.get("card_id")
         result = self._make_request("GET", f"/cards/{card_id}", org_id, user_id)
@@ -51,9 +47,7 @@ class CardsMixin(TransactionsMixin):
             "spending_restrictions": result.get("spending_restrictions"),
         }
 
-    def create_card(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def create_card(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Create a virtual or physical card."""
         card_data = {
             "user_id": args.get("ramp_user_id"),

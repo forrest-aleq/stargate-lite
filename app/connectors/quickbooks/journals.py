@@ -57,9 +57,7 @@ class QuickBooksJournalsMixin:
             "deep_link": deep_links.journal_entry_link(je_id),
         }
 
-    def get_journal_entry(
-        self, org_id: str, user_id: str, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_journal_entry(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Get a journal entry from QuickBooks"""
         cred = self._get_access_token(org_id, user_id)
         realm_id = cred["realm_id"]
