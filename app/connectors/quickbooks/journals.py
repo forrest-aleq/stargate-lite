@@ -89,7 +89,9 @@ class QuickBooksJournalsMixin:
         """List journal entries from QuickBooks"""
         cred = self._get_access_token(org_id, user_id)
         realm_id = cred["realm_id"]
-        query = f"SELECT * FROM JournalEntry MAXRESULTS {args.get('limit', 100)}"
+        # Sanitize limit to integer (QuickBooks Query Language, not SQL database)
+        limit = int(args.get("limit", 100))
+        query = f"SELECT * FROM JournalEntry MAXRESULTS {limit}"  # nosec B608
 
         url = f"{self.base_url}/{realm_id}/query?query={query}"
         result = http_client.get(

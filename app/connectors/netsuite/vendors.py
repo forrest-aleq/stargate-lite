@@ -142,7 +142,8 @@ class VendorsMixin(JournalEntriesMixin):
         # Note: SuiteQL doesn't support parameterized queries, so we use escaping
         vendor_name_safe = vendor_name.replace("'", "''")
 
-        # Use SuiteQL to search vendors (concatenation to avoid f-string injection warnings)
+        # Use SuiteQL to search vendors
+        # nosec B608: Input sanitized via quote escaping, SuiteQL doesn't support parameterization
         query = (
             "SELECT id, companyname, email, phone FROM vendor "
             "WHERE LOWER(companyname) LIKE LOWER('%" + vendor_name_safe + "%') "

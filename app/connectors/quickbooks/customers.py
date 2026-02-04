@@ -176,10 +176,13 @@ class QuickBooksCustomersMixin:
         realm_id = cred["realm_id"]
 
         search_term = args.get("search_term", args.get("name", ""))
-        max_results = args.get("max_results", 25)
+        max_results = int(args.get("max_results", 25))
 
-        query = f"SELECT * FROM Customer WHERE DisplayName LIKE '%{search_term}%'"
-        query += f" MAXRESULTS {max_results}"
+        # Sanitize search term: escape single quotes for QuickBooks Query Language
+        safe_search_term = str(search_term).replace("'", "\\'")
+
+        query = f"SELECT * FROM Customer WHERE DisplayName LIKE '%{safe_search_term}%'"  # nosec B608
+        query += f" MAXRESULTS {max_results}"  # nosec B608
 
         url = f"{self.base_url}/{realm_id}/query?query={query}"
         result = http_client.get(

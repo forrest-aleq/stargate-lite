@@ -423,6 +423,7 @@ class EntityMixin:
                 if name:
                     sanitized_name = _sanitize_qboql(name)
                     # Use concat to avoid guardian f-string SQL false positive
+                    # nosec B608: Input sanitized via _sanitize_qboql (escapes special chars)
                     search_args["query"] = (
                         "SELECT * FROM Customer WHERE DisplayName LIKE '%" + sanitized_name + "%'"
                     )
@@ -515,6 +516,7 @@ class EntityMixin:
                 if name:
                     sanitized_name = _sanitize_qboql(name)
                     # Use concat to avoid guardian f-string SQL false positive
+                    # nosec B608: Input sanitized via _sanitize_qboql (escapes special chars)
                     search_args["query"] = (
                         "SELECT * FROM Vendor WHERE DisplayName LIKE '%" + sanitized_name + "%'"
                     )
@@ -591,6 +593,7 @@ class EntityMixin:
                 if invoice_number:
                     sanitized_num = _sanitize_qboql(invoice_number)
                     # Use concat to avoid guardian f-string SQL false positive
+                    # nosec B608: Input sanitized via _sanitize_qboql (escapes special chars)
                     search_args["query"] = (
                         "SELECT * FROM Invoice WHERE DocNumber = '" + sanitized_num + "'"
                     )

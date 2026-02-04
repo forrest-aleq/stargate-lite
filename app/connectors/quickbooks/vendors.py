@@ -91,12 +91,13 @@ class QuickBooksVendorsMixin:
         cred = self._get_access_token(org_id, user_id)
         realm_id = cred["realm_id"]
 
-        max_results = args.get("max_results", 100)
-        start_position = args.get("start_position", 1)
-        active_only = args.get("active_only", True)
+        max_results = int(args.get("max_results", 100))
+        start_position = int(args.get("start_position", 1))
+        active_only = bool(args.get("active_only", True))
 
-        query = f"SELECT * FROM Vendor WHERE Active = {str(active_only).lower()}"
-        query += f" STARTPOSITION {start_position} MAXRESULTS {max_results}"
+        # Safe: boolean converted to lowercase string, integers validated
+        query = f"SELECT * FROM Vendor WHERE Active = {str(active_only).lower()}"  # nosec B608
+        query += f" STARTPOSITION {start_position} MAXRESULTS {max_results}"  # nosec B608
 
         url = f"{self.base_url}/{realm_id}/query"
         result = http_client.get(
@@ -184,10 +185,13 @@ class QuickBooksVendorsMixin:
         realm_id = cred["realm_id"]
 
         search_term = args.get("search_term", args.get("name", ""))
-        max_results = args.get("max_results", 25)
+        max_results = int(args.get("max_results", 25))
 
-        query = f"SELECT * FROM Vendor WHERE DisplayName LIKE '%{search_term}%'"
-        query += f" MAXRESULTS {max_results}"
+        # Sanitize search term: escape single quotes for QuickBooks Query Language
+        safe_search_term = str(search_term).replace("'", "\\'")
+
+        query = f"SELECT * FROM Vendor WHERE DisplayName LIKE '%{safe_search_term}%'"  # nosec B608
+        query += f" MAXRESULTS {max_results}"  # nosec B608
 
         url = f"{self.base_url}/{realm_id}/query"
         result = http_client.get(
