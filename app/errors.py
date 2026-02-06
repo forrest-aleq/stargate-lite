@@ -83,6 +83,7 @@ class StargateError(Exception):
             "status": "error",  # Contract-compliant: always "error"
             "error_code": self.error_code.value,
             "error_message": self.message,
+            "retry_strategy": self.retry_strategy.value,  # REQUIRED per Baby MARS contract
             "details": self.details,
             # Note: capability_key, timestamp, logs added by caller (main.py)
         }
