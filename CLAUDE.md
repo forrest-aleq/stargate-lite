@@ -268,7 +268,7 @@ Token refresh is handled automatically by connectors when tokens are near expiry
 
 ### Release Process
 
-**Read `docs/RELEASE_GUIDE.md` before any release work.**
+**Read `docs/operations/RELEASE_GUIDE.md` before any release work.**
 
 1. **Never ship on Friday** - No exceptions
 2. **Always run tests before committing**: `make test`
