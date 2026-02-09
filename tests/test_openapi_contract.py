@@ -41,7 +41,7 @@ def client() -> TestClient:
 def openapi_spec() -> dict[str, Any]:
     """Load OpenAPI spec for validation."""
     spec_path = Path(__file__).parent.parent / "openapi.json"
-    with open(spec_path) as f:
+    with spec_path.open() as f:
         return json.load(f)
 
 
@@ -67,9 +67,7 @@ class TestToolExecutionResponseContract:
             assert field in properties, f"Optional field {field} missing from schema"
 
     @patch("app.routers.execute.get_capability")
-    def test_success_response_shape(
-        self, mock_get_cap: MagicMock, client: TestClient
-    ) -> None:
+    def test_success_response_shape(self, mock_get_cap: MagicMock, client: TestClient) -> None:
         """Actual success response matches ToolExecutionResponse schema."""
         mock_handler = MagicMock(return_value={"vendor_id": "qb:123"})
         mock_get_cap.return_value = {
@@ -134,9 +132,7 @@ class TestErrorResponseContract:
             assert field in properties, f"Optional field {field} missing from schema"
 
     @patch("app.routers.execute.get_capability")
-    def test_error_response_shape(
-        self, mock_get_cap: MagicMock, client: TestClient
-    ) -> None:
+    def test_error_response_shape(self, mock_get_cap: MagicMock, client: TestClient) -> None:
         """Actual error response matches ErrorResponse schema."""
         from app.errors import StargateError
 
@@ -217,9 +213,7 @@ class TestErrorCodeContract:
 
         assert enum_values == expected_codes
 
-    def test_error_code_python_enum_matches_spec(
-        self, openapi_spec: dict[str, Any]
-    ) -> None:
+    def test_error_code_python_enum_matches_spec(self, openapi_spec: dict[str, Any]) -> None:
         """Python ErrorCode enum matches OpenAPI spec."""
         spec_enum = set(openapi_spec["components"]["schemas"]["ErrorCode"]["enum"])
         python_enum = {code.value for code in ErrorCode}
@@ -240,16 +234,12 @@ class TestRetryStrategyContract:
 
         assert enum_values == expected_strategies
 
-    def test_retry_strategy_python_enum_matches_spec(
-        self, openapi_spec: dict[str, Any]
-    ) -> None:
+    def test_retry_strategy_python_enum_matches_spec(self, openapi_spec: dict[str, Any]) -> None:
         """Python RetryStrategy enum matches OpenAPI spec."""
         spec_enum = set(openapi_spec["components"]["schemas"]["RetryStrategy"]["enum"])
         python_enum = {strategy.value for strategy in RetryStrategy}
 
-        assert (
-            python_enum == spec_enum
-        ), "Python RetryStrategy enum doesn't match OpenAPI spec"
+        assert python_enum == spec_enum, "Python RetryStrategy enum doesn't match OpenAPI spec"
 
     def test_all_error_codes_have_retry_strategy(self) -> None:
         """Every ErrorCode has a mapped RetryStrategy."""

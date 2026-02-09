@@ -28,9 +28,9 @@ def test_capability_count():
         from app.registry import CAPABILITY_REGISTRY
 
         # Minimum expected capabilities - can grow as services are added
-        assert len(CAPABILITY_REGISTRY) >= 600, (
-            f"Expected at least 600 capabilities, got {len(CAPABILITY_REGISTRY)}"
-        )
+        assert (
+            len(CAPABILITY_REGISTRY) >= 600
+        ), f"Expected at least 600 capabilities, got {len(CAPABILITY_REGISTRY)}"
     except ImportError:
         pytest.skip("Dependencies not installed")
 
@@ -103,9 +103,9 @@ def test_service_counts():
         # Verify minimum counts are met
         for service, min_count in minimum_counts.items():
             actual_count = actual_counts.get(service, 0)
-            assert actual_count >= min_count, (
-                f"Service '{service}': expected at least {min_count} endpoints, got {actual_count}"
-            )
+            assert (
+                actual_count >= min_count
+            ), f"Service '{service}': expected at least {min_count} endpoints, got {actual_count}"
     except ImportError:
         pytest.skip("Dependencies not installed")
 

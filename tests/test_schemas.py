@@ -28,9 +28,9 @@ def test_schema_registry_count():
         from app.schemas import SCHEMA_REGISTRY
 
         # Minimum expected schemas - can grow as services are added
-        assert len(SCHEMA_REGISTRY) >= 500, (
-            f"Expected at least 500 schemas, got {len(SCHEMA_REGISTRY)}"
-        )
+        assert (
+            len(SCHEMA_REGISTRY) >= 500
+        ), f"Expected at least 500 schemas, got {len(SCHEMA_REGISTRY)}"
     except ImportError:
         pytest.skip("Dependencies not installed")
 
@@ -250,9 +250,9 @@ def test_schema_errors_are_valid():
 
         for key, schema in SCHEMA_REGISTRY.items():
             for error in schema.errors:
-                assert error.error_code in valid_error_codes, (
-                    f"Invalid error code {error.error_code} in {key}"
-                )
+                assert (
+                    error.error_code in valid_error_codes
+                ), f"Invalid error code {error.error_code} in {key}"
                 assert error.description, f"Missing error description in {key}"
                 assert error.recovery_hint, f"Missing recovery hint in {key}"
     except ImportError:
