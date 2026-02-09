@@ -28,10 +28,10 @@ pytest tests/test_registry.py -v
 
 ### 1. Setup Environment
 
-Copy `.env.template` to `.env` and fill in credentials for platforms you want to test:
+Copy `.env.example` to `.env` and fill in credentials for platforms you want to test:
 
 ```bash
-cp .env.template .env
+cp .env.example .env
 # Edit .env with your API credentials
 ```
 

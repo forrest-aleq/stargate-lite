@@ -398,7 +398,7 @@ stargate-lite/
 │       └── hyperbrowser_v2.py  # Browser automation (9 capabilities)
 ├── requirements.txt
 ├── setup.sh
-├── .env.template
+├── .env.example
 └── README.md
 ```
 

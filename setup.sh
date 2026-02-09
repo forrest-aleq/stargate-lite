@@ -44,17 +44,17 @@ EOF
 if [ ! -f .env ]; then
     echo ""
     echo "📝 Creating .env file from template..."
-    cp .env.template .env
+    cp .env.example .env
     echo "⚠️  Please edit .env and add your API credentials!"
 else
     echo ""
     echo "ℹ️  .env file already exists, skipping..."
 fi
 
-# Initialize database
+# Run database migrations
 echo ""
-echo "🗄️  Initializing database..."
-python3 -c "from app.database import init_db; init_db()"
+echo "🗄️  Running database migrations..."
+alembic upgrade head
 
 echo ""
 echo "========================================="
