@@ -50,8 +50,9 @@ colorama==0.4.6
 # OCR / Document Intelligence
 deepdoctection[source-pt]>=0.35.0
 
-# Browser Automation (Anthropic Computer Use)
+# Browser Automation (Hyperbrowser Cloud + Anthropic)
 anthropic==0.71.0
+hyperbrowser>=0.80.0
 
 # MFA / TOTP Support
 pyotp==2.9.0

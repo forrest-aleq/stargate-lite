@@ -32,11 +32,10 @@ from app.schemas import has_schema
 # - schwab: Trading operations - HIGH RISK, requires extensive testing
 # - blandai: Voice AI - cost implications, requires careful monitoring
 # - twilio: SMS/Voice - cost implications, potential for abuse
-# - hyperbrowser: Web automation - may be blocked, security concerns
 #
 # To enable these services, remove them from DISABLED_SERVICES set.
 # =============================================================================
-DISABLED_SERVICES = {"ibkr", "schwab", "blandai", "twilio", "hyperbrowser"}
+DISABLED_SERVICES = {"ibkr", "schwab", "blandai", "twilio"}
 
 
 def _filter_capabilities(capabilities: dict[str, Any]) -> dict[str, Any]:

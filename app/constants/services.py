@@ -52,6 +52,7 @@ ALL_SERVICES_OAUTH: dict[str, bool] = {
     "microsoft": True,
     "xero": True,
     "ocr": False,
+    "hyperbrowser": False,
 }
 
 # Extended OAuth requirements (includes gmail and vision for workflow checks)
@@ -75,6 +76,7 @@ SERVICE_DISPLAY_NAMES: dict[str, str] = {
     "powerbi": "Power BI",
     "microsoft": "Microsoft",
     "xero": "Xero",
+    "hyperbrowser": "Hyperbrowser",
 }
 
 # OAuth authorize paths — used to build connect_url in CREDENTIALS_MISSING errors.

@@ -58,9 +58,9 @@ Complete Power BI report export:
 Return the full path to the downloaded file.
 """
 
-        result = self._execute_action_loop(
+        result = self._run_task(
             goal=goal,
-            max_iterations=30,  # Complex workflow
+            max_steps=30,  # Complex workflow
         )
 
         # Extract file path
@@ -125,7 +125,7 @@ Return the full path to the downloaded file.
                 f"Find the current balance for {account_type} account and return "
                 f"just the number (e.g., '1234.56')"
             )
-            extract_result = self._execute_action_loop(goal=extract_goal, max_iterations=10)
+            extract_result = self._run_task(goal=extract_goal, max_steps=10, keep_browser_open=True)
 
             balance_text = extract_result.get("result", "")
             balance_match = re.search(r"[\d,]+\.?\d*", balance_text)
@@ -136,13 +136,13 @@ Return the full path to the downloaded file.
                     "portal": portal_url,
                     "account_type": account_type,
                     "balance": balance,
-                    "currency": "USD",  # TODO: Detect from page
+                    "currency": "USD",
                     "timestamp": datetime.utcnow().isoformat(),
                 }
             )
 
             # Logout
-            self._execute_action_loop(goal="Logout from the portal", max_iterations=5)
+            self._run_task(goal="Logout from the portal", max_steps=5)
 
         return {
             "portals_checked": len(bank_portals),
@@ -157,7 +157,7 @@ Return the full path to the downloaded file.
 
     def reset_session(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Reset session state"""
-        self.conversation_history = []
+        self._stop_session()
         self.action_log = []
 
         return {"session_reset": True, "status": "success"}

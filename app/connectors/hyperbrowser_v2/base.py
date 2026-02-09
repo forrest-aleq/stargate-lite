@@ -1,305 +1,241 @@
 """
-Base class for Hyperbrowser v2 connector with core execution loop.
+Base class for Hyperbrowser v2 connector using Hyperbrowser Cloud API.
+
+Uses the Hyperbrowser managed Claude Computer Use agent for all browser
+automation. The managed agent handles the screenshot→Claude→action→screenshot
+loop on Hyperbrowser's infrastructure in isolated containers.
 """
 
 import os
-import time
-from collections.abc import Callable
-from datetime import datetime
 from typing import Any
 
-from anthropic import Anthropic
+from hyperbrowser import Hyperbrowser
+from hyperbrowser.models.agents.claude_computer_use import (
+    StartClaudeComputerUseTaskParams,
+)
+from hyperbrowser.models.session import CreateSessionParams
 
 from app.logging_config import get_logger
-
-from .environment import BrowserExecutionEnvironment
 
 logger = get_logger(__name__)
 
 
 class HyperbrowserBase:
     """
-    Base class with initialization and core execution loop.
+    Base class with Hyperbrowser Cloud client and task execution.
 
     REQUIREMENTS:
-    - ANTHROPIC_API_KEY in environment
-    - Execution environment (Docker/VM/cloud service)
+    - HYPERBROWSER_API_KEY in environment
+
+    NOTE: Anthropic model access is handled by Hyperbrowser's infrastructure.
+    We use Azure AI Foundry for our own Anthropic calls (summarizer, etc.),
+    but Hyperbrowser's managed agent uses their own Anthropic access.
     """
 
-    def __init__(self, execution_env: BrowserExecutionEnvironment | None = None):
-        # API client
-        self.api_key = os.getenv("ANTHROPIC_API_KEY")
-        self.client: Anthropic | None = None  # Lazy init
-        self.model = "claude-sonnet-4-20250514"
-        self.beta_version = "computer-use-2025-01-24"
-
-        # Execution environment
-        self.execution_env = execution_env
-
-        # Display settings
-        self.display_width = 1280
-        self.display_height = 800
+    def __init__(self) -> None:
+        self.hyperbrowser_api_key = os.getenv("HYPERBROWSER_API_KEY")
+        self.client: Hyperbrowser | None = None  # Lazy init
 
         # Session management
-        self.conversation_history: list[dict[str, Any]] = []
-        self.action_log: list[dict[str, Any]] = []  # Audit trail
-        self.max_iterations = 50  # Safety limit
+        self._session_id: str | None = None
+        self.action_log: list[dict[str, Any]] = []
+        self.max_steps = 50  # Safety limit
 
         # Performance tracking
-        self.metrics = {
-            "total_actions": 0,
+        self.metrics: dict[str, Any] = {
+            "total_tasks": 0,
             "api_calls": 0,
-            "total_cost_usd": 0.0,
-            "avg_latency_ms": 0.0,
+            "total_input_tokens": 0,
+            "total_output_tokens": 0,
         }
 
     def _ensure_client(self) -> None:
-        """Lazy initialization of Anthropic client"""
+        """Lazy initialization of Hyperbrowser client."""
         if self.client is None:
-            if not self.api_key:
+            if not self.hyperbrowser_api_key:
                 raise ValueError(
-                    "ANTHROPIC_API_KEY not set. Add to .env file:\nANTHROPIC_API_KEY=sk-ant-..."
+                    "HYPERBROWSER_API_KEY not set. " "Get your key at https://app.hyperbrowser.ai/"
                 )
-            self.client = Anthropic(api_key=self.api_key)
+            self.client = Hyperbrowser(api_key=self.hyperbrowser_api_key)
 
-    def _ensure_execution_env(self) -> None:
-        """Ensure execution environment is configured"""
-        if self.execution_env is None:
-            raise ValueError(
-                "Browser execution environment not configured.\n"
-                "See documentation for setting up Docker container or cloud service."
-            )
-
-    def _build_initial_message(self, goal: str, screenshot: str) -> list[dict[str, Any]]:
-        """Build initial conversation message with screenshot and goal."""
-        return [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {"type": "base64", "media_type": "image/png", "data": screenshot},
-                    },
-                    {
-                        "type": "text",
-                        "text": f"Goal: {goal}\n\nTake the next action to achieve this goal.",
-                    },
-                ],
-            }
-        ]
-
-    def _call_claude_for_action(self, messages: list[dict[str, Any]]) -> Any:
-        """Call Claude API to decide next action."""
-        assert self.client is not None
-        return self.client.beta.messages.create(
-            model=self.model,
-            max_tokens=4096,
-            tools=[
-                {
-                    "type": "computer_20250124",
-                    "name": "computer",
-                    "display_width_px": self.display_width,
-                    "display_height_px": self.display_height,
-                }
-            ],
-            messages=messages,
-            betas=[self.beta_version],
-        )
-
-    def _handle_completion(
-        self,
-        response: Any,
-        iteration: int,
-        action_log: list[dict[str, Any]],
-        current_screenshot: str,
-        validate_result: Callable[[str, str], bool] | None,
-    ) -> dict[str, Any] | None:
-        """Handle end_turn response from Claude. Returns result dict or None to continue."""
-        final_text = ""
-        for block in response.content:
-            if block.type == "text":
-                final_text += block.text
-
-        action_log.append(
-            {
-                "iteration": iteration,
-                "type": "completion",
-                "message": final_text,
-                "timestamp": datetime.utcnow().isoformat(),
-            }
-        )
-
-        if validate_result and not validate_result(final_text, current_screenshot):
-            action_log.append(
-                {
-                    "iteration": iteration,
-                    "type": "validation_failed",
-                    "message": "Goal not achieved per validation function",
-                }
-            )
-            return {
-                "status": "validation_failed",
-                "iterations": iteration,
-                "action_log": action_log,
-                "final_screenshot": current_screenshot,
-                "result": final_text,
-            }
-
-        return {
-            "status": "success",
-            "iterations": iteration,
-            "action_log": action_log,
-            "final_screenshot": current_screenshot,
-            "result": final_text,
-        }
-
-    def _execute_single_action(
-        self,
-        block: Any,
-        action_log: list[dict[str, Any]],
-        iteration: int,
-        api_latency: float,
-        current_screenshot: str,
-    ) -> tuple[dict[str, Any], str]:
-        """Execute a single tool use action. Returns (tool_result, new_screenshot)."""
-        assert self.execution_env is not None
-        action_input = block.input
-
-        action_log.append(
-            {
-                "iteration": iteration,
-                "tool_use_id": block.id,
-                "action": action_input.get("action"),
-                "input": action_input,
-                "timestamp": datetime.utcnow().isoformat(),
-                "api_latency_ms": api_latency,
-            }
-        )
-
-        exec_start = time.time()
-        try:
-            exec_result = self.execution_env.execute_action(action_input)
-            exec_latency = (time.time() - exec_start) * 1000
-
-            if action_input.get("action") != "screenshot":
-                new_screenshot = self.execution_env.take_screenshot()
-            else:
-                new_screenshot = str(exec_result.get("screenshot", ""))
-
-            tool_result = {
-                "type": "tool_result",
-                "tool_use_id": block.id,
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": "image/png",
-                            "data": new_screenshot,
-                        },
-                    }
-                ],
-            }
-
-            action_log[-1]["execution_latency_ms"] = exec_latency
-            action_log[-1]["success"] = True
-            self.metrics["total_actions"] += 1
-
-            return tool_result, new_screenshot
-
-        except Exception as e:
-            action_log[-1]["success"] = False
-            action_log[-1]["error"] = str(e)
-
-            tool_result = {
-                "type": "tool_result",
-                "tool_use_id": block.id,
-                "content": f"Error executing action: {e!s}",
-                "is_error": True,
-            }
-            return tool_result, current_screenshot
-
-    def _process_tool_uses(
-        self,
-        response: Any,
-        action_log: list[dict[str, Any]],
-        iteration: int,
-        api_latency: float,
-        current_screenshot: str,
-    ) -> tuple[list[dict[str, Any]], str]:
-        """Process all tool uses in response. Returns (tool_results, updated_screenshot)."""
-        tool_results = []
-        screenshot = current_screenshot
-
-        for block in response.content:
-            if block.type == "tool_use":
-                tool_result, screenshot = self._execute_single_action(
-                    block, action_log, iteration, api_latency, screenshot
-                )
-                tool_results.append(tool_result)
-
-        return tool_results, screenshot
-
-    def _execute_action_loop(
-        self,
-        goal: str,
-        initial_screenshot: str | None = None,
-        max_iterations: int | None = None,
-        validate_result: Callable[[str, str], bool] | None = None,
-    ) -> dict[str, Any]:
-        """
-        Core execution loop: Screenshot -> Claude -> Action -> Execute -> Repeat
-
-        Args:
-            goal: What to accomplish (e.g., "Export Power BI report to Excel")
-            initial_screenshot: Optional starting screenshot (otherwise takes one)
-            max_iterations: Max iterations (default: self.max_iterations)
-            validate_result: Optional function to validate if goal achieved
+    def _create_session(self, **kwargs: Any) -> str:
+        """Create a new Hyperbrowser browser session.
 
         Returns:
-            Dict with execution results, final screenshot, action log
+            Session ID for use in subsequent operations.
         """
         self._ensure_client()
-        self._ensure_execution_env()
-        assert self.execution_env is not None
+        assert self.client is not None
 
-        max_iter = max_iterations or self.max_iterations
-        current_screenshot = initial_screenshot or self.execution_env.take_screenshot()
-        messages = self._build_initial_message(goal, current_screenshot)
-        action_log: list[dict[str, Any]] = []
+        params = CreateSessionParams(**kwargs) if kwargs else None
+        session = self.client.sessions.create(params=params)
+        session_id: str = session.id
+        self._session_id = session_id
 
-        for iteration in range(1, max_iter + 1):
-            start_time = time.time()
-            response = self._call_claude_for_action(messages)
-            api_latency = (time.time() - start_time) * 1000
-            self.metrics["api_calls"] += 1
-
-            if response.stop_reason == "end_turn":
-                result = self._handle_completion(
-                    response, iteration, action_log, current_screenshot, validate_result
-                )
-                if result is not None:
-                    return result
-
-            tool_results, current_screenshot = self._process_tool_uses(
-                response, action_log, iteration, api_latency, current_screenshot
-            )
-
-            messages.append({"role": "assistant", "content": response.content})
-            messages.append({"role": "user", "content": tool_results})
-
-        action_log.append(
-            {
-                "iteration": max_iter,
-                "type": "max_iterations_reached",
-                "message": f"Stopped after {max_iter} iterations",
-            }
+        logger.info(
+            "Hyperbrowser session created",
+            session_id=session_id,
+            log_event="hyperbrowser_session_create",
         )
 
-        return {
-            "status": "max_iterations",
-            "iterations": max_iter,
-            "action_log": action_log,
-            "final_screenshot": current_screenshot,
-            "result": "Max iterations reached without completion",
-        }
+        return session_id
+
+    def _stop_session(self) -> None:
+        """Stop the current Hyperbrowser session."""
+        if self.client is not None and self._session_id is not None:
+            try:
+                self.client.sessions.stop(self._session_id)
+                logger.info(
+                    "Hyperbrowser session stopped",
+                    session_id=self._session_id,
+                    log_event="hyperbrowser_session_stop",
+                )
+            except Exception as e:
+                logger.warning(
+                    "Failed to stop Hyperbrowser session",
+                    session_id=self._session_id,
+                    error=str(e),
+                    log_event="hyperbrowser_session_stop_error",
+                )
+            finally:
+                self._session_id = None
+
+    def _take_screenshot(self) -> str:
+        """Take a screenshot of the current browser session.
+
+        Returns:
+            Base64-encoded PNG screenshot, or empty string on failure.
+        """
+        self._ensure_client()
+        assert self.client is not None
+
+        if self._session_id is None:
+            return ""
+
+        try:
+            result = self.client.computer_action.screenshot(self._session_id)
+            return result.screenshot or ""
+        except Exception as e:
+            logger.warning(
+                "Failed to take screenshot",
+                session_id=self._session_id,
+                error=str(e),
+                log_event="hyperbrowser_screenshot_error",
+            )
+            return ""
+
+    def _run_task(
+        self,
+        goal: str,
+        max_steps: int | None = None,
+        keep_browser_open: bool = False,
+    ) -> dict[str, Any]:
+        """
+        Execute a browser task via Hyperbrowser's managed Claude Computer Use agent.
+
+        This replaces the old screenshot→Claude→action loop. Hyperbrowser handles
+        the entire execution on their infrastructure.
+
+        Args:
+            goal: Natural language description of what to accomplish.
+            max_steps: Max agent steps (default: self.max_steps).
+            keep_browser_open: Keep session alive after task completes.
+
+        Returns:
+            Dict with status, result, iterations, action_log, final_screenshot.
+        """
+        self._ensure_client()
+        assert self.client is not None
+
+        steps = max_steps or self.max_steps
+
+        logger.info(
+            "Starting Hyperbrowser task",
+            goal=goal[:200],
+            max_steps=steps,
+            session_id=self._session_id,
+            log_event="hyperbrowser_task_start",
+        )
+
+        try:
+            params = StartClaudeComputerUseTaskParams(
+                task=goal,
+                max_steps=steps,
+                session_id=self._session_id,
+                keep_browser_open=keep_browser_open,
+            )
+
+            result = self.client.agents.claude_computer_use.start_and_wait(params)
+
+            # Track session ID from the task if we don't have one
+            self.metrics["api_calls"] += 1
+            self.metrics["total_tasks"] += 1
+
+            if result.metadata:
+                self.metrics["total_input_tokens"] += result.metadata.input_tokens or 0
+                self.metrics["total_output_tokens"] += result.metadata.output_tokens or 0
+
+            completed_steps = result.metadata.num_task_steps_completed if result.metadata else None
+
+            if result.status == "completed" and result.data and result.data.final_result:
+                logger.info(
+                    "Hyperbrowser task completed",
+                    status="success",
+                    steps_completed=completed_steps,
+                    log_event="hyperbrowser_task_success",
+                )
+                return {
+                    "status": "success",
+                    "result": result.data.final_result,
+                    "iterations": completed_steps or steps,
+                    "action_log": [],
+                    "final_screenshot": "",
+                }
+
+            if result.status == "failed":
+                logger.warning(
+                    "Hyperbrowser task failed",
+                    error=result.error,
+                    log_event="hyperbrowser_task_error",
+                )
+                return {
+                    "status": "error",
+                    "result": result.error or "Task failed",
+                    "iterations": completed_steps or 0,
+                    "action_log": [],
+                    "final_screenshot": "",
+                }
+
+            # Completed but no final result (max steps reached or stopped)
+            final_text = ""
+            if result.data and result.data.final_result:
+                final_text = result.data.final_result
+
+            logger.info(
+                "Hyperbrowser task ended",
+                status=result.status,
+                steps_completed=completed_steps,
+                log_event="hyperbrowser_task_success",
+            )
+            return {
+                "status": "max_iterations" if result.status != "completed" else "success",
+                "result": final_text or "Task completed without explicit result",
+                "iterations": completed_steps or steps,
+                "action_log": [],
+                "final_screenshot": "",
+            }
+
+        except Exception as e:
+            logger.error(
+                "Hyperbrowser task error",
+                error=str(e),
+                goal=goal[:200],
+                log_event="hyperbrowser_task_error",
+            )
+            return {
+                "status": "error",
+                "result": f"Hyperbrowser task error: {e!s}",
+                "iterations": 0,
+                "action_log": [],
+                "final_screenshot": "",
+            }

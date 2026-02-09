@@ -1,46 +1,41 @@
 """
-Hyperbrowser Connector v2 - Production-Ready Browser Automation
-Using Anthropic's Computer Use API (October 2025)
+Hyperbrowser Connector v2 - Cloud Browser Automation
+Using Hyperbrowser's managed Claude Computer Use agent (February 2026)
 
 ARCHITECTURE:
-This connector provides the API layer for browser automation.
-It requires an execution environment (Docker container, VM, or cloud service)
-that runs a real browser and executes the computer use actions.
+This connector delegates browser automation to Hyperbrowser's cloud service.
+Hyperbrowser runs isolated browser containers and manages the full
+screenshot→Claude→action→screenshot loop via their managed agent API.
 
 INTEGRATION POINTS:
-1. Anthropic Computer Use API - For action decisions
-2. Execution Environment - For action execution (separate service)
-3. CredentialManager - For portal credentials
-4. File Storage - For downloaded files
+1. Hyperbrowser Cloud API - For managed browser sessions and agent execution
+2. CredentialManager - For portal credentials
+3. File Storage - For downloaded files (via Hyperbrowser downloads API)
 
 EXECUTION FLOW:
-1. Take screenshot of current browser state
-2. Send screenshot + goal to Claude
-3. Claude analyzes and decides action (click, type, etc.)
-4. Execute action in real browser environment
-5. Get result (success/failure, new screenshot)
-6. Feed result back to Claude
-7. Repeat until goal achieved or max iterations
+1. Send natural language goal to Hyperbrowser's Claude Computer Use agent
+2. Hyperbrowser spins up isolated browser container
+3. Managed agent handles screenshot→Claude→action loop internally
+4. Returns final result and status when goal is achieved or max steps reached
 """
 
-from .environment import BrowserExecutionEnvironment
+from .environment import HyperbrowserCloud
 from .workflows import WorkflowsMixin
 
 
 class HyperbrowserConnectorV2(WorkflowsMixin):
     """
-    Production-ready browser automation connector.
+    Cloud browser automation connector using Hyperbrowser.
 
     Inherits from WorkflowsMixin which inherits from BrowserActionsMixin
     which inherits from HyperbrowserBase.
 
     REQUIREMENTS:
-    - ANTHROPIC_API_KEY in environment
-    - Execution environment (Docker/VM/cloud service)
+    - HYPERBROWSER_API_KEY in environment
     - Optional: Credentials in CredentialManager for portal logins
     """
 
     pass
 
 
-__all__ = ["BrowserExecutionEnvironment", "HyperbrowserConnectorV2"]
+__all__ = ["HyperbrowserCloud", "HyperbrowserConnectorV2"]

@@ -30,7 +30,7 @@ class BrowserActionsMixin(HyperbrowserBase):
         if wait_for:
             goal += f" and wait for '{wait_for}' to appear (max {timeout}s)"
 
-        result = self._execute_action_loop(goal=goal, max_iterations=10)
+        result = self._run_task(goal=goal, max_steps=10)
 
         return {
             "url": url,
@@ -53,7 +53,7 @@ class BrowserActionsMixin(HyperbrowserBase):
         target = selector if selector else description
 
         goal = f"Click the element: {target}"
-        result = self._execute_action_loop(goal=goal, max_iterations=5)
+        result = self._run_task(goal=goal, max_steps=5)
 
         return {
             "target": target,
@@ -79,7 +79,7 @@ class BrowserActionsMixin(HyperbrowserBase):
         if submit:
             goal += "\nThen submit the form."
 
-        result = self._execute_action_loop(goal=goal, max_iterations=10)
+        result = self._run_task(goal=goal, max_steps=10)
 
         return {
             "fields_filled": len(fields),
@@ -104,9 +104,9 @@ class BrowserActionsMixin(HyperbrowserBase):
         if output_format != "text":
             goal += f"\nFormat the output as {output_format}."
 
-        result = self._execute_action_loop(goal=goal, max_iterations=5)
+        result = self._run_task(goal=goal, max_steps=5)
 
-        # Get extracted text from Claude's final response
+        # Get extracted text from the agent's final response
         extracted_text = result.get("result", "")
 
         return {
@@ -134,7 +134,7 @@ class BrowserActionsMixin(HyperbrowserBase):
         if wait:
             goal += f" and wait for download to complete (max {timeout}s)"
 
-        result = self._execute_action_loop(goal=goal, max_iterations=8)
+        result = self._run_task(goal=goal, max_steps=8)
 
         return {
             "trigger": trigger,
@@ -150,13 +150,11 @@ class BrowserActionsMixin(HyperbrowserBase):
         Returns:
             Screenshot as base64-encoded PNG
         """
-        self._ensure_execution_env()
-        assert self.execution_env is not None
-        screenshot_data = self.execution_env.take_screenshot()
+        screenshot_data = self._take_screenshot()
 
         return {
             "screenshot": screenshot_data,
-            "has_screenshot": screenshot_data is not None,
+            "has_screenshot": bool(screenshot_data),
             "status": "success",
         }
 
@@ -170,35 +168,28 @@ class BrowserActionsMixin(HyperbrowserBase):
             password: Password
             mfa_method: "totp", "sms", "email", "none" (default: "none")
         """
-        # Navigate to portal
-        self.navigate_to(org_id, user_id, {"url": args.get("portal_url")})
+        portal_url = args.get("portal_url")
+        username = args.get("username")
+        mfa_method = args.get("mfa_method", "none")
 
-        # Fill credentials
-        self.fill_form(
-            org_id,
-            user_id,
-            {
-                "fields": {"username": args.get("username"), "password": args.get("password")},
-                "submit": True,
-            },
+        # Build single comprehensive login goal for the managed agent
+        goal = (
+            f"Navigate to {portal_url}, find the login form, "
+            f"enter username '{username}' and password, then submit the form."
         )
 
-        mfa_method = args.get("mfa_method", "none")
         if mfa_method != "none":
-            goal = f"Complete MFA using {mfa_method} method"
-            result = self._execute_action_loop(goal=goal, max_iterations=5)
-            return {
-                "portal_url": args.get("portal_url"),
-                "logged_in": result["status"] == "success",
-                "mfa_completed": True,
-                "status": result["status"],
-            }
+            goal += f"\nAfter login, complete MFA using {mfa_method} method."
+
+        goal += "\nConfirm successful login by checking for dashboard or account page."
+
+        result = self._run_task(goal=goal, max_steps=15)
 
         return {
-            "portal_url": args.get("portal_url"),
-            "logged_in": True,
-            "mfa_completed": False,
-            "status": "success",
+            "portal_url": portal_url,
+            "logged_in": result["status"] == "success",
+            "mfa_completed": mfa_method != "none",
+            "status": result["status"],
         }
 
     def extract_table_data(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -223,9 +214,9 @@ class BrowserActionsMixin(HyperbrowserBase):
             goal += f"\nLimit to {max_rows} rows"
         goal += f"\nReturn data in {output_format} format"
 
-        result = self._execute_action_loop(
+        result = self._run_task(
             goal=goal,
-            max_iterations=15,  # May need scrolling
+            max_steps=15,  # May need scrolling
         )
 
         # Parse extracted data from result
@@ -257,7 +248,7 @@ class BrowserActionsMixin(HyperbrowserBase):
             f"downloads folder, max {timeout}s). Return the full file path."
         )
 
-        result = self._execute_action_loop(goal=goal, max_iterations=10)
+        result = self._run_task(goal=goal, max_steps=10)
 
         # Extract file path from result
         file_path = None
@@ -300,8 +291,6 @@ class BrowserActionsMixin(HyperbrowserBase):
 
         username = cred.get("username") or cred.get("email")
 
-        _password = cred.get("password") or cred.get("access_token")
-
         # Build login goal
         goal = (
             f"Navigate to {portal_url}, fill in username '{username}' and password, "
@@ -322,7 +311,7 @@ class BrowserActionsMixin(HyperbrowserBase):
 
         goal += "\nConfirm successful login by checking for dashboard or account page."
 
-        result = self._execute_action_loop(goal=goal, max_iterations=20)
+        result = self._run_task(goal=goal, max_steps=20)
 
         return {
             "portal_url": portal_url,
