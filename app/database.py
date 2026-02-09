@@ -11,8 +11,7 @@ from typing import Any
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 from sqlalchemy import JSON, Column, DateTime, String, Text, create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 from app.logging_config import get_logger
 
@@ -93,10 +92,14 @@ class CredentialStore(Base):
 
 
 def init_db() -> None:
-    """Initialize the database"""
-    Base.metadata.create_all(bind=engine)
+    """Initialize the database by running Alembic migrations."""
+    from alembic import command
+    from alembic.config import Config
+
+    alembic_cfg = Config("alembic.ini")
+    command.upgrade(alembic_cfg, "head")
     logger.info(
-        "Database initialized successfully",
+        "Database migrations applied",
         database_type="sqlite" if "sqlite" in DATABASE_URL else "postgresql",
         log_event="database_init",
     )
