@@ -337,6 +337,10 @@ site/
 .mkdocs_cache/
 htmldoc/
 
+# Generated schema exports (regenerate with tests/scripts/generate_capability_docs.py)
+docs/schemas/*.json
+docs/schemas/TAMI-*.md
+
 # ========================================
 # 🔧 TOOL-SPECIFIC
 # ========================================

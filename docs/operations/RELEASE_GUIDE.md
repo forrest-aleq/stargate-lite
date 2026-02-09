@@ -489,7 +489,7 @@ curl -H "X-API-Key: $KEY" $STARGATE_URL/api/v1/capabilities | jq 'keys | length'
 ```
 app/main.py          # VERSION constant
 CHANGELOG.md         # What changed
-docs/RELEASE_GUIDE.md  # If process changed
+docs/operations/RELEASE_GUIDE.md  # If process changed
 ```
 
 ### Don't Forget
