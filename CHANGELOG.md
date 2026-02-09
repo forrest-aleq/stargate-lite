@@ -7,6 +7,37 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- 35+ new capabilities across Google, Microsoft, Dropbox, DocuSign, and PowerBI platforms
+- Alembic database migrations for schema versioning
+- OpenAPI contract tests for `/execute` response validation
+- `retry_strategy` field in error responses for client-side retry guidance
+- Dynamic `ENABLED_SERVICES` configuration (replaces hardcoded list)
+- `connect_url` in `CREDENTIALS_MISSING` error responses for OAuth onboarding
+- Expanded HubSpot capabilities
+- Ramp and Plaid connector stubs
+- Staging demo script for QBO sandbox testing
+- Locked schema system for N3 API contracts
+- Xero OAuth 2.0 flow and deep links for all entity responses
+
+### Changed
+- Hyperbrowser v2 mixin architecture (base -> actions -> workflows -> connector)
+- Slack, Stripe, and QuickBooks connectors reorganized into modular packages
+- Registry reorganized by service category under `app/registry/`
+- Docs directory restructured into `contracts/`, `operations/`, `architecture/`, `design/`, `analysis/`, `schemas/`, `archive/`
+- Consolidated `.env.template` into `.env.example` (single canonical template)
+- Removed stale test fixtures from project root
+
+### Fixed
+- Slack type annotations for mypy strict compliance
+- SQL query construction sanitized to address bandit security warnings
+- QuickBooks token exchange logging (log Intuit response body on failure)
+- QuickBooks env guard preventing staging from hitting production QBO
+
+### Security
+- PKCE-based stateless OAuth flow for all OAuth connectors
+- HMAC-signed OAuth state parameter for Stripe Connect
+
 ## [0.11.0] - 2026-02-02
 
 ### Added
