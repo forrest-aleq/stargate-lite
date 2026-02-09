@@ -19,6 +19,10 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application code
 COPY ./app ./app
 
+# Copy Alembic migration config and scripts
+COPY alembic.ini .
+COPY ./migrations ./migrations
+
 # Expose port (Railway sets PORT dynamically)
 EXPOSE 8001
 
