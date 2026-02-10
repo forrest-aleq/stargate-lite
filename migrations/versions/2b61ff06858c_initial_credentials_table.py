@@ -20,7 +20,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     op.create_table(
-        "credentials",
+        "stargate_credentials",
         sa.Column("id", sa.String(), nullable=False),
         sa.Column("org_id", sa.String(), nullable=False),
         sa.Column("user_id", sa.String(), nullable=False),
@@ -37,15 +37,19 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_credentials_credential_type"), "credentials", ["credential_type"])
-    op.create_index(op.f("ix_credentials_org_id"), "credentials", ["org_id"])
-    op.create_index(op.f("ix_credentials_service"), "credentials", ["service"])
-    op.create_index(op.f("ix_credentials_user_id"), "credentials", ["user_id"])
+    op.create_index(
+        op.f("ix_stargate_credentials_credential_type"), "stargate_credentials", ["credential_type"]
+    )
+    op.create_index(op.f("ix_stargate_credentials_org_id"), "stargate_credentials", ["org_id"])
+    op.create_index(op.f("ix_stargate_credentials_service"), "stargate_credentials", ["service"])
+    op.create_index(op.f("ix_stargate_credentials_user_id"), "stargate_credentials", ["user_id"])
 
 
 def downgrade() -> None:
-    op.drop_index(op.f("ix_credentials_user_id"), table_name="credentials")
-    op.drop_index(op.f("ix_credentials_service"), table_name="credentials")
-    op.drop_index(op.f("ix_credentials_org_id"), table_name="credentials")
-    op.drop_index(op.f("ix_credentials_credential_type"), table_name="credentials")
-    op.drop_table("credentials")
+    op.drop_index(op.f("ix_stargate_credentials_user_id"), table_name="stargate_credentials")
+    op.drop_index(op.f("ix_stargate_credentials_service"), table_name="stargate_credentials")
+    op.drop_index(op.f("ix_stargate_credentials_org_id"), table_name="stargate_credentials")
+    op.drop_index(
+        op.f("ix_stargate_credentials_credential_type"), table_name="stargate_credentials"
+    )
+    op.drop_table("stargate_credentials")

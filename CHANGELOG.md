@@ -8,6 +8,7 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Locked provider contracts for N3 (v1.0.0) and Baby MARS (v1.0.0) with contract drift tests
 - 35+ new capabilities across Google, Microsoft, Dropbox, DocuSign, and PowerBI platforms
 - Alembic database migrations for schema versioning
 - OpenAPI contract tests for `/execute` response validation
@@ -21,6 +22,7 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Xero OAuth 2.0 flow and deep links for all entity responses
 
 ### Changed
+- Credential storage consolidated into shared Supabase (table renamed `credentials` -> `stargate_credentials`, pool tuned for Supabase connection limits, Alembic skipped when `SKIP_ALEMBIC=true`)
 - Hyperbrowser v2 mixin architecture (base -> actions -> workflows -> connector)
 - Slack, Stripe, and QuickBooks connectors reorganized into modular packages
 - Registry reorganized by service category under `app/registry/`

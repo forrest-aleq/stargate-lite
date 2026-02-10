@@ -45,10 +45,10 @@ else:
     # PostgreSQL/MySQL: Production pooling configuration
     engine = create_engine(
         DATABASE_URL,
-        pool_size=20,  # Base connection pool size
-        max_overflow=10,  # Extra connections when pool exhausted
+        pool_size=5,  # Supabase-friendly pool size
+        max_overflow=5,  # Extra connections when pool exhausted
         pool_pre_ping=True,  # Test connections before use (detect stale connections)
-        pool_recycle=3600,  # Recycle connections after 1 hour
+        pool_recycle=300,  # Recycle connections every 5 min (Supabase timeouts)
         pool_timeout=30,  # Wait 30s for connection before raising error
     )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -58,7 +58,7 @@ Base = declarative_base()
 class CredentialStore(Base):
     """Table for storing encrypted OAuth credentials with dual credential system"""
 
-    __tablename__ = "credentials"
+    __tablename__ = "stargate_credentials"
 
     # Composite primary key: org_id:user_id:service:credential_type
     id = Column(String, primary_key=True)
@@ -92,7 +92,19 @@ class CredentialStore(Base):
 
 
 def init_db() -> None:
-    """Initialize the database by running Alembic migrations."""
+    """Initialize the database.
+
+    When SKIP_ALEMBIC=true (Supabase), migrations are managed by Supabase CLI
+    so we skip Alembic entirely.  For local SQLite dev, Alembic runs as before.
+    """
+    if os.getenv("SKIP_ALEMBIC", "").lower() == "true":
+        logger.info(
+            "Skipping Alembic migrations (SKIP_ALEMBIC=true)",
+            database_type="postgresql",
+            log_event="database_init",
+        )
+        return
+
     from alembic import command
     from alembic.config import Config
 
