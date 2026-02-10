@@ -51,6 +51,13 @@ repos:
         additional_dependencies:
           - pydantic
 
+      - id: provider-contracts
+        name: Provider contract validation
+        entry: python scripts/check_provider_contracts.py
+        language: python
+        pass_filenames: false
+        files: ^app/(contracts/|models\.py|errors\.py)
+
   # Ruff - lint + format
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.4

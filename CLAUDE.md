@@ -51,11 +51,13 @@ source venv/bin/activate
 python test.py
 ```
 
-### Docker
+### Deployment (Railway)
 ```bash
-make docker-up      # Start containers
-make docker-down    # Stop containers
-make docker-logs    # View logs
+# Push to staging branch — Railway auto-deploys
+git push origin staging
+
+# Database migrations must be applied manually after deploy
+# (Railway does NOT run migrations automatically)
 ```
 
 ## Core Architecture
