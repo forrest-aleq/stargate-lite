@@ -124,9 +124,9 @@ class TestN3ContractEndpoints:
         for ep in endpoints:
             method: str = ep["method"]
             path: str = ep["path"]
-            assert _find_route(method, path), (
-                f"N3 contract endpoint {method} {path} not found on app"
-            )
+            assert _find_route(
+                method, path
+            ), f"N3 contract endpoint {method} {path} not found on app"
 
     def test_n3_denied_execute_not_accessible(self) -> None:
         """N3 denied endpoints should conceptually not be in the N3 contract."""
@@ -139,9 +139,9 @@ class TestN3ContractEndpoints:
             # Strip wildcard for comparison
             pattern = d.replace("/*", "")
             for ep_path in endpoint_paths:
-                assert not ep_path.startswith(pattern), (
-                    f"Denied endpoint '{d}' found in N3 contract endpoints"
-                )
+                assert not ep_path.startswith(
+                    pattern
+                ), f"Denied endpoint '{d}' found in N3 contract endpoints"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -153,7 +153,29 @@ class TestMarsContractEndpoints:
     """All MARS endpoints must exist on the FastAPI app."""
 
     def test_mars_contract_version(self) -> None:
-        assert MARS_CONTRACT["version"] == "1.0.0"
+        assert MARS_CONTRACT["version"] == "1.1.0"
+
+    def test_mars_capability_catalog_exists(self) -> None:
+        """Contract must expose a capability catalog via get_capability_catalog()."""
+        from app.contracts.mars import get_capability_catalog
+
+        catalog = get_capability_catalog()
+        assert len(catalog) > 0, "Catalog must have at least one service"
+        total_keys = sum(len(keys) for keys in catalog.values())
+        assert total_keys > 0, "Catalog must have capability keys"
+
+    def test_mars_catalog_matches_registry(self) -> None:
+        """Every registry key must appear in the contract catalog."""
+        from app.contracts.mars import get_capability_catalog
+        from app.registry import CAPABILITY_REGISTRY
+
+        catalog = get_capability_catalog()
+        catalog_keys = {k for keys in catalog.values() for k in keys}
+        registry_keys = set(CAPABILITY_REGISTRY.keys())
+        missing = registry_keys - catalog_keys
+        assert not missing, f"Registry keys missing from contract: {missing}"
+        extra = catalog_keys - registry_keys
+        assert not extra, f"Contract keys not in registry: {extra}"
 
     def test_mars_execute_endpoint_exists(self, client: TestClient) -> None:
         assert _find_route("POST", "/api/v1/execute")
@@ -175,9 +197,9 @@ class TestMarsContractEndpoints:
         for ep in endpoints:
             method: str = ep["method"]
             path: str = ep["path"]
-            assert _find_route(method, path), (
-                f"MARS contract endpoint {method} {path} not found on app"
-            )
+            assert _find_route(
+                method, path
+            ), f"MARS contract endpoint {method} {path} not found on app"
 
 
 class TestMarsExecuteRequest:
@@ -188,9 +210,7 @@ class TestMarsExecuteRequest:
         execute_req: dict[str, Any] = MARS_CONTRACT["execute_request"]  # type: ignore[assignment]
         required: list[str] = execute_req["required"]
         model_required = {
-            name
-            for name, field in ToolExecutionRequest.model_fields.items()
-            if field.is_required()
+            name for name, field in ToolExecutionRequest.model_fields.items() if field.is_required()
         }
         for field_name in required:
             assert field_name in model_required, (
@@ -204,9 +224,9 @@ class TestMarsExecuteRequest:
         optional: list[str] = execute_req["optional"]
         model_fields = set(ToolExecutionRequest.model_fields.keys())
         for field_name in optional:
-            assert field_name in model_fields, (
-                f"Contract optional field '{field_name}' not found on ToolExecutionRequest"
-            )
+            assert (
+                field_name in model_fields
+            ), f"Contract optional field '{field_name}' not found on ToolExecutionRequest"
 
     def test_missing_required_fields_return_422(self, client: TestClient) -> None:
         """Omitting any required field should return 422."""
@@ -220,9 +240,9 @@ class TestMarsExecuteRequest:
         for field in execute_req["required"]:
             body = {k: v for k, v in full_body.items() if k != field}
             resp = client.post("/api/v1/execute", json=body)
-            assert resp.status_code == 422, (
-                f"Missing '{field}' should return 422, got {resp.status_code}"
-            )
+            assert (
+                resp.status_code == 422
+            ), f"Missing '{field}' should return 422, got {resp.status_code}"
 
 
 class TestMarsSuccessResponse:
@@ -232,17 +252,17 @@ class TestMarsSuccessResponse:
         success: dict[str, Any] = MARS_CONTRACT["success_response"]  # type: ignore[assignment]
         model_fields = set(ToolExecutionResponse.model_fields.keys())
         for field_name in success["required"]:
-            assert field_name in model_fields, (
-                f"Contract success field '{field_name}' not on ToolExecutionResponse"
-            )
+            assert (
+                field_name in model_fields
+            ), f"Contract success field '{field_name}' not on ToolExecutionResponse"
 
     def test_success_response_optional_fields_on_model(self) -> None:
         success: dict[str, Any] = MARS_CONTRACT["success_response"]  # type: ignore[assignment]
         model_fields = set(ToolExecutionResponse.model_fields.keys())
         for field_name in success["optional"]:
-            assert field_name in model_fields, (
-                f"Contract optional field '{field_name}' not on ToolExecutionResponse"
-            )
+            assert (
+                field_name in model_fields
+            ), f"Contract optional field '{field_name}' not on ToolExecutionResponse"
 
     @patch("app.routers.execute.get_capability")
     @patch("app.routers.execute.execute_handler")
@@ -281,9 +301,9 @@ class TestMarsSuccessResponse:
         data = resp.json()
         success: dict[str, Any] = MARS_CONTRACT["success_response"]  # type: ignore[assignment]
         for field_name in success["required"]:
-            assert field_name in data, (
-                f"Required success field '{field_name}' missing from live response"
-            )
+            assert (
+                field_name in data
+            ), f"Required success field '{field_name}' missing from live response"
         assert data["status"] == success["status_value"]
 
 
@@ -294,22 +314,20 @@ class TestMarsErrorResponse:
         error: dict[str, Any] = MARS_CONTRACT["error_response"]  # type: ignore[assignment]
         model_fields = set(ErrorResponse.model_fields.keys())
         for field_name in error["required"]:
-            assert field_name in model_fields, (
-                f"Contract error field '{field_name}' not on ErrorResponse"
-            )
+            assert (
+                field_name in model_fields
+            ), f"Contract error field '{field_name}' not on ErrorResponse"
 
     def test_error_response_optional_fields_on_model(self) -> None:
         error: dict[str, Any] = MARS_CONTRACT["error_response"]  # type: ignore[assignment]
         model_fields = set(ErrorResponse.model_fields.keys())
         for field_name in error["optional"]:
-            assert field_name in model_fields, (
-                f"Contract optional field '{field_name}' not on ErrorResponse"
-            )
+            assert (
+                field_name in model_fields
+            ), f"Contract optional field '{field_name}' not on ErrorResponse"
 
     @patch("app.routers.execute.rate_limiter")
-    def test_live_error_returns_http_200(
-        self, mock_limiter: MagicMock, client: TestClient
-    ) -> None:
+    def test_live_error_returns_http_200(self, mock_limiter: MagicMock, client: TestClient) -> None:
         """Errors must return HTTP 200 (not 4xx) per contract guarantee."""
         mock_limiter.check_rate_limit.return_value = (
             True,
@@ -338,17 +356,15 @@ class TestMarsErrorTaxonomy:
         error_codes: dict[str, Any] = MARS_CONTRACT["error_codes"]  # type: ignore[assignment]
         enum_values = {e.value for e in ErrorCode}
         for code in error_codes:
-            assert code in enum_values, (
-                f"Contract error code '{code}' not in ErrorCode enum"
-            )
+            assert code in enum_values, f"Contract error code '{code}' not in ErrorCode enum"
 
     def test_all_enum_error_codes_in_contract(self) -> None:
         """Every ErrorCode enum value must be in the contract (no silent additions)."""
         error_codes: dict[str, Any] = MARS_CONTRACT["error_codes"]  # type: ignore[assignment]
         for e in ErrorCode:
-            assert e.value in error_codes, (
-                f"ErrorCode.{e.value} exists in enum but not in MARS contract"
-            )
+            assert (
+                e.value in error_codes
+            ), f"ErrorCode.{e.value} exists in enum but not in MARS contract"
 
     def test_error_code_count(self) -> None:
         error_codes: dict[str, Any] = MARS_CONTRACT["error_codes"]  # type: ignore[assignment]
@@ -359,17 +375,15 @@ class TestMarsErrorTaxonomy:
         strategies: list[str] = MARS_CONTRACT["retry_strategies"]  # type: ignore[assignment]
         enum_values = {e.value for e in RetryStrategy}
         for s in strategies:
-            assert s in enum_values, (
-                f"Contract retry strategy '{s}' not in RetryStrategy enum"
-            )
+            assert s in enum_values, f"Contract retry strategy '{s}' not in RetryStrategy enum"
 
     def test_all_enum_retry_strategies_in_contract(self) -> None:
         """Every RetryStrategy enum value must be in the contract."""
         strategies: list[str] = MARS_CONTRACT["retry_strategies"]  # type: ignore[assignment]
         for e in RetryStrategy:
-            assert e.value in strategies, (
-                f"RetryStrategy.{e.value} exists in enum but not in MARS contract"
-            )
+            assert (
+                e.value in strategies
+            ), f"RetryStrategy.{e.value} exists in enum but not in MARS contract"
 
     def test_retry_strategy_count(self) -> None:
         strategies: list[str] = MARS_CONTRACT["retry_strategies"]  # type: ignore[assignment]
@@ -392,9 +406,7 @@ class TestMarsRateLimitHeaders:
     """Rate limit headers must be present on execute responses."""
 
     @patch("app.routers.execute.rate_limiter")
-    def test_rate_limit_headers_present(
-        self, mock_limiter: MagicMock, client: TestClient
-    ) -> None:
+    def test_rate_limit_headers_present(self, mock_limiter: MagicMock, client: TestClient) -> None:
         mock_limiter.check_rate_limit.return_value = (
             True,
             {"limit": 100, "remaining": 99, "reset_at": 9999999999},

@@ -57,6 +57,14 @@ repos:
         language: python
         pass_filenames: false
         files: ^app/(contracts/|models\.py|errors\.py)
+        additional_dependencies:
+          - pydantic>=2.0
+          - sqlalchemy>=2.0
+          - cryptography
+          - python-dotenv
+          - structlog
+          - requests
+          - httpx
 
   # Ruff - lint + format
   - repo: https://github.com/astral-sh/ruff-pre-commit

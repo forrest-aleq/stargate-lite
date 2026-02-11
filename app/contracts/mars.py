@@ -1,15 +1,42 @@
 """
-Baby MARS Provider Contract (v1.0.0)
+Baby MARS Provider Contract (v1.1.0)
 
 Declares the locked API surface for Baby MARS (Aleq): error taxonomy,
-response shapes, retry strategies, capability discovery.
+response shapes, retry strategies, capability discovery, and the full
+capability catalog (service → key mapping).
 
 Any change to this contract must be reflected in CHANGELOG.md.
 """
 
+from collections import defaultdict
+
+_catalog_cache: dict[str, list[str]] | None = None
+
+
+def get_capability_catalog() -> dict[str, list[str]]:
+    """Build capability catalog from the live registry (lazy, cached).
+
+    Returns a dict of service_name → sorted list of capability keys.
+    Built on first call so pre-commit hooks can import the contract
+    without loading the entire connector tree.
+    """
+    global _catalog_cache
+    if _catalog_cache is not None:
+        return _catalog_cache
+
+    from app.registry import CAPABILITY_REGISTRY
+
+    by_service: dict[str, list[str]] = defaultdict(list)
+    for key, meta in CAPABILITY_REGISTRY.items():
+        service = meta.get("service", "unknown")
+        by_service[service].append(key)
+    _catalog_cache = {svc: sorted(keys) for svc, keys in sorted(by_service.items())}
+    return _catalog_cache
+
+
 MARS_CONTRACT: dict[str, object] = {
     "consumer": "baby_mars",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "What Baby MARS (Aleq) can call on Stargate",
     # -- Endpoints ----------------------------------------------------------
     "endpoints": [
@@ -133,18 +160,19 @@ MARS_CONTRACT: dict[str, object] = {
         "customer": "Per-user OAuth token (user's own QuickBooks, Gmail, etc.)",
         "agent": "System credential (Aleq's own API keys, user_id='ALEQ_AGENT')",
     },
+    # -- Capability Catalog -------------------------------------------------
+    # Use get_capability_catalog() for the live service → keys mapping.
+    # Kept out of the static dict to avoid loading the full connector tree
+    # at import time (pre-commit hooks need to import this file cheaply).
+    # MARS should call GET /api/v1/capabilities for dynamic discovery,
+    # or use get_capability_catalog() in tests to verify key correctness.
     # -- Guarantees ---------------------------------------------------------
     "guarantees": {
         "http_200_always": (
-            "Errors return HTTP 200 with status='error' "
-            "— never 4xx/5xx for business errors"
+            "Errors return HTTP 200 with status='error' " "— never 4xx/5xx for business errors"
         ),
-        "idempotency": (
-            "Same turn_id + capability_key within 24h returns cached response"
-        ),
-        "multi_tenant_isolation": (
-            "Credentials keyed by org_id:user_id:service — never cross-org"
-        ),
+        "idempotency": ("Same turn_id + capability_key within 24h returns cached response"),
+        "multi_tenant_isolation": ("Credentials keyed by org_id:user_id:service — never cross-org"),
         "token_refresh": (
             "Expired OAuth tokens auto-refreshed transparently "
             "— CREDENTIALS_INVALID only on refresh failure"

@@ -7,4 +7,4 @@ on every commit and fail if the live app drifts from the locked spec.
 """
 
 N3_CONTRACT_VERSION = "1.0.0"
-MARS_CONTRACT_VERSION = "1.0.0"
+MARS_CONTRACT_VERSION = "1.1.0"
