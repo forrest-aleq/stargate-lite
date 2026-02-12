@@ -5,7 +5,7 @@ Handles secure credential storage with encryption
 
 import os
 from collections.abc import Generator
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from cryptography.fernet import Fernet
@@ -167,7 +167,7 @@ class CredentialManager:
         existing.realm_id = realm_id
         existing.access_pattern = access_pattern
         existing.extra_data = extra_data or {}
-        existing.updated_at = datetime.utcnow()
+        existing.updated_at = datetime.now(timezone.utc)
 
     @staticmethod
     def _create_new_credential(
@@ -336,7 +336,7 @@ class CredentialManager:
                 )
                 return None
 
-            is_expired = cred.token_expiry and cred.token_expiry < datetime.utcnow()
+            is_expired = cred.token_expiry and cred.token_expiry < datetime.now(timezone.utc)
 
             logger.debug(
                 "Credential retrieved",

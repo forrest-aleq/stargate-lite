@@ -6,7 +6,7 @@ Handles OAuth authorization and callback for QuickBooks Online.
 
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import urlencode
 
@@ -85,7 +85,7 @@ def _exchange_quickbooks_tokens(
         raise HTTPException(status_code=500, detail=f"Token exchange failed: {response.text}")
 
     token_data = response.json()
-    token_expiry = datetime.utcnow() + timedelta(seconds=token_data["expires_in"])
+    token_expiry = datetime.now(timezone.utc) + timedelta(seconds=token_data["expires_in"])
 
     logger.info(
         "Token exchange successful",

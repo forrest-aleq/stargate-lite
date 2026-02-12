@@ -2,7 +2,7 @@
 Connector status routes for Stargate Lite.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends
 
@@ -26,7 +26,7 @@ async def check_workflow_connector_status(
     This endpoint is called by the workflow manifest builder to check which
     connectors are authenticated before presenting a workflow preview to the user.
     """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     connectors = [
         build_workflow_connector_status(service, request.org_id, request.user_id, now)
         for service in request.services
