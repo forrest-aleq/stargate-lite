@@ -7,11 +7,13 @@ import os
 from datetime import UTC, datetime
 
 from fastapi import APIRouter
+from sqlalchemy import text
 
 from app.constants.services import ALL_SERVICES_OAUTH, ENABLED_SERVICES
-from app.database import CredentialManager
+from app.database import CredentialManager, engine
 from app.models import ConnectorHealthResponse, HealthResponse
 from app.observability import increment_metric
+from app.redis_client import redis_client
 from app.registry import CAPABILITY_REGISTRY
 from app.services.connector_health import (
     build_connector_status,
@@ -48,28 +50,49 @@ async def root() -> HealthResponse:
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check() -> HealthResponse:
-    """Health check endpoint"""
+    """Health check endpoint with real DB and Redis pings."""
     import logging
 
     logger = logging.getLogger("stargate-lite")
 
-    # Send custom metric to DataDog (environment and service tags added automatically)
     increment_metric("stargate_lite.health_check.called")
 
-    # Log will be automatically correlated with trace by ddtrace
-    logger.info("Health check called - all services healthy")
+    services: dict[str, str] = {}
+    overall_healthy = True
+
+    # Redis ping
+    try:
+        if redis_client._redis_client:
+            await asyncio.to_thread(redis_client._redis_client.ping)
+            services["redis"] = "connected"
+        else:
+            services["redis"] = "unavailable"
+            overall_healthy = False
+    except Exception:
+        services["redis"] = "unavailable"
+        overall_healthy = False
+
+    # DB ping
+    try:
+
+        def _check_db() -> None:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+
+        await asyncio.to_thread(_check_db)
+        services["database"] = "connected"
+    except Exception:
+        services["database"] = "unavailable"
+        overall_healthy = False
+
+    status = "healthy" if overall_healthy else "degraded"
+    logger.info(f"Health check called - status={status}")
 
     return HealthResponse(
-        status="healthy",
+        status=status,
         version=_get_version(),
         capabilities_count=len(CAPABILITY_REGISTRY),
-        services={
-            "quickbooks": "ok",
-            "stripe": "ok",
-            "hubspot": "ok",
-            "google": "ok",
-            "slack": "ok",
-        },
+        services=services,
     )
 
 

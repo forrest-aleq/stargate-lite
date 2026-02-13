@@ -1683,7 +1683,7 @@
     },
     "/health": {
       "get": {
-        "description": "Health check endpoint",
+        "description": "Health check endpoint with real DB and Redis pings.",
         "operationId": "health_check_health_get",
         "responses": {
           "200": {
