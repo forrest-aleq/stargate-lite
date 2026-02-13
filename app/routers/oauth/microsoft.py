@@ -4,6 +4,7 @@ Microsoft OAuth Routes
 Handles OAuth authorization and callback for Microsoft 365 (Excel, OneDrive, Outlook, Power BI).
 """
 
+import asyncio
 import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -94,7 +95,8 @@ async def microsoft_oauth_callback(code: str, state: str) -> dict[str, Any]:
 
         token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
 
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             token_url,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             data={
@@ -113,7 +115,8 @@ async def microsoft_oauth_callback(code: str, state: str) -> dict[str, Any]:
         token_data = response.json()
 
         # Store credentials (Microsoft tokens typically expire after 1 hour)
-        CredentialManager.store_credential(
+        await asyncio.to_thread(
+            CredentialManager.store_credential,
             org_id=org_id,
             user_id=user_id,
             service="microsoft",

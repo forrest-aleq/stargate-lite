@@ -11,6 +11,7 @@ Token Lifecycle:
 - Refresh tokens are long-lived (use /oauth/v1/token with grant_type=refresh_token)
 """
 
+import asyncio
 import os
 import time
 from datetime import UTC, datetime, timedelta
@@ -258,10 +259,14 @@ async def hubspot_oauth_callback(code: str, state: str) -> RedirectResponse:
 
     try:
         # Exchange authorization code for tokens
-        token_data, token_expiry = _exchange_hubspot_tokens(code, org_id, user_id)
+        token_data, token_expiry = await asyncio.to_thread(
+            _exchange_hubspot_tokens, code, org_id, user_id
+        )
 
         # Store credentials in database
-        _store_hubspot_credential(org_id, user_id, token_data, token_expiry, credential_type)
+        await asyncio.to_thread(
+            _store_hubspot_credential, org_id, user_id, token_data, token_expiry, credential_type
+        )
 
         return build_oauth_success_redirect(service="hubspot", org_id=org_id)
 

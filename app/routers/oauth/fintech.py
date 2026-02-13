@@ -8,6 +8,7 @@ Handles OAuth authorization and callback for financial services:
 - Schwab (brokerage)
 """
 
+import asyncio
 import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -77,7 +78,8 @@ async def brex_oauth_callback(code: str, state: str) -> dict[str, Any]:
 
         token_url = "https://accounts.brex.com/oauth2/v1/token"
 
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             token_url,
             auth=(client_id, client_secret),
             data={"grant_type": "authorization_code", "code": code, "redirect_uri": redirect_uri},
@@ -90,7 +92,8 @@ async def brex_oauth_callback(code: str, state: str) -> dict[str, Any]:
         token_data = response.json()
 
         # Brex access tokens expire after 1 hour, refresh tokens after 90 days of non-use
-        CredentialManager.store_credential(
+        await asyncio.to_thread(
+            CredentialManager.store_credential,
             org_id=org_id,
             user_id=user_id,
             service="brex",
@@ -166,7 +169,8 @@ async def ramp_oauth_callback(code: str, state: str) -> dict[str, Any]:
 
         token_url = "https://api.ramp.com/developer/v1/token"
 
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             token_url,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             data={
@@ -185,7 +189,8 @@ async def ramp_oauth_callback(code: str, state: str) -> dict[str, Any]:
         token_data = response.json()
 
         # Ramp access tokens expire after 1 hour
-        CredentialManager.store_credential(
+        await asyncio.to_thread(
+            CredentialManager.store_credential,
             org_id=org_id,
             user_id=user_id,
             service="ramp",
@@ -257,7 +262,8 @@ async def chase_oauth_callback(code: str, state: str) -> dict[str, Any]:
 
         token_url = "https://api.chase.com/oauth/token"
 
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             token_url,
             auth=(client_id, client_secret),
             data={"grant_type": "authorization_code", "code": code, "redirect_uri": redirect_uri},
@@ -269,7 +275,8 @@ async def chase_oauth_callback(code: str, state: str) -> dict[str, Any]:
 
         token_data = response.json()
 
-        CredentialManager.store_credential(
+        await asyncio.to_thread(
+            CredentialManager.store_credential,
             org_id=org_id,
             user_id=user_id,
             service="chase",
@@ -333,7 +340,8 @@ async def schwab_oauth_callback(code: str, state: str) -> dict[str, Any]:
 
         token_url = "https://api.schwabapi.com/v1/oauth/token"
 
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             token_url,
             auth=(client_id, client_secret),
             data={"grant_type": "authorization_code", "code": code, "redirect_uri": redirect_uri},
@@ -346,7 +354,8 @@ async def schwab_oauth_callback(code: str, state: str) -> dict[str, Any]:
         token_data = response.json()
 
         # Schwab: Access tokens expire in 30min, refresh tokens in 7 days
-        CredentialManager.store_credential(
+        await asyncio.to_thread(
+            CredentialManager.store_credential,
             org_id=org_id,
             user_id=user_id,
             service="schwab",

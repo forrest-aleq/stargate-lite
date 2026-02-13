@@ -12,6 +12,7 @@ Square OAuth Documentation:
 https://developer.squareup.com/docs/oauth-api/overview
 """
 
+import asyncio
 import hashlib
 import hmac
 import os
@@ -186,7 +187,8 @@ async def shopify_oauth_callback(
 
         # Exchange code for access token
         token_url = f"https://{callback_shop}.myshopify.com/admin/oauth/access_token"
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             token_url,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             data={"client_id": client_id, "client_secret": client_secret, "code": code},
@@ -204,7 +206,8 @@ async def shopify_oauth_callback(
 
         token_data = response.json()
 
-        CredentialManager.store_credential(
+        await asyncio.to_thread(
+            CredentialManager.store_credential,
             org_id=org_id,
             user_id=user_id,
             service="shopify",
@@ -332,7 +335,8 @@ async def square_oauth_callback(code: str, state: str) -> RedirectResponse:
 
         _, token_url = _get_square_urls()
 
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             token_url,
             headers={
                 "Content-Type": "application/json",
@@ -364,7 +368,8 @@ async def square_oauth_callback(code: str, state: str) -> RedirectResponse:
         else:
             token_expiry = datetime.now(UTC) + timedelta(days=30)
 
-        CredentialManager.store_credential(
+        await asyncio.to_thread(
+            CredentialManager.store_credential,
             org_id=org_id,
             user_id=user_id,
             service="square",

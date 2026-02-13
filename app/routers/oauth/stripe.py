@@ -5,6 +5,7 @@ Handles OAuth authorization and callback for Stripe Connect.
 Allows customers to connect their own Stripe accounts.
 """
 
+import asyncio
 import os
 import time
 from datetime import UTC, datetime, timedelta
@@ -216,10 +217,12 @@ async def stripe_oauth_callback(code: str, state: str) -> RedirectResponse:
 
     try:
         # Exchange authorization code for tokens
-        token_data = _exchange_stripe_tokens(code, org_id, user_id)
+        token_data = await asyncio.to_thread(_exchange_stripe_tokens, code, org_id, user_id)
 
         # Store credentials in database
-        _store_stripe_credential(org_id, user_id, token_data, credential_type)
+        await asyncio.to_thread(
+            _store_stripe_credential, org_id, user_id, token_data, credential_type
+        )
 
         return build_oauth_success_redirect(service="stripe", org_id=org_id)
 

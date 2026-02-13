@@ -4,6 +4,7 @@ NetSuite OAuth Routes
 Handles OAuth authorization and callback for NetSuite ERP.
 """
 
+import asyncio
 import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -93,7 +94,8 @@ async def netsuite_oauth_callback(code: str, state: str) -> dict[str, Any]:
             f"https://{account_id}.suitetalk.api.netsuite.com/services/rest/auth/oauth2/v1/token"
         )
 
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             token_url,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             auth=(client_id, client_secret),  # HTTP Basic Auth
@@ -107,7 +109,8 @@ async def netsuite_oauth_callback(code: str, state: str) -> dict[str, Any]:
         token_data = response.json()
 
         # Store credentials (NetSuite refresh tokens expire after 7 days)
-        CredentialManager.store_credential(
+        await asyncio.to_thread(
+            CredentialManager.store_credential,
             org_id=org_id,
             user_id=user_id,
             service="netsuite",

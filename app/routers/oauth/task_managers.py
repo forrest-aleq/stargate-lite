@@ -7,6 +7,7 @@ Handles OAuth authorization and callback for task management tools:
 - Monday.com (work OS)
 """
 
+import asyncio
 import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -74,7 +75,8 @@ async def asana_oauth_callback(code: str, state: str) -> dict[str, Any]:
 
         token_url = "https://app.asana.com/-/oauth_token"
 
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             token_url,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             data={
@@ -93,7 +95,8 @@ async def asana_oauth_callback(code: str, state: str) -> dict[str, Any]:
         token_data = response.json()
 
         # Asana tokens expire after 1 hour
-        CredentialManager.store_credential(
+        await asyncio.to_thread(
+            CredentialManager.store_credential,
             org_id=org_id,
             user_id=user_id,
             service="asana",
@@ -163,7 +166,8 @@ async def clickup_oauth_callback(code: str, state: str) -> dict[str, Any]:
 
         token_url = "https://api.clickup.com/api/v2/oauth/token"
 
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             token_url,
             data={"client_id": client_id, "client_secret": client_secret, "code": code},
             timeout=30,
@@ -176,7 +180,8 @@ async def clickup_oauth_callback(code: str, state: str) -> dict[str, Any]:
 
         # ClickUp tokens currently don't expire
         # Store without expiry (will be added when ClickUp implements token expiry)
-        CredentialManager.store_credential(
+        await asyncio.to_thread(
+            CredentialManager.store_credential,
             org_id=org_id,
             user_id=user_id,
             service="clickup",
@@ -258,7 +263,8 @@ async def monday_oauth_callback(code: str, state: str) -> dict[str, Any]:
 
         token_url = "https://auth.monday.com/oauth2/token"
 
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             token_url,
             json={
                 "code": code,
@@ -276,7 +282,8 @@ async def monday_oauth_callback(code: str, state: str) -> dict[str, Any]:
         token_data = response.json()
 
         # Monday.com tokens don't expire
-        CredentialManager.store_credential(
+        await asyncio.to_thread(
+            CredentialManager.store_credential,
             org_id=org_id,
             user_id=user_id,
             service="monday",

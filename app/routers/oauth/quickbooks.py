@@ -4,6 +4,7 @@ QuickBooks OAuth Routes
 Handles OAuth authorization and callback for QuickBooks Online.
 """
 
+import asyncio
 import os
 import time
 from datetime import UTC, datetime, timedelta
@@ -207,11 +208,19 @@ async def quickbooks_oauth_callback(code: str, state: str, realmId: str) -> Redi
 
     try:
         # Exchange authorization code for tokens
-        token_data, token_expiry = _exchange_quickbooks_tokens(code, org_id, user_id)
+        token_data, token_expiry = await asyncio.to_thread(
+            _exchange_quickbooks_tokens, code, org_id, user_id
+        )
 
         # Store credentials in database
-        _store_quickbooks_credential(
-            org_id, user_id, token_data, token_expiry, realmId, credential_type
+        await asyncio.to_thread(
+            _store_quickbooks_credential,
+            org_id,
+            user_id,
+            token_data,
+            token_expiry,
+            realmId,
+            credential_type,
         )
 
         return build_oauth_success_redirect(service="quickbooks", org_id=org_id)

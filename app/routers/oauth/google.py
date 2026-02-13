@@ -12,6 +12,7 @@ Token Lifecycle:
 - Use access_type=offline and prompt=consent to get refresh token
 """
 
+import asyncio
 import os
 import time
 from datetime import UTC, datetime, timedelta
@@ -281,11 +282,19 @@ async def google_oauth_callback(code: str, state: str) -> RedirectResponse:
 
     try:
         # Exchange authorization code for tokens
-        token_data, token_expiry = _exchange_google_tokens(code, org_id, user_id, service)
+        token_data, token_expiry = await asyncio.to_thread(
+            _exchange_google_tokens, code, org_id, user_id, service
+        )
 
         # Store credentials in database
-        _store_google_credential(
-            org_id, user_id, token_data, token_expiry, credential_type, service
+        await asyncio.to_thread(
+            _store_google_credential,
+            org_id,
+            user_id,
+            token_data,
+            token_expiry,
+            credential_type,
+            service,
         )
 
         return build_oauth_success_redirect(service="google", org_id=org_id)

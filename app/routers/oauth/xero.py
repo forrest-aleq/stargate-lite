@@ -13,6 +13,7 @@ Xero OAuth flow:
 Reference: https://developer.xero.com/documentation/guides/oauth2/auth-flow/
 """
 
+import asyncio
 import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -266,14 +267,22 @@ async def xero_oauth_callback(code: str, state: str) -> RedirectResponse:
 
     try:
         # Exchange authorization code for tokens
-        token_data, token_expiry = _exchange_xero_tokens(code, org_id, user_id)
+        token_data, token_expiry = await asyncio.to_thread(
+            _exchange_xero_tokens, code, org_id, user_id
+        )
 
         # Fetch tenant ID from Xero connections endpoint
-        tenant_id = _fetch_xero_tenant_id(token_data["access_token"])
+        tenant_id = await asyncio.to_thread(_fetch_xero_tenant_id, token_data["access_token"])
 
         # Store credentials (tenant_id stored as realm_id)
-        _store_xero_credential(
-            org_id, user_id, token_data, token_expiry, tenant_id, credential_type
+        await asyncio.to_thread(
+            _store_xero_credential,
+            org_id,
+            user_id,
+            token_data,
+            token_expiry,
+            tenant_id,
+            credential_type,
         )
 
         return build_oauth_success_redirect(service="xero", org_id=org_id)

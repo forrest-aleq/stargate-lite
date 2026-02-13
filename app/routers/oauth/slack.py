@@ -12,6 +12,7 @@ Token Lifecycle:
 - Workspace tokens are long-lived
 """
 
+import asyncio
 import os
 import time
 from datetime import UTC, datetime, timedelta
@@ -264,10 +265,12 @@ async def slack_oauth_callback(code: str, state: str) -> RedirectResponse:
 
     try:
         # Exchange authorization code for tokens
-        token_data = _exchange_slack_tokens(code, org_id, user_id)
+        token_data = await asyncio.to_thread(_exchange_slack_tokens, code, org_id, user_id)
 
         # Store credentials in database
-        _store_slack_credential(org_id, user_id, token_data, credential_type)
+        await asyncio.to_thread(
+            _store_slack_credential, org_id, user_id, token_data, credential_type
+        )
 
         return build_oauth_success_redirect(service="slack", org_id=org_id)
 

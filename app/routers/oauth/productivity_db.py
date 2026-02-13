@@ -11,6 +11,7 @@ https://airtable.com/developers/web/guides/oauth-integrations
 Note: Airtable requires PKCE (Proof Key for Code Exchange) for OAuth.
 """
 
+import asyncio
 import base64
 import hashlib
 import secrets
@@ -147,7 +148,8 @@ async def airtable_oauth_callback(code: str, state: str) -> RedirectResponse:
 
         # Exchange code for tokens (Airtable uses HTTP Basic Auth)
         auth_header = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             AIRTABLE_TOKEN_URL,
             headers={
                 "Content-Type": "application/x-www-form-urlencoded",
@@ -212,7 +214,8 @@ async def airtable_oauth_callback(code: str, state: str) -> RedirectResponse:
 
         # Store credentials (tokens expire in 60 days)
         expires_in = token_data.get("expires_in", 5184000)
-        CredentialManager.store_credential(
+        await asyncio.to_thread(
+            CredentialManager.store_credential,
             org_id=org_id,
             user_id=user_id,
             service="airtable",

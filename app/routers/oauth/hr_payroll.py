@@ -8,6 +8,7 @@ Gusto OAuth Documentation:
 https://docs.gusto.com/app-integrations/v2024-03-01/docs/oauth2
 """
 
+import asyncio
 import os
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
@@ -116,7 +117,8 @@ async def gusto_oauth_callback(code: str, state: str) -> RedirectResponse:
 
         _, token_url = _get_gusto_urls()
 
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             token_url,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             data={
@@ -142,7 +144,8 @@ async def gusto_oauth_callback(code: str, state: str) -> RedirectResponse:
         expires_in = token_data.get("expires_in", 7200)
         token_expiry = datetime.now(UTC) + timedelta(seconds=expires_in)
 
-        CredentialManager.store_credential(
+        await asyncio.to_thread(
+            CredentialManager.store_credential,
             org_id=org_id,
             user_id=user_id,
             service="gusto",

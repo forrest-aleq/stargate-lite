@@ -8,6 +8,7 @@ DocuSign OAuth Documentation:
 https://developers.docusign.com/platform/auth/authcode/
 """
 
+import asyncio
 import os
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
@@ -146,7 +147,8 @@ async def docusign_oauth_callback(code: str, state: str) -> RedirectResponse:
 
         _, token_url, userinfo_url = _get_docusign_urls()
 
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             token_url,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             auth=(client_id, client_secret),
@@ -165,10 +167,13 @@ async def docusign_oauth_callback(code: str, state: str) -> RedirectResponse:
 
         token_data = response.json()
         access_token = token_data["access_token"]
-        account_id, base_uri = _fetch_docusign_account_info(access_token, userinfo_url)
+        account_id, base_uri = await asyncio.to_thread(
+            _fetch_docusign_account_info, access_token, userinfo_url
+        )
 
         expires_in = token_data.get("expires_in", 28800)
-        CredentialManager.store_credential(
+        await asyncio.to_thread(
+            CredentialManager.store_credential,
             org_id=org_id,
             user_id=user_id,
             service="docusign",

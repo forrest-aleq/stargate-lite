@@ -6,6 +6,7 @@ Handles OAuth authorization and callback for:
 - Linear (issue tracking)
 """
 
+import asyncio
 import base64
 import os
 from datetime import UTC, datetime, timedelta
@@ -79,7 +80,8 @@ async def notion_oauth_callback(code: str, state: str) -> dict[str, Any]:
         credentials = f"{client_id}:{client_secret}"
         encoded_credentials = base64.b64encode(credentials.encode()).decode()
 
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             token_url,
             headers={
                 "Authorization": f"Basic {encoded_credentials}",
@@ -95,7 +97,8 @@ async def notion_oauth_callback(code: str, state: str) -> dict[str, Any]:
         token_data = response.json()
 
         # Notion tokens don't expire
-        CredentialManager.store_credential(
+        await asyncio.to_thread(
+            CredentialManager.store_credential,
             org_id=org_id,
             user_id=user_id,
             service="notion",
@@ -184,7 +187,8 @@ async def linear_oauth_callback(code: str, state: str) -> dict[str, Any]:
 
         token_url = "https://api.linear.app/oauth/token"
 
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             token_url,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             data={
@@ -203,7 +207,8 @@ async def linear_oauth_callback(code: str, state: str) -> dict[str, Any]:
         token_data = response.json()
 
         # Linear access tokens expire after 24 hours
-        CredentialManager.store_credential(
+        await asyncio.to_thread(
+            CredentialManager.store_credential,
             org_id=org_id,
             user_id=user_id,
             service="linear",
