@@ -5,6 +5,7 @@ Implements sliding window rate limiting per org_id to prevent abuse.
 Production-critical: Protects against runaway clients and ensures fair usage.
 """
 
+import asyncio
 import os
 import time
 from typing import Any
@@ -138,7 +139,7 @@ async def check_rate_limit_dependency(request: Request) -> None:
     except Exception:
         org_id = "unknown"
 
-    is_allowed, rate_info = rate_limiter.check_rate_limit(org_id)
+    is_allowed, rate_info = await asyncio.to_thread(rate_limiter.check_rate_limit, org_id)
 
     # Add rate limit headers to response (will be picked up by middleware or response)
     request.state.rate_limit_info = rate_info

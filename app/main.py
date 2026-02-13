@@ -92,12 +92,16 @@ async def startup_event() -> None:
 @app.on_event("shutdown")
 async def shutdown_event() -> None:
     """Flush analytics and close connections on shutdown."""
+    from app.database import engine
+    from app.http_client import http_client
     from app.posthog_client import flush as posthog_flush
     from app.redis_client import redis_client
 
     posthog_flush()
     if redis_client._redis_client:
         redis_client._redis_client.close()
+    http_client.session.close()
+    engine.dispose()
     logger.info("Graceful shutdown complete", log_event="shutdown_complete")
 
 
