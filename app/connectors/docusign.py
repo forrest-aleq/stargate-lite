@@ -5,12 +5,13 @@ Handles envelopes, recipients, documents, and templates via eSignature REST API
 
 import base64
 import os
+import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
 from app.database import CredentialManager
-from app.errors import CredentialMissingError
+from app.errors import CredentialMissingError, NetworkError
 from app.http_client import http_client
 from app.logging_config import get_logger
 from app.posthog_client import track_token_refreshed
@@ -58,59 +59,67 @@ class DocuSignConnector:
         """Refresh the access token"""
         auth_url = self.DEMO_AUTH_URL if self.environment == "demo" else self.AUTH_URL
 
-        # DocuSign uses Basic auth for token refresh
         credentials = base64.b64encode(f"{self.client_id}:{self.client_secret}".encode()).decode()
+        for attempt in range(2):
+            try:
+                token_data = http_client.post(
+                    url=auth_url,
+                    service="docusign",
+                    headers={
+                        "Authorization": f"Basic {credentials}",
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                    data={
+                        "grant_type": "refresh_token",
+                        "refresh_token": refresh_token,
+                    },
+                )
 
-        try:
-            token_data = http_client.post(
-                url=auth_url,
-                service="docusign",
-                headers={
-                    "Authorization": f"Basic {credentials}",
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-                data={
-                    "grant_type": "refresh_token",
-                    "refresh_token": refresh_token,
-                },
-            )
+                new_expiry = datetime.now(UTC) + timedelta(
+                    seconds=token_data.get("expires_in", 28800)
+                )
 
-            new_expiry = datetime.now(UTC) + timedelta(seconds=token_data.get("expires_in", 28800))
+                CredentialManager.store_credential(
+                    org_id=org_id,
+                    user_id=user_id,
+                    service="docusign",
+                    access_token=token_data["access_token"],
+                    refresh_token=token_data["refresh_token"],
+                    token_expiry=new_expiry,
+                )
 
-            CredentialManager.store_credential(
-                org_id=org_id,
-                user_id=user_id,
-                service="docusign",
-                access_token=token_data["access_token"],
-                refresh_token=token_data["refresh_token"],
-                token_expiry=new_expiry,
-            )
+                track_token_refreshed(
+                    user_id=user_id,
+                    org_id=org_id,
+                    service="docusign",
+                    success=True,
+                )
 
-            # Track successful token refresh to PostHog
-            track_token_refreshed(
-                user_id=user_id,
-                org_id=org_id,
-                service="docusign",
-                success=True,
-            )
-
-            return {
-                "access_token": token_data["access_token"],
-                "refresh_token": token_data["refresh_token"],
-                "token_expiry": new_expiry,
-                "account_id": token_data.get("account_id"),
-            }
-        except Exception:
-            # Track failed token refresh to PostHog
-            track_token_refreshed(
-                user_id=user_id,
-                org_id=org_id,
-                service="docusign",
-                success=False,
-            )
-            raise
-
-    # ============ ENVELOPES ============
+                return {
+                    "access_token": token_data["access_token"],
+                    "refresh_token": token_data["refresh_token"],
+                    "token_expiry": new_expiry,
+                    "account_id": token_data.get("account_id"),
+                }
+            except NetworkError:
+                if attempt == 0:
+                    logger.warning(
+                        "Token refresh transient failure, retrying",
+                        service="docusign",
+                        log_event="token_refresh_retry",
+                    )
+                    time.sleep(1.0)
+                    continue
+                track_token_refreshed(
+                    user_id=user_id, org_id=org_id, service="docusign", success=False
+                )
+                raise
+            except Exception:
+                track_token_refreshed(
+                    user_id=user_id, org_id=org_id, service="docusign", success=False
+                )
+                raise
+        raise NetworkError(service="docusign")
 
     def list_envelopes(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List envelopes from DocuSign"""
@@ -251,8 +260,6 @@ class DocuSignConnector:
             "status": result.get("status", "voided"),
         }
 
-    # ============ RECIPIENTS ============
-
     def list_recipients(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List recipients for an envelope"""
         cred = self._get_access_token(org_id, user_id)
@@ -300,8 +307,6 @@ class DocuSignConnector:
             "recipient_id": args["recipient_id"],
             "status": "updated",
         }
-
-    # ============ DOCUMENTS ============
 
     def list_documents(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List documents in an envelope"""
@@ -354,8 +359,6 @@ class DocuSignConnector:
             else result,
             "content_type": "application/pdf",
         }
-
-    # ============ TEMPLATES ============
 
     def list_templates(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List templates from DocuSign"""

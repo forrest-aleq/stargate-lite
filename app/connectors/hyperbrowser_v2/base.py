@@ -54,7 +54,7 @@ class HyperbrowserBase:
         if self.client is None:
             if not self.hyperbrowser_api_key:
                 raise ValueError(
-                    "HYPERBROWSER_API_KEY not set. " "Get your key at https://app.hyperbrowser.ai/"
+                    "HYPERBROWSER_API_KEY not set. Get your key at https://app.hyperbrowser.ai/"
                 )
             self.client = Hyperbrowser(api_key=self.hyperbrowser_api_key)
 

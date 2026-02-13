@@ -169,7 +169,7 @@ MARS_CONTRACT: dict[str, object] = {
     # -- Guarantees ---------------------------------------------------------
     "guarantees": {
         "http_200_always": (
-            "Errors return HTTP 200 with status='error' " "— never 4xx/5xx for business errors"
+            "Errors return HTTP 200 with status='error' — never 4xx/5xx for business errors"
         ),
         "idempotency": ("Same turn_id + capability_key within 24h returns cached response"),
         "multi_tenant_isolation": ("Credentials keyed by org_id:user_id:service — never cross-org"),

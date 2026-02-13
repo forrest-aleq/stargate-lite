@@ -92,10 +92,13 @@ def record_failure(service: str) -> None:
 
         if state == STATE_HALF_OPEN:
             # Probe failed — re-open
-            client.hset(key, mapping={
-                "state": STATE_OPEN,
-                "opened_at": str(now),
-            })
+            client.hset(
+                key,
+                mapping={
+                    "state": STATE_OPEN,
+                    "opened_at": str(now),
+                },
+            )
             # TTL = window + recovery + buffer
             client.expire(key, FAILURE_WINDOW + RECOVERY_TIMEOUT + 60)
             logger.warning(
@@ -107,10 +110,13 @@ def record_failure(service: str) -> None:
 
         if failure_count >= FAILURE_THRESHOLD:
             # Open the circuit
-            client.hset(key, mapping={
-                "state": STATE_OPEN,
-                "opened_at": str(now),
-            })
+            client.hset(
+                key,
+                mapping={
+                    "state": STATE_OPEN,
+                    "opened_at": str(now),
+                },
+            )
             # TTL = window + recovery + buffer
             client.expire(key, FAILURE_WINDOW + RECOVERY_TIMEOUT + 60)
             logger.warning(

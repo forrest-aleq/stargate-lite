@@ -12,6 +12,8 @@ import time
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from app import circuit_breaker
 from app.circuit_breaker import (
     FAILURE_THRESHOLD,
@@ -20,8 +22,6 @@ from app.circuit_breaker import (
     record_failure,
     record_success,
 )
-
-import pytest
 
 
 @pytest.fixture(autouse=True)
@@ -67,9 +67,7 @@ def _reset_redis_mock() -> Any:
         commands: list[tuple[str, tuple[Any, ...], dict[str, Any]]] = []
 
         class PipeMock:
-            def hincrby(
-                self, key: str, field: str, amount: int = 1
-            ) -> "PipeMock":
+            def hincrby(self, key: str, field: str, amount: int = 1) -> "PipeMock":
                 commands.append(("hincrby", (key, field, amount), {}))
                 return self
 
@@ -80,11 +78,13 @@ def _reset_redis_mock() -> Any:
                 value: str | None = None,
                 mapping: dict[str, str] | None = None,
             ) -> "PipeMock":
-                commands.append((
-                    "hset",
-                    (key,),
-                    {"field": field, "value": value, "mapping": mapping},
-                ))
+                commands.append(
+                    (
+                        "hset",
+                        (key,),
+                        {"field": field, "value": value, "mapping": mapping},
+                    )
+                )
                 return self
 
             def execute(self) -> list[Any]:
@@ -126,9 +126,7 @@ class TestCircuitBreaker:
         """Circuit should stay closed below threshold, open at threshold."""
         for i in range(FAILURE_THRESHOLD - 1):
             record_failure("test_service")
-            assert is_open("test_service") is False, (
-                f"Should be closed at {i + 1} failures"
-            )
+            assert is_open("test_service") is False, f"Should be closed at {i + 1} failures"
 
         record_failure("test_service")
         assert is_open("test_service") is True
@@ -166,9 +164,7 @@ class TestCircuitBreaker:
 
     def test_no_redis_fails_open(self) -> None:
         """When Redis is unavailable, circuit should allow all requests."""
-        with patch.object(
-            circuit_breaker.redis_client, "_redis_client", None
-        ):
+        with patch.object(circuit_breaker.redis_client, "_redis_client", None):
             assert is_open("test_service") is False
             # These should not raise
             record_failure("test_service")

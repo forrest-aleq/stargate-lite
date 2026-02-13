@@ -9,11 +9,12 @@ Requires a Web Services developer license and Sage App Registry app.
 """
 
 import os
+import time
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 from app.database import CredentialManager
-from app.errors import CredentialMissingError, ExternalAPIError, ValidationError
+from app.errors import CredentialMissingError, ExternalAPIError, NetworkError, ValidationError
 from app.http_client import http_client
 from app.logging_config import get_logger
 from app.posthog_client import track_token_refreshed
@@ -77,77 +78,93 @@ class SageIntacctBase:
                 "SAGE_INTACCT_CLIENT_ID and SAGE_INTACCT_CLIENT_SECRET required",
             )
 
-        try:
-            token_data: dict[str, Any] = http_client.post(
-                url=self.TOKEN_URL,
-                service="sage_intacct",
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
-                data={
-                    "grant_type": "refresh_token",
-                    "refresh_token": refresh_token,
-                    "client_id": self.client_id,
-                    "client_secret": self.client_secret,
-                },
-                timeout=self.DEFAULT_TIMEOUT,
-            )
+        for attempt in range(2):
+            try:
+                token_data: dict[str, Any] = http_client.post(
+                    url=self.TOKEN_URL,
+                    service="sage_intacct",
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
+                    data={
+                        "grant_type": "refresh_token",
+                        "refresh_token": refresh_token,
+                        "client_id": self.client_id,
+                        "client_secret": self.client_secret,
+                    },
+                    timeout=self.DEFAULT_TIMEOUT,
+                )
 
-            # Token typically expires in 3600 seconds (1 hour)
-            expires_in = token_data.get("expires_in", 3600)
-            new_expiry = datetime.now(UTC) + timedelta(seconds=expires_in)
+                # Token typically expires in 3600 seconds (1 hour)
+                expires_in = token_data.get("expires_in", 3600)
+                new_expiry = datetime.now(UTC) + timedelta(seconds=expires_in)
 
-            # Store updated credentials (company_id stored as realm_id)
-            CredentialManager.store_credential(
-                org_id=org_id,
-                user_id=user_id,
-                service="sage_intacct",
-                access_token=token_data["access_token"],
-                refresh_token=token_data.get("refresh_token", refresh_token),
-                token_expiry=new_expiry,
-                realm_id=company_id,
-            )
+                # Store updated credentials (company_id stored as realm_id)
+                CredentialManager.store_credential(
+                    org_id=org_id,
+                    user_id=user_id,
+                    service="sage_intacct",
+                    access_token=token_data["access_token"],
+                    refresh_token=token_data.get("refresh_token", refresh_token),
+                    token_expiry=new_expiry,
+                    realm_id=company_id,
+                )
 
-            logger.info(
-                "Sage Intacct token refreshed successfully",
-                service="sage_intacct",
-                org_id=org_id,
-                user_id=user_id,
-                expires_in_seconds=expires_in,
-                log_event="token_refresh_success",
-            )
+                logger.info(
+                    "Sage Intacct token refreshed successfully",
+                    service="sage_intacct",
+                    org_id=org_id,
+                    user_id=user_id,
+                    expires_in_seconds=expires_in,
+                    log_event="token_refresh_success",
+                )
 
-            # Track successful token refresh to PostHog
-            track_token_refreshed(
-                user_id=user_id,
-                org_id=org_id,
-                service="sage_intacct",
-                success=True,
-            )
+                # Track successful token refresh to PostHog
+                track_token_refreshed(
+                    user_id=user_id,
+                    org_id=org_id,
+                    service="sage_intacct",
+                    success=True,
+                )
 
-            return {
-                "access_token": token_data["access_token"],
-                "refresh_token": token_data.get("refresh_token", refresh_token),
-                "token_expiry": new_expiry,
-                "realm_id": company_id,
-            }
+                return {
+                    "access_token": token_data["access_token"],
+                    "refresh_token": token_data.get("refresh_token", refresh_token),
+                    "token_expiry": new_expiry,
+                    "realm_id": company_id,
+                }
 
-        except Exception as e:
-            logger.error(
-                "Sage Intacct token refresh failed",
-                service="sage_intacct",
-                org_id=org_id,
-                user_id=user_id,
-                error_type=type(e).__name__,
-                log_event="token_refresh_error",
-                exc_info=True,
-            )
-            # Track failed token refresh to PostHog
-            track_token_refreshed(
-                user_id=user_id,
-                org_id=org_id,
-                service="sage_intacct",
-                success=False,
-            )
-            raise
+            except NetworkError:
+                if attempt == 0:
+                    logger.warning(
+                        "Token refresh transient failure, retrying",
+                        service="sage_intacct",
+                        log_event="token_refresh_retry",
+                    )
+                    time.sleep(1.0)
+                    continue
+                track_token_refreshed(
+                    user_id=user_id, org_id=org_id, service="sage_intacct", success=False
+                )
+                raise
+            except Exception as e:
+                logger.error(
+                    "Sage Intacct token refresh failed",
+                    service="sage_intacct",
+                    org_id=org_id,
+                    user_id=user_id,
+                    error_type=type(e).__name__,
+                    log_event="token_refresh_error",
+                    exc_info=True,
+                )
+                # Track failed token refresh to PostHog
+                track_token_refreshed(
+                    user_id=user_id,
+                    org_id=org_id,
+                    service="sage_intacct",
+                    success=False,
+                )
+                raise
+
+        raise NetworkError(service="sage_intacct")
 
     def _get_company_id(self, cred: dict[str, Any]) -> str:
         """Get the Sage Intacct company ID from credentials."""

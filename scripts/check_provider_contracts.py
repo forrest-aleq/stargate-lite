@@ -93,13 +93,11 @@ def check_error_taxonomy() -> list[str]:
 
         # Must have exactly 10 error codes
         if len(error_codes) != 10:
-            violations.append(f"MARS contract has {len(error_codes)} error codes " f"(expected 10)")
+            violations.append(f"MARS contract has {len(error_codes)} error codes (expected 10)")
 
         # Must have exactly 3 retry strategies
         if len(strategies) != 3:
-            violations.append(
-                f"MARS contract has {len(strategies)} retry strategies " f"(expected 3)"
-            )
+            violations.append(f"MARS contract has {len(strategies)} retry strategies (expected 3)")
 
     except Exception as e:
         violations.append(f"Failed to check error taxonomy: {e}")

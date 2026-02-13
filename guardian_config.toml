@@ -23,6 +23,8 @@ max_function_lines = 150  # FCI utilities and OAuth callbacks contain complex mu
 # Sage Intacct connector - pending split
 "app/connectors/sage_intacct/ar.py" = 550
 "app/connectors/sage_intacct/cash.py" = 550
+# DocuSign - single-file connector with many endpoints
+"app/connectors/docusign.py" = 510
 # OAuth base - contains common utilities, pending refactor
 "app/routers/oauth/base.py" = 650
 # Database manager - pending split into query/session modules

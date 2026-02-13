@@ -3,11 +3,12 @@ QuickBooks Online connector - Base module with authentication
 """
 
 import os
+import time
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 from app.database import CredentialManager
-from app.errors import CredentialMissingError
+from app.errors import CredentialMissingError, NetworkError
 from app.http_client import http_client
 from app.logging_config import get_logger
 from app.posthog_client import track_token_refreshed
@@ -73,73 +74,97 @@ class QuickBooksBase:
             log_event="token_refresh_start",
         )
 
-        try:
-            token_data = http_client.post(
-                url=self.TOKEN_URL,
-                service="quickbooks",
-                headers={
-                    "Accept": "application/json",
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-                auth=(self.client_id, self.client_secret),
-                data={"grant_type": "refresh_token", "refresh_token": refresh_token},
-            )
+        for attempt in range(2):
+            try:
+                token_data = http_client.post(
+                    url=self.TOKEN_URL,
+                    service="quickbooks",
+                    headers={
+                        "Accept": "application/json",
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                    auth=(self.client_id, self.client_secret),
+                    data={"grant_type": "refresh_token", "refresh_token": refresh_token},
+                )
 
-            new_expiry = datetime.now(UTC) + timedelta(seconds=token_data["expires_in"])
-            cred = CredentialManager.get_credential(org_id, user_id, "quickbooks")
-            realm_id = cred["realm_id"] if cred else None
+                new_expiry = datetime.now(UTC) + timedelta(seconds=token_data["expires_in"])
+                cred = CredentialManager.get_credential(org_id, user_id, "quickbooks")
+                realm_id = cred["realm_id"] if cred else None
 
-            CredentialManager.store_credential(
-                org_id=org_id,
-                user_id=user_id,
-                service="quickbooks",
-                access_token=token_data["access_token"],
-                refresh_token=token_data["refresh_token"],
-                token_expiry=new_expiry,
-                realm_id=realm_id,
-            )
+                CredentialManager.store_credential(
+                    org_id=org_id,
+                    user_id=user_id,
+                    service="quickbooks",
+                    access_token=token_data["access_token"],
+                    refresh_token=token_data["refresh_token"],
+                    token_expiry=new_expiry,
+                    realm_id=realm_id,
+                )
 
-            logger.info(
-                "QuickBooks token refreshed successfully",
-                service="quickbooks",
-                org_id=org_id,
-                user_id=user_id,
-                expires_in_seconds=token_data["expires_in"],
-                log_event="token_refresh_success",
-            )
+                logger.info(
+                    "QuickBooks token refreshed successfully",
+                    service="quickbooks",
+                    org_id=org_id,
+                    user_id=user_id,
+                    expires_in_seconds=token_data["expires_in"],
+                    log_event="token_refresh_success",
+                )
 
-            # Track successful token refresh to PostHog
-            track_token_refreshed(
-                user_id=user_id,
-                org_id=org_id,
-                service="quickbooks",
-                success=True,
-            )
+                track_token_refreshed(
+                    user_id=user_id,
+                    org_id=org_id,
+                    service="quickbooks",
+                    success=True,
+                )
 
-            return {
-                "access_token": token_data["access_token"],
-                "refresh_token": token_data["refresh_token"],
-                "token_expiry": new_expiry,
-                "realm_id": realm_id,
-            }
-        except Exception as e:
-            logger.error(
-                "QuickBooks token refresh failed",
-                service="quickbooks",
-                org_id=org_id,
-                user_id=user_id,
-                error_type=type(e).__name__,
-                log_event="token_refresh_error",
-                exc_info=True,
-            )
-            # Track failed token refresh to PostHog
-            track_token_refreshed(
-                user_id=user_id,
-                org_id=org_id,
-                service="quickbooks",
-                success=False,
-            )
-            raise
+                return {
+                    "access_token": token_data["access_token"],
+                    "refresh_token": token_data["refresh_token"],
+                    "token_expiry": new_expiry,
+                    "realm_id": realm_id,
+                }
+            except NetworkError:
+                if attempt == 0:
+                    logger.warning(
+                        "Token refresh transient failure, retrying",
+                        service="quickbooks",
+                        log_event="token_refresh_retry",
+                    )
+                    time.sleep(1.0)
+                    continue
+                logger.error(
+                    "QuickBooks token refresh failed after retry",
+                    service="quickbooks",
+                    org_id=org_id,
+                    user_id=user_id,
+                    log_event="token_refresh_error",
+                )
+                track_token_refreshed(
+                    user_id=user_id,
+                    org_id=org_id,
+                    service="quickbooks",
+                    success=False,
+                )
+                raise
+            except Exception as e:
+                logger.error(
+                    "QuickBooks token refresh failed",
+                    service="quickbooks",
+                    org_id=org_id,
+                    user_id=user_id,
+                    error_type=type(e).__name__,
+                    log_event="token_refresh_error",
+                    exc_info=True,
+                )
+                track_token_refreshed(
+                    user_id=user_id,
+                    org_id=org_id,
+                    service="quickbooks",
+                    success=False,
+                )
+                raise
+        # Unreachable, but satisfies mypy
+        raise NetworkError(service="quickbooks")
 
     def _make_api_call(
         self,
