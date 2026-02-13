@@ -53,6 +53,7 @@ else:
     )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+_utcnow = lambda: datetime.now(UTC)  # noqa: E731
 
 
 class CredentialStore(Base):
@@ -82,13 +83,11 @@ class CredentialStore(Base):
     token_expiry = Column(DateTime, nullable=True)
     realm_id = Column(String, nullable=True)  # QuickBooks specific
     extra_data = Column(JSON, nullable=True)  # Store additional service-specific data
-
-    # NEW: Track who created this credential
     created_by = Column(String, nullable=True)  # User who set up this credential
 
     # Audit fields
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
 
 def init_db() -> None:
