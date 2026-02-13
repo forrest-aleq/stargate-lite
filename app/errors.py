@@ -332,6 +332,18 @@ class ProviderUnavailableError(StargateError):
         )
 
 
+class ServiceUnavailableError(StargateError):
+    """Service is temporarily unavailable (circuit breaker open)"""
+
+    def __init__(self, service: str) -> None:
+        super().__init__(
+            message=f"Service '{service}' is temporarily unavailable (circuit breaker open)",
+            error_code=ErrorCode.NETWORK_ERROR,
+            details={"service": service, "reason": "circuit_breaker_open"},
+            http_status=200,
+        )
+
+
 class ContentTooLargeError(StargateError):
     """Input content exceeds utility limits"""
 

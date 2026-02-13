@@ -7,11 +7,13 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
+from app.circuit_breaker import is_open, record_failure, record_success
 from app.constants.services import build_connect_url
 from app.errors import (
     CapabilityNotFoundError,
     ErrorCode,
     NetworkError,
+    ServiceUnavailableError,
     StargateError,
     classify_exception,
 )
@@ -82,6 +84,10 @@ async def execute_handler(
         data={"service": service, "capability": request.capability_key},
     )
 
+    # Circuit breaker check — fast-fail if service is known-bad
+    if await asyncio.to_thread(is_open, service):
+        raise ServiceUnavailableError(service=service)
+
     logger.info(
         "Executing handler", tool_name=tool_name, service=service, log_event="handler_start"
     )
@@ -105,8 +111,16 @@ async def execute_handler(
             timeout_seconds=HANDLER_TIMEOUT_SECONDS,
             log_event="handler_timeout",
         )
+        await asyncio.to_thread(record_failure, service)
         raise NetworkError(service=service) from None
+    except StargateError as e:
+        if e.error_code in (ErrorCode.NETWORK_ERROR, ErrorCode.RATE_LIMIT):
+            await asyncio.to_thread(record_failure, service)
+        raise
     handler_duration_ms = (time.time() - handler_start) * 1000
+
+    # Record success to reset circuit breaker
+    await asyncio.to_thread(record_success, service)
 
     logs.append(f"Successfully executed {tool_name}")
     logger.info(
