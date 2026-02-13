@@ -90,6 +90,17 @@ repos:
           - fastapi
           - starlette
 
+  # Pre-push test gate
+  - repo: local
+    hooks:
+      - id: pre-push-tests
+        name: Run test suite before push
+        entry: bash -c 'source venv/bin/activate && python -m pytest tests/ -x -q'
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true
+
   # Basic hygiene
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

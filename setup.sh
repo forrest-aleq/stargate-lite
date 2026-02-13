@@ -51,6 +51,13 @@ else
     echo "ℹ️  .env file already exists, skipping..."
 fi
 
+# Install pre-commit hooks (commit + push)
+echo ""
+echo "🪝 Installing pre-commit hooks..."
+pip install pre-commit
+pre-commit install
+pre-commit install --hook-type pre-push
+
 # Run database migrations
 echo ""
 echo "🗄️  Running database migrations..."
