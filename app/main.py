@@ -89,6 +89,18 @@ async def startup_event() -> None:
     )
 
 
+@app.on_event("shutdown")
+async def shutdown_event() -> None:
+    """Flush analytics and close connections on shutdown."""
+    from app.posthog_client import flush as posthog_flush
+    from app.redis_client import redis_client
+
+    posthog_flush()
+    if redis_client._redis_client:
+        redis_client._redis_client.close()
+    logger.info("Graceful shutdown complete", log_event="shutdown_complete")
+
+
 if __name__ == "__main__":
     import uvicorn
 

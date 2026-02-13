@@ -52,8 +52,8 @@ def _sign_state(payload: str) -> str:
     """
     key = _get_state_signing_key()
     signature = hmac.new(key, payload.encode("utf-8"), hashlib.sha256).hexdigest()
-    # Use first 16 chars - sufficient for CSRF protection, keeps URL shorter
-    return signature[:16]
+    # Use first 32 chars (128 bits) for CSRF protection
+    return signature[:32]
 
 
 def _verify_state_signature(payload: str, signature: str) -> bool:
@@ -223,13 +223,13 @@ def parse_oauth_state_3parts(state: str, service: str) -> tuple[str, str, str]:
                 status_code=400, detail="Invalid state parameter: signature mismatch"
             )
     elif len(parts) == 3:
-        # Legacy unsigned format - log warning but still accept during transition
+        # Reject unsigned state — transition period is over
         logger.warning(
-            "Received unsigned OAuth state (legacy format)",
+            "Rejected unsigned OAuth state",
             service=service,
-            log_event="oauth_state_unsigned_legacy",
+            log_event="oauth_state_unsigned_rejected",
         )
-        org_id, user_id, credential_type = parts
+        raise HTTPException(status_code=400, detail="Invalid state parameter: signature required")
     else:
         logger.warning(
             "Invalid state parameter format", service=service, log_event="oauth_state_invalid"
@@ -358,13 +358,13 @@ def parse_oauth_state_4parts(state: str, service: str) -> tuple[str, str, str, s
                 status_code=400, detail="Invalid state parameter: signature mismatch"
             )
     elif len(parts) == 4:
-        # Legacy unsigned format - log warning but still accept during transition
+        # Reject unsigned state — transition period is over
         logger.warning(
-            "Received unsigned OAuth state (legacy format)",
+            "Rejected unsigned OAuth state",
             service=service,
-            log_event="oauth_state_unsigned_legacy",
+            log_event="oauth_state_unsigned_rejected",
         )
-        org_id, user_id, credential_type, sub_service = parts
+        raise HTTPException(status_code=400, detail="Invalid state parameter: signature required")
     else:
         logger.warning(
             "Invalid state parameter format", service=service, log_event="oauth_state_invalid"

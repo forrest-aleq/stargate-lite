@@ -3,7 +3,7 @@ QuickBooks Online connector - Base module with authentication
 """
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 from app.database import CredentialManager
@@ -51,7 +51,7 @@ class QuickBooksBase:
             raise CredentialMissingError("quickbooks", org_id, user_id)
 
         # Check if token is expired or about to expire
-        if cred["token_expiry"] and cred["token_expiry"] < datetime.now(timezone.utc) + timedelta(minutes=5):
+        if cred["token_expiry"] and cred["token_expiry"] < datetime.now(UTC) + timedelta(minutes=5):
             logger.info(
                 "Token expired or expiring soon, refreshing",
                 service="quickbooks",
@@ -85,7 +85,7 @@ class QuickBooksBase:
                 data={"grant_type": "refresh_token", "refresh_token": refresh_token},
             )
 
-            new_expiry = datetime.now(timezone.utc) + timedelta(seconds=token_data["expires_in"])
+            new_expiry = datetime.now(UTC) + timedelta(seconds=token_data["expires_in"])
             cred = CredentialManager.get_credential(org_id, user_id, "quickbooks")
             realm_id = cred["realm_id"] if cred else None
 

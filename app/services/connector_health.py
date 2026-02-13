@@ -3,7 +3,7 @@ Connector health service - Helper functions for analyzing connector/credential s
 """
 
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from app.constants.services import (
@@ -40,7 +40,7 @@ def analyze_connections(
         if token_expiry:
             # Normalize to UTC-aware for comparison (Supabase returns tz-aware)
             if token_expiry.tzinfo is None:
-                token_expiry = token_expiry.replace(tzinfo=timezone.utc)
+                token_expiry = token_expiry.replace(tzinfo=UTC)
             if token_expiry < now:
                 expired_count += 1
             if latest_expiry is None or token_expiry > latest_expiry:
@@ -49,7 +49,7 @@ def analyze_connections(
         updated_at = conn["updated_at"]
         if updated_at:
             if updated_at.tzinfo is None:
-                updated_at = updated_at.replace(tzinfo=timezone.utc)
+                updated_at = updated_at.replace(tzinfo=UTC)
             if latest_updated is None or updated_at > latest_updated:
                 latest_updated = updated_at
 
@@ -141,7 +141,7 @@ def build_workflow_connector_status(
 
     token_expiry = cred.get("token_expiry")
     if token_expiry and token_expiry.tzinfo is None:
-        token_expiry = token_expiry.replace(tzinfo=timezone.utc)
+        token_expiry = token_expiry.replace(tzinfo=UTC)
     is_expired = token_expiry and token_expiry < now
 
     return WorkflowConnectorStatus(

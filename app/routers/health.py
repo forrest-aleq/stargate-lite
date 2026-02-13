@@ -3,7 +3,7 @@ Health check routes for Stargate Lite.
 """
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter
 
@@ -80,7 +80,7 @@ async def connector_health_check() -> ConnectorHealthResponse:
     """
     all_credentials = CredentialManager.get_all_credentials()
     service_data = group_credentials_by_service(all_credentials)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     enabled_services = {
         service: requires_oauth
