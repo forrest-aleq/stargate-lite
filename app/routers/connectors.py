@@ -2,6 +2,7 @@
 Connector status routes for Stargate Lite.
 """
 
+import asyncio
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
@@ -27,10 +28,16 @@ async def check_workflow_connector_status(
     connectors are authenticated before presenting a workflow preview to the user.
     """
     now = datetime.now(UTC)
-    connectors = [
-        build_workflow_connector_status(service, request.org_id, request.user_id, now)
-        for service in request.services
-    ]
+    connectors = list(
+        await asyncio.gather(
+            *[
+                asyncio.to_thread(
+                    build_workflow_connector_status, service, request.org_id, request.user_id, now
+                )
+                for service in request.services
+            ]
+        )
+    )
     all_connected, missing_count = aggregate_connector_status(connectors)
 
     return ConnectorStatusResponse(

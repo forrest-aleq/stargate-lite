@@ -2,6 +2,7 @@
 Tool execution routes for Stargate Lite.
 """
 
+import asyncio
 import time
 from typing import Any
 
@@ -77,7 +78,7 @@ async def execute_tool(
     logger.info("Execute request received", log_event="execute_start")
 
     # Rate limiting check
-    is_allowed, rate_info = rate_limiter.check_rate_limit(request.org_id)
+    is_allowed, rate_info = await asyncio.to_thread(rate_limiter.check_rate_limit, request.org_id)
 
     # Add rate limit headers to response
     response.headers["X-RateLimit-Limit"] = str(rate_info["limit"])
@@ -107,22 +108,23 @@ async def execute_tool(
         }
 
     try:
-        cached = check_idempotency_cache(request.turn_id, request.capability_key)
+        cached = await check_idempotency_cache(request.turn_id, request.capability_key)
         if cached:
             return cached
 
         capability = get_capability(request.capability_key)
         if not capability:
-            return handle_capability_not_found(request)
+            return await handle_capability_not_found(request)
 
         logs.append(
             f"Resolved capability '{request.capability_key}' to tool '{capability['tool_name']}'"
         )
 
-        outputs, _duration = execute_handler(capability, request, logs, session_id)
+        outputs, _duration = await execute_handler(capability, request, logs, session_id)
         response_data = build_success_response(request, capability, outputs, logs)
 
-        redis_client.cache_response(
+        await asyncio.to_thread(
+            redis_client.cache_response,
             request.turn_id,
             request.capability_key,
             response_data,
@@ -139,8 +141,8 @@ async def execute_tool(
         return response_data
 
     except StargateError as e:
-        return handle_stargate_error(e, request, capability, logs, start_time, session_id)
+        return await handle_stargate_error(e, request, capability, logs, start_time, session_id)
     except Exception as e:
-        return handle_unexpected_error(e, request, capability, logs, start_time, session_id)
+        return await handle_unexpected_error(e, request, capability, logs, start_time, session_id)
     finally:
         clear_request_context()

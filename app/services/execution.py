@@ -2,6 +2,7 @@
 Execution service - Helper functions for tool execution.
 """
 
+import asyncio
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -22,15 +23,17 @@ from app.sentry_config import (
 logger = get_logger(__name__)
 
 
-def check_idempotency_cache(turn_id: str, capability_key: str) -> dict[str, Any] | None:
+async def check_idempotency_cache(turn_id: str, capability_key: str) -> dict[str, Any] | None:
     """Check Redis cache for existing response. Returns cached response or None."""
-    cached = redis_client.get_cached_response(turn_id=turn_id, capability_key=capability_key)
+    cached = await asyncio.to_thread(
+        redis_client.get_cached_response, turn_id=turn_id, capability_key=capability_key
+    )
     if cached:
         logger.info("Returning cached response", log_event="cache_hit")
     return cached
 
 
-def handle_capability_not_found(request: ToolExecutionRequest) -> dict[str, Any]:
+async def handle_capability_not_found(request: ToolExecutionRequest) -> dict[str, Any]:
     """Build and cache error response for missing capability."""
     logger.warning("Capability not found in registry", log_event="capability_not_found")
     error = CapabilityNotFoundError(request.capability_key)
@@ -38,13 +41,17 @@ def handle_capability_not_found(request: ToolExecutionRequest) -> dict[str, Any]
         **error.to_dict(),
         "logs": [f"Capability '{request.capability_key}' not found in registry"],
     }
-    redis_client.cache_response(
-        request.turn_id, request.capability_key, response, ttl_seconds=CACHE_TTL_PERMANENT
+    await asyncio.to_thread(
+        redis_client.cache_response,
+        request.turn_id,
+        request.capability_key,
+        response,
+        ttl_seconds=CACHE_TTL_PERMANENT,
     )
     return response
 
 
-def execute_handler(
+async def execute_handler(
     capability: dict[str, Any],
     request: ToolExecutionRequest,
     logs: list[str],
@@ -72,7 +79,9 @@ def execute_handler(
     logs.append(f"Executing {tool_name} for org_id={request.org_id}, user_id={request.user_id}")
 
     handler_start = time.time()
-    outputs = handler(org_id=request.org_id, user_id=request.user_id, args=request.args)
+    outputs = await asyncio.to_thread(
+        handler, org_id=request.org_id, user_id=request.user_id, args=request.args
+    )
     handler_duration_ms = (time.time() - handler_start) * 1000
 
     logs.append(f"Successfully executed {tool_name}")
@@ -85,7 +94,8 @@ def execute_handler(
     )
 
     # Track successful capability execution to PostHog
-    track_capability_called(
+    await asyncio.to_thread(
+        track_capability_called,
         user_id=request.user_id,
         org_id=request.org_id,
         capability_key=request.capability_key,
@@ -117,7 +127,7 @@ def build_success_response(
     }
 
 
-def handle_stargate_error(
+async def handle_stargate_error(
     e: StargateError,
     request: ToolExecutionRequest,
     capability: dict[str, Any] | None,
@@ -145,7 +155,8 @@ def handle_stargate_error(
 
     # Capture to Sentry with full context
     service = capability["service"] if capability else "unknown"
-    sentry_capture_connector_error(
+    await asyncio.to_thread(
+        sentry_capture_connector_error,
         error=e,
         service=service,
         operation=request.capability_key,
@@ -161,7 +172,8 @@ def handle_stargate_error(
 
     # Track error to PostHog
     error_code_str = e.error_code.value if hasattr(e.error_code, "value") else str(e.error_code)
-    track_connector_error(
+    await asyncio.to_thread(
+        track_connector_error,
         user_id=request.user_id,
         org_id=request.org_id,
         service=service,
@@ -178,13 +190,17 @@ def handle_stargate_error(
         total_duration_ms=round(total_duration_ms, 2),
         log_event="execute_error",
     )
-    redis_client.cache_response(
-        request.turn_id, request.capability_key, error_dict, ttl_seconds=get_cache_ttl(error_dict)
+    await asyncio.to_thread(
+        redis_client.cache_response,
+        request.turn_id,
+        request.capability_key,
+        error_dict,
+        ttl_seconds=get_cache_ttl(error_dict),
     )
     return error_dict
 
 
-def handle_unexpected_error(
+async def handle_unexpected_error(
     e: Exception,
     request: ToolExecutionRequest,
     capability: dict[str, Any] | None,
@@ -207,7 +223,8 @@ def handle_unexpected_error(
     total_duration_ms = (time.time() - start_time) * 1000
 
     # Capture to Sentry with full context - unexpected errors are high priority
-    sentry_capture_connector_error(
+    await asyncio.to_thread(
+        sentry_capture_connector_error,
         error=e,
         service=service,
         operation=request.capability_key,
@@ -228,7 +245,8 @@ def handle_unexpected_error(
         if hasattr(classified_error.error_code, "value")
         else str(classified_error.error_code)
     )
-    track_connector_error(
+    await asyncio.to_thread(
+        track_connector_error,
         user_id=request.user_id,
         org_id=request.org_id,
         service=service,
@@ -246,7 +264,11 @@ def handle_unexpected_error(
         log_event="execute_unexpected_error",
         exc_info=True,
     )
-    redis_client.cache_response(
-        request.turn_id, request.capability_key, error_dict, ttl_seconds=get_cache_ttl(error_dict)
+    await asyncio.to_thread(
+        redis_client.cache_response,
+        request.turn_id,
+        request.capability_key,
+        error_dict,
+        ttl_seconds=get_cache_ttl(error_dict),
     )
     return error_dict

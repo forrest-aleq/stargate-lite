@@ -12,7 +12,7 @@ These test that the locked contract data structures match the live app.
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -265,12 +265,12 @@ class TestMarsSuccessResponse:
             ), f"Contract optional field '{field_name}' not on ToolExecutionResponse"
 
     @patch("app.routers.execute.get_capability")
-    @patch("app.routers.execute.execute_handler")
+    @patch("app.routers.execute.execute_handler", new_callable=AsyncMock)
     @patch("app.routers.execute.rate_limiter")
     def test_live_success_response_shape(
         self,
         mock_limiter: MagicMock,
-        mock_exec: MagicMock,
+        mock_exec: AsyncMock,
         mock_cap: MagicMock,
         client: TestClient,
     ) -> None:

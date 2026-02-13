@@ -2,6 +2,7 @@
 Health check routes for Stargate Lite.
 """
 
+import asyncio
 import os
 from datetime import UTC, datetime
 
@@ -78,7 +79,7 @@ async def connector_health_check() -> ConnectorHealthResponse:
     Detailed health check for all connectors
     Shows credential status, expiry, and connection counts per service
     """
-    all_credentials = CredentialManager.get_all_credentials()
+    all_credentials = await asyncio.to_thread(CredentialManager.get_all_credentials)
     service_data = group_credentials_by_service(all_credentials)
     now = datetime.now(UTC)
 
