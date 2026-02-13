@@ -9,7 +9,7 @@ Requires a Web Services developer license and Sage App Registry app.
 """
 
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 from app.database import CredentialManager
@@ -45,7 +45,7 @@ class SageIntacctBase:
             raise CredentialMissingError("sage_intacct", org_id, user_id)
 
         # Check if token is expired or about to expire (within 5 minutes)
-        if cred.get("token_expiry") and cred["token_expiry"] < datetime.utcnow() + timedelta(
+        if cred.get("token_expiry") and cred["token_expiry"] < datetime.now(UTC) + timedelta(
             minutes=5
         ):
             logger.info(
@@ -93,7 +93,7 @@ class SageIntacctBase:
 
             # Token typically expires in 3600 seconds (1 hour)
             expires_in = token_data.get("expires_in", 3600)
-            new_expiry = datetime.utcnow() + timedelta(seconds=expires_in)
+            new_expiry = datetime.now(UTC) + timedelta(seconds=expires_in)
 
             # Store updated credentials (company_id stored as realm_id)
             CredentialManager.store_credential(

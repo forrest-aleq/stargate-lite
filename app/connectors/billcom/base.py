@@ -17,7 +17,7 @@ Session caching: Uses Redis for horizontal scaling support.
 import contextlib
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.database import CredentialManager
@@ -76,7 +76,7 @@ class BillComBase:
                 session: dict[str, Any] = json.loads(cached_data)
                 # Check if session is still valid
                 expires_at = datetime.fromisoformat(session["expires_at"])
-                if expires_at > datetime.utcnow():
+                if expires_at > datetime.now(UTC):
                     return session
             return None
         except Exception as e:
@@ -188,7 +188,7 @@ class BillComBase:
             session_data = {
                 "session_id": session_id,
                 "dev_key": self.dev_key,
-                "expires_at": datetime.utcnow() + timedelta(seconds=self.SESSION_TTL_SECONDS),
+                "expires_at": datetime.now(UTC) + timedelta(seconds=self.SESSION_TTL_SECONDS),
                 "org_id": organization_id,
             }
 

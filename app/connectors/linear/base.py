@@ -3,7 +3,7 @@ Base class for Linear connector with authentication and GraphQL helpers.
 """
 
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 from app.database import CredentialManager
@@ -42,7 +42,7 @@ class LinearBase:
 
         # Check if token needs refresh (within 5 minutes of expiry)
         expiry_threshold = cred["token_expiry"] - timedelta(minutes=5)
-        if cred["token_expiry"] and datetime.utcnow() >= expiry_threshold:
+        if cred["token_expiry"] and datetime.now(UTC) >= expiry_threshold:
             if cred["refresh_token"]:
                 logger.info(
                     "Token expired or expiring soon, refreshing",
@@ -75,7 +75,7 @@ class LinearBase:
                             user_id=user_id,
                         )
                         expires_in = 3600
-                    new_token_expiry = datetime.utcnow() + timedelta(seconds=expires_in)
+                    new_token_expiry = datetime.now(UTC) + timedelta(seconds=expires_in)
 
                     # Update stored credentials
                     CredentialManager.store_credential(

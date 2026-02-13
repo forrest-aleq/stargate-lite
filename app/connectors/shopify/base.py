@@ -3,7 +3,7 @@ Shopify connector - Base module with authentication
 """
 
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.database import CredentialManager
@@ -43,7 +43,7 @@ class ShopifyBase:
 
         # Shopify tokens don't expire for offline access, but check anyway
         expiry = cred.get("token_expiry")
-        if expiry and expiry < datetime.utcnow() + timedelta(minutes=5):
+        if expiry and expiry < datetime.now(UTC) + timedelta(minutes=5):
             logger.info("Token expired, refreshing", service="shopify", org_id=org_id)
             return self._refresh_token(org_id, user_id, cred)
 
@@ -67,7 +67,7 @@ class ShopifyBase:
                 },
             )
 
-            new_expiry = datetime.utcnow() + timedelta(seconds=token_data.get("expires_in", 86400))
+            new_expiry = datetime.now(UTC) + timedelta(seconds=token_data.get("expires_in", 86400))
 
             CredentialManager.store_credential(
                 org_id=org_id,

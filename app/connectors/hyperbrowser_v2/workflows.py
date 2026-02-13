@@ -3,7 +3,7 @@ Specialized workflow methods for Hyperbrowser v2.
 """
 
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from .actions import BrowserActionsMixin
@@ -137,7 +137,7 @@ Return the full path to the downloaded file.
                     "account_type": account_type,
                     "balance": balance,
                     "currency": "USD",
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
             )
 

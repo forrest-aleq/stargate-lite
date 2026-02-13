@@ -10,7 +10,7 @@ Aggregates payroll data from Gusto:
 Returns payroll summary with change tracking.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.logging_config import get_logger
@@ -237,7 +237,7 @@ class PayrollMixin:
     ) -> list[dict[str, Any]]:
         """Generate trend data points for payroll sparkline."""
         trend: list[dict[str, Any]] = []
-        today = datetime.utcnow()
+        today = datetime.now(UTC)
 
         for i in range(5, -1, -1):
             point_date = today - timedelta(days=30 * i)
@@ -267,7 +267,7 @@ class PayrollMixin:
         if next_run:
             try:
                 next_date = datetime.fromisoformat(next_run.replace("Z", ""))
-                days_until = (next_date.date() - datetime.utcnow().date()).days
+                days_until = (next_date.date() - datetime.now(UTC).date()).days
                 if 0 <= days_until <= 3:
                     return (
                         f"Next payroll in {days_until} days; "

@@ -10,7 +10,7 @@ Provides the foundation for all FCI primitives with:
 """
 
 from abc import ABC
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any, ClassVar, TypedDict
 
 from app.database import CredentialManager
@@ -268,7 +268,7 @@ class FCIBase(BaseUtility, ABC):
         """
         response: dict[str, Any] = {
             "total": total,
-            "lastUpdated": datetime.utcnow().isoformat() + "Z",
+            "lastUpdated": datetime.now(UTC).isoformat() + "Z",
             "status": "partial" if errors else "success",
         }
 
@@ -403,7 +403,7 @@ class FCIBase(BaseUtility, ABC):
         if as_of:
             end_date = datetime.fromisoformat(as_of.replace("Z", ""))
         else:
-            end_date = datetime.utcnow()
+            end_date = datetime.now(UTC)
 
         # Calculate start date based on period
         period = period or "mtd"

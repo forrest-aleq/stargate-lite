@@ -3,7 +3,7 @@ HubSpot connector base with authentication and token management.
 """
 
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.database import CredentialManager
@@ -33,7 +33,7 @@ class HubSpotBase:
             raise CredentialMissingError("hubspot", org_id, user_id)
 
         # HubSpot tokens expire after ~6 hours
-        if cred["token_expiry"] and cred["token_expiry"] < datetime.utcnow() + timedelta(minutes=5):
+        if cred["token_expiry"] and cred["token_expiry"] < datetime.now(UTC) + timedelta(minutes=5):
             logger.info(
                 "Token expired or expiring soon, refreshing",
                 service="hubspot",
@@ -68,7 +68,7 @@ class HubSpotBase:
                 },
             )
 
-            new_expiry = datetime.utcnow() + timedelta(seconds=token_data["expires_in"])
+            new_expiry = datetime.now(UTC) + timedelta(seconds=token_data["expires_in"])
 
             # Store the new tokens
             CredentialManager.store_credential(

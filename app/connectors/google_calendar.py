@@ -6,7 +6,7 @@ Shares OAuth credentials with Gmail/Drive/Sheets (service="google")
 """
 
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, ClassVar
 
 from google.auth.transport.requests import Request
@@ -257,7 +257,7 @@ class GoogleCalendarConnector:
             service = build("calendar", "v3", credentials=creds)
 
             calendar_id = args.get("calendar_id", "primary")
-            time_min = args.get("time_min", datetime.utcnow().isoformat() + "Z")
+            time_min = args.get("time_min", datetime.now(UTC).isoformat() + "Z")
             time_max = args.get("time_max")  # Optional
             max_results = args.get("max_results", 50)
 

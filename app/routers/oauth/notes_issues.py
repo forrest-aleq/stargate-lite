@@ -8,7 +8,7 @@ Handles OAuth authorization and callback for:
 
 import base64
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
@@ -101,7 +101,7 @@ async def notion_oauth_callback(code: str, state: str) -> dict[str, Any]:
             service="notion",
             access_token=token_data["access_token"],
             refresh_token=None,  # Notion tokens don't expire/refresh
-            token_expiry=datetime.utcnow() + timedelta(days=36500),  # 100 years (doesn't expire)
+            token_expiry=datetime.now(UTC) + timedelta(days=36500),  # 100 years (doesn't expire)
         )
 
         return {
@@ -209,7 +209,7 @@ async def linear_oauth_callback(code: str, state: str) -> dict[str, Any]:
             service="linear",
             access_token=token_data["access_token"],
             refresh_token=token_data.get("refresh_token"),
-            token_expiry=datetime.utcnow() + timedelta(seconds=token_data["expires_in"]),
+            token_expiry=datetime.now(UTC) + timedelta(seconds=token_data["expires_in"]),
         )
 
         return {

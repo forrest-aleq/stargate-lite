@@ -11,7 +11,7 @@ change tracking, and trend data.
 """
 
 import contextlib
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.logging_config import get_logger
@@ -249,7 +249,7 @@ class ExpensesMixin:
         """Calculate MTD, YTD, and last month expense values."""
         current = expense_data["total"]
 
-        today = datetime.utcnow()
+        today = datetime.now(UTC)
         month_of_year = today.month
 
         expense_data["mtd"] = current
@@ -277,7 +277,7 @@ class ExpensesMixin:
     ) -> list[dict[str, Any]]:
         """Generate trend data points for expense sparkline."""
         trend: list[dict[str, Any]] = []
-        today = datetime.utcnow()
+        today = datetime.now(UTC)
 
         for i in range(5, -1, -1):
             point_date = today - timedelta(days=30 * i)

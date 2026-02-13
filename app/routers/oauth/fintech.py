@@ -9,7 +9,7 @@ Handles OAuth authorization and callback for financial services:
 """
 
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
@@ -96,7 +96,7 @@ async def brex_oauth_callback(code: str, state: str) -> dict[str, Any]:
             service="brex",
             access_token=token_data["access_token"],
             refresh_token=token_data.get("refresh_token"),
-            token_expiry=datetime.utcnow() + timedelta(seconds=token_data["expires_in"]),
+            token_expiry=datetime.now(UTC) + timedelta(seconds=token_data["expires_in"]),
         )
 
         return {
@@ -191,7 +191,7 @@ async def ramp_oauth_callback(code: str, state: str) -> dict[str, Any]:
             service="ramp",
             access_token=token_data["access_token"],
             refresh_token=token_data.get("refresh_token"),
-            token_expiry=datetime.utcnow() + timedelta(seconds=token_data["expires_in"]),
+            token_expiry=datetime.now(UTC) + timedelta(seconds=token_data["expires_in"]),
         )
 
         return {
@@ -275,7 +275,7 @@ async def chase_oauth_callback(code: str, state: str) -> dict[str, Any]:
             service="chase",
             access_token=token_data["access_token"],
             refresh_token=token_data.get("refresh_token"),
-            token_expiry=datetime.utcnow() + timedelta(seconds=token_data["expires_in"]),
+            token_expiry=datetime.now(UTC) + timedelta(seconds=token_data["expires_in"]),
         )
 
         return {
@@ -352,7 +352,7 @@ async def schwab_oauth_callback(code: str, state: str) -> dict[str, Any]:
             service="schwab",
             access_token=token_data["access_token"],
             refresh_token=token_data.get("refresh_token"),
-            token_expiry=datetime.utcnow() + timedelta(seconds=token_data["expires_in"]),
+            token_expiry=datetime.now(UTC) + timedelta(seconds=token_data["expires_in"]),
         )
 
         return {

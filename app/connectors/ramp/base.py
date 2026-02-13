@@ -4,7 +4,7 @@ Uses CredentialManager for proper token storage and refresh.
 """
 
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.database import CredentialManager
@@ -34,7 +34,7 @@ class RampBase:
             raise CredentialMissingError("ramp", org_id, user_id)
 
         # Ramp tokens expire after 1 hour — refresh if within 5 minutes
-        if cred["token_expiry"] and cred["token_expiry"] < datetime.utcnow() + timedelta(minutes=5):
+        if cred["token_expiry"] and cred["token_expiry"] < datetime.now(UTC) + timedelta(minutes=5):
             logger.info(
                 "Token expired or expiring soon, refreshing",
                 service="ramp",
@@ -69,7 +69,7 @@ class RampBase:
                 },
             )
 
-            new_expiry = datetime.utcnow() + timedelta(seconds=token_data["expires_in"])
+            new_expiry = datetime.now(UTC) + timedelta(seconds=token_data["expires_in"])
 
             CredentialManager.store_credential(
                 org_id=org_id,

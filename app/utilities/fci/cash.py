@@ -13,7 +13,7 @@ Aggregates cash position across all connected bank accounts:
 Returns total cash with account breakdown, change tracking, and trend data.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.logging_config import get_logger
@@ -285,7 +285,7 @@ class CashMixin:
         For now, we generate synthetic trend based on current and change.
         """
         trend: list[dict[str, Any]] = []
-        today = datetime.utcnow()
+        today = datetime.now(UTC)
 
         # Generate 6 monthly data points
         for i in range(5, -1, -1):

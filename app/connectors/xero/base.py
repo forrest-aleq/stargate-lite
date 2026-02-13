@@ -9,7 +9,7 @@ The refresh token is valid for 60 days from last use.
 """
 
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 from app.database import CredentialManager
@@ -44,7 +44,7 @@ class XeroBase:
             raise CredentialMissingError("xero", org_id, user_id)
 
         # Xero tokens expire after 30 minutes, refresh if within 5 minutes of expiry
-        if cred.get("token_expiry") and cred["token_expiry"] < datetime.utcnow() + timedelta(
+        if cred.get("token_expiry") and cred["token_expiry"] < datetime.now(UTC) + timedelta(
             minutes=5
         ):
             logger.info(
@@ -93,7 +93,7 @@ class XeroBase:
                 },
             )
 
-            new_expiry = datetime.utcnow() + timedelta(seconds=token_data.get("expires_in", 1800))
+            new_expiry = datetime.now(UTC) + timedelta(seconds=token_data.get("expires_in", 1800))
 
             # Store updated credentials (tenant_id stored as realm_id)
             CredentialManager.store_credential(

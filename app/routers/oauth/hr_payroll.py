@@ -9,7 +9,7 @@ https://docs.gusto.com/app-integrations/v2024-03-01/docs/oauth2
 """
 
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
 
 import requests
@@ -140,7 +140,7 @@ async def gusto_oauth_callback(code: str, state: str) -> RedirectResponse:
 
         token_data = response.json()
         expires_in = token_data.get("expires_in", 7200)
-        token_expiry = datetime.utcnow() + timedelta(seconds=expires_in)
+        token_expiry = datetime.now(UTC) + timedelta(seconds=expires_in)
 
         CredentialManager.store_credential(
             org_id=org_id,

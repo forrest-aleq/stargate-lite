@@ -346,9 +346,9 @@ class InvoicesMixin(ContactsMixin):
 
         if args.get("overdue_only"):
             # Get invoices where due date has passed
-            from datetime import datetime
+            from datetime import UTC, datetime
 
-            today = datetime.utcnow().strftime("%Y,%m,%d")
+            today = datetime.now(UTC).strftime("%Y,%m,%d")
             where_clauses.append(f"DueDate<DateTime({today})")
 
         params = {"where": " AND ".join(where_clauses), "order": "DueDate ASC"}
@@ -398,9 +398,9 @@ class InvoicesMixin(ContactsMixin):
         invoices = result.get("Invoices", [])
 
         # Calculate aging buckets
-        from datetime import datetime
+        from datetime import UTC, datetime
 
-        today = datetime.utcnow()
+        today = datetime.now(UTC)
         aging: dict[str, dict[str, float]] = {
             "current": {"amount": 0.0, "count": 0},
             "1_30_days": {"amount": 0.0, "count": 0},

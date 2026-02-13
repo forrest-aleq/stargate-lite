@@ -3,7 +3,7 @@ Square connector - Base module with authentication
 """
 
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.database import CredentialManager
@@ -43,7 +43,7 @@ class SquareBase:
         if not cred:
             raise CredentialMissingError("square", org_id, user_id)
 
-        if cred["token_expiry"] and cred["token_expiry"] < datetime.utcnow() + timedelta(minutes=5):
+        if cred["token_expiry"] and cred["token_expiry"] < datetime.now(UTC) + timedelta(minutes=5):
             logger.info("Token expired, refreshing", service="square", org_id=org_id)
             return self._refresh_token(org_id, user_id, cred["refresh_token"])
 
@@ -64,7 +64,7 @@ class SquareBase:
                 },
             )
 
-            new_expiry = datetime.utcnow() + timedelta(
+            new_expiry = datetime.now(UTC) + timedelta(
                 seconds=token_data.get("expires_in", 2592000)
             )
 

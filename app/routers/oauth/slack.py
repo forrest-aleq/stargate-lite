@@ -14,7 +14,7 @@ Token Lifecycle:
 
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
@@ -155,7 +155,7 @@ def _store_slack_credential(
         credential_type: Type of credential (customer/agent)
     """
     # Slack tokens don't expire - use 100 year expiry
-    token_expiry = datetime.utcnow() + timedelta(days=36500)
+    token_expiry = datetime.now(UTC) + timedelta(days=36500)
 
     # Validate required token fields
     access_token = token_data.get("access_token")

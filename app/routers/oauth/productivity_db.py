@@ -15,7 +15,7 @@ import base64
 import hashlib
 import secrets
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
 
 import requests
@@ -218,7 +218,7 @@ async def airtable_oauth_callback(code: str, state: str) -> RedirectResponse:
             service="airtable",
             access_token=access_token,
             refresh_token=token_data.get("refresh_token"),
-            token_expiry=datetime.utcnow() + timedelta(seconds=expires_in),
+            token_expiry=datetime.now(UTC) + timedelta(seconds=expires_in),
             credential_type=credential_type,
         )
 

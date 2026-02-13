@@ -15,7 +15,7 @@ https://developer.squareup.com/docs/oauth-api/overview
 import hashlib
 import hmac
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
 
 import requests
@@ -210,7 +210,7 @@ async def shopify_oauth_callback(
             service="shopify",
             access_token=token_data["access_token"],
             refresh_token=None,
-            token_expiry=datetime.utcnow() + timedelta(days=3650),
+            token_expiry=datetime.now(UTC) + timedelta(days=3650),
             extra_data={"shop": callback_shop},
         )
 
@@ -362,7 +362,7 @@ async def square_oauth_callback(code: str, state: str) -> RedirectResponse:
         if "expires_at" in token_data:
             token_expiry = datetime.fromisoformat(token_data["expires_at"].replace("Z", "+00:00"))
         else:
-            token_expiry = datetime.utcnow() + timedelta(days=30)
+            token_expiry = datetime.now(UTC) + timedelta(days=30)
 
         CredentialManager.store_credential(
             org_id=org_id,

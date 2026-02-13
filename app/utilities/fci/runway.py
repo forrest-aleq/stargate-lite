@@ -10,7 +10,7 @@ Calculates runway in months: cash / burn
 This is a derived primitive - it combines cash and burn data.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from dateutil.relativedelta import relativedelta
@@ -95,7 +95,7 @@ class RunwayMixin:
         # Project cash-out date
         cash_out_date = None
         if 0 < runway_months < 999:
-            today = datetime.utcnow()
+            today = datetime.now(UTC)
             cash_out = today + relativedelta(months=int(runway_months))
             cash_out_date = cash_out.strftime("%Y-%m")
 
@@ -225,7 +225,7 @@ class RunwayMixin:
         This shows how cash will decline over time assuming constant burn.
         """
         trend: list[dict[str, Any]] = []
-        today = datetime.utcnow()
+        today = datetime.now(UTC)
 
         # Show current plus 6 future months
         remaining_cash = cash

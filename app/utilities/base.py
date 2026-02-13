@@ -11,7 +11,7 @@ Provides common patterns for:
 
 import os
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, ClassVar, TypedDict
 
 
@@ -134,7 +134,7 @@ class BaseUtility(ABC):
         Track API usage for cost monitoring.
         Call this after each successful API call.
         """
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(UTC).isoformat()
 
         self.metrics["total_calls"] += 1
         self.metrics["total_tokens_input"] += tokens_in

@@ -14,7 +14,7 @@ Reference: https://developer.xero.com/documentation/guides/oauth2/auth-flow/
 """
 
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
@@ -106,7 +106,7 @@ def _exchange_xero_tokens(code: str, org_id: str, user_id: str) -> tuple[dict[st
 
     token_data = response.json()
     # Xero tokens expire in 30 minutes (1800 seconds)
-    token_expiry = datetime.utcnow() + timedelta(seconds=token_data.get("expires_in", 1800))
+    token_expiry = datetime.now(UTC) + timedelta(seconds=token_data.get("expires_in", 1800))
 
     logger.info(
         "Token exchange successful",

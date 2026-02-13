@@ -7,7 +7,7 @@ Allows customers to connect their own Stripe accounts.
 
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
@@ -118,7 +118,7 @@ def _store_stripe_credential(
         credential_type: Type of credential (customer/agent)
     """
     # Stripe Connect tokens don't expire - use 100 year expiry
-    token_expiry = datetime.utcnow() + timedelta(days=36500)
+    token_expiry = datetime.now(UTC) + timedelta(days=36500)
 
     # Store stripe_user_id in extra_data for connected account operations
     extra_data = {

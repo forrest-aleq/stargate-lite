@@ -5,7 +5,7 @@ Handles envelopes, recipients, documents, and templates via eSignature REST API
 
 import base64
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
@@ -48,7 +48,7 @@ class DocuSignConnector:
         if not cred:
             raise CredentialMissingError("docusign", org_id, user_id)
 
-        if cred["token_expiry"] and cred["token_expiry"] < datetime.utcnow() + timedelta(minutes=5):
+        if cred["token_expiry"] and cred["token_expiry"] < datetime.now(UTC) + timedelta(minutes=5):
             logger.info("Token expired, refreshing", service="docusign", org_id=org_id)
             return self._refresh_token(org_id, user_id, cred["refresh_token"])
 
@@ -75,7 +75,7 @@ class DocuSignConnector:
                 },
             )
 
-            new_expiry = datetime.utcnow() + timedelta(seconds=token_data.get("expires_in", 28800))
+            new_expiry = datetime.now(UTC) + timedelta(seconds=token_data.get("expires_in", 28800))
 
             CredentialManager.store_credential(
                 org_id=org_id,

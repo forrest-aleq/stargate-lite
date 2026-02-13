@@ -9,7 +9,7 @@ https://developers.docusign.com/platform/auth/authcode/
 """
 
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
 
 import requests
@@ -174,7 +174,7 @@ async def docusign_oauth_callback(code: str, state: str) -> RedirectResponse:
             service="docusign",
             access_token=token_data["access_token"],
             refresh_token=token_data.get("refresh_token"),
-            token_expiry=datetime.utcnow() + timedelta(seconds=expires_in),
+            token_expiry=datetime.now(UTC) + timedelta(seconds=expires_in),
             extra_data={"account_id": account_id, "base_uri": base_uri},
         )
 

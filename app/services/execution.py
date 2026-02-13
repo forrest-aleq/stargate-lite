@@ -3,7 +3,7 @@ Execution service - Helper functions for tool execution.
 """
 
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from app.constants.services import build_connect_url
@@ -113,7 +113,7 @@ def build_success_response(
         "outputs": outputs,
         "logs": logs,
         "credential_type": capability.get("credential_type"),
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -132,7 +132,7 @@ def handle_stargate_error(
     error_dict["capability_key"] = request.capability_key
     error_dict["tool_used"] = capability["tool_name"] if capability else "unknown"
     error_dict["credential_type"] = capability.get("credential_type") if capability else None
-    error_dict["timestamp"] = datetime.utcnow().isoformat()
+    error_dict["timestamp"] = datetime.now(UTC).isoformat()
 
     # Enrich CREDENTIALS_MISSING with connect_url so Aleq can send the user to OAuth
     if e.error_code == ErrorCode.CREDENTIALS_MISSING:
@@ -202,7 +202,7 @@ def handle_unexpected_error(
     error_dict["capability_key"] = request.capability_key
     error_dict["tool_used"] = capability["tool_name"] if capability else "unknown"
     error_dict["credential_type"] = capability.get("credential_type") if capability else None
-    error_dict["timestamp"] = datetime.utcnow().isoformat()
+    error_dict["timestamp"] = datetime.now(UTC).isoformat()
 
     total_duration_ms = (time.time() - start_time) * 1000
 

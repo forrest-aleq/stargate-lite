@@ -8,7 +8,7 @@ import hashlib
 import hmac
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 from urllib.parse import urlencode
 
@@ -533,7 +533,7 @@ def store_credential_with_expiry(
         default_expiry_seconds: Default expiry if not in token_data
     """
     expires_in = token_data.get("expires_in", default_expiry_seconds)
-    token_expiry = datetime.utcnow() + timedelta(seconds=expires_in)
+    token_expiry = datetime.now(UTC) + timedelta(seconds=expires_in)
 
     CredentialManager.store_credential(
         org_id=org_id,
@@ -571,7 +571,7 @@ def store_credential_no_expiry(
         credential_type: Type of credential (customer/agent)
     """
     # 100 years for tokens that don't expire
-    token_expiry = datetime.utcnow() + timedelta(days=36500)
+    token_expiry = datetime.now(UTC) + timedelta(days=36500)
 
     CredentialManager.store_credential(
         org_id=org_id,

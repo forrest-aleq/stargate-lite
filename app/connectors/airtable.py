@@ -4,7 +4,7 @@ Handles bases, tables, records, fields, and webhooks
 Uses Airtable Web API
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
@@ -40,7 +40,7 @@ class AirtableConnector:
             raise CredentialMissingError("airtable", org_id, user_id)
 
         # Airtable OAuth tokens can expire - check and refresh if needed
-        if cred.get("token_expiry") and cred["token_expiry"] < datetime.utcnow() + timedelta(
+        if cred.get("token_expiry") and cred["token_expiry"] < datetime.now(UTC) + timedelta(
             minutes=5
         ):
             logger.info("Token expired, refreshing", service="airtable", org_id=org_id)
@@ -68,7 +68,7 @@ class AirtableConnector:
                 },
             )
 
-            new_expiry = datetime.utcnow() + timedelta(seconds=token_data.get("expires_in", 3600))
+            new_expiry = datetime.now(UTC) + timedelta(seconds=token_data.get("expires_in", 3600))
 
             CredentialManager.store_credential(
                 org_id=org_id,

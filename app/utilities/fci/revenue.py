@@ -13,7 +13,7 @@ change tracking, and trend data.
 """
 
 import contextlib
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.logging_config import get_logger
@@ -292,7 +292,7 @@ class RevenueMixin:
 
         # Estimate period values based on current
         # These would be actual P&L calls in production
-        today = datetime.utcnow()
+        today = datetime.now(UTC)
         month_of_year = today.month
 
         # MTD is the current value if period is mtd
@@ -327,7 +327,7 @@ class RevenueMixin:
     ) -> list[dict[str, Any]]:
         """Generate trend data points for revenue sparkline."""
         trend: list[dict[str, Any]] = []
-        today = datetime.utcnow()
+        today = datetime.now(UTC)
 
         for i in range(5, -1, -1):
             point_date = today - timedelta(days=30 * i)

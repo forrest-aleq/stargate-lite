@@ -11,7 +11,7 @@ Provides standard financial reports:
 These wrap existing connector methods with FCI-consistent response formatting.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from app.logging_config import get_logger
@@ -69,10 +69,10 @@ class ReportsMixin:
 
         # Default dates if not provided
         if not start_date:
-            today = datetime.utcnow()
+            today = datetime.now(UTC)
             start_date = today.replace(day=1).strftime("%Y-%m-%d")
         if not end_date:
-            end_date = datetime.utcnow().strftime("%Y-%m-%d")
+            end_date = datetime.now(UTC).strftime("%Y-%m-%d")
 
         # Get primary accounting system
         preferred_service = source or self._get_primary_accounting_service(
@@ -168,7 +168,7 @@ class ReportsMixin:
             }
         """
         source = args.get("source")
-        as_of_date = args.get("as_of_date", datetime.utcnow().strftime("%Y-%m-%d"))
+        as_of_date = args.get("as_of_date", datetime.now(UTC).strftime("%Y-%m-%d"))
 
         preferred_service = source or self._get_primary_accounting_service(
             org_id, user_id, BALANCE_SHEET_SERVICES
@@ -256,7 +256,7 @@ class ReportsMixin:
             }
         """
         source = args.get("source")
-        as_of_date = args.get("as_of_date", datetime.utcnow().strftime("%Y-%m-%d"))
+        as_of_date = args.get("as_of_date", datetime.now(UTC).strftime("%Y-%m-%d"))
 
         preferred_service = source or self._get_primary_accounting_service(
             org_id, user_id, AR_SERVICES
@@ -352,7 +352,7 @@ class ReportsMixin:
             }
         """
         source = args.get("source")
-        as_of_date = args.get("as_of_date", datetime.utcnow().strftime("%Y-%m-%d"))
+        as_of_date = args.get("as_of_date", datetime.now(UTC).strftime("%Y-%m-%d"))
 
         preferred_service = source or self._get_primary_accounting_service(
             org_id, user_id, AP_SERVICES
@@ -451,10 +451,10 @@ class ReportsMixin:
         end_date = args.get("end_date")
 
         if not start_date:
-            today = datetime.utcnow()
+            today = datetime.now(UTC)
             start_date = today.replace(day=1).strftime("%Y-%m-%d")
         if not end_date:
-            end_date = datetime.utcnow().strftime("%Y-%m-%d")
+            end_date = datetime.now(UTC).strftime("%Y-%m-%d")
 
         preferred_service = source or self._get_primary_accounting_service(
             org_id, user_id, CASHFLOW_SERVICES

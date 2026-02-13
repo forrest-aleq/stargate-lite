@@ -11,7 +11,7 @@ Aggregates AP aging data from connected accounting systems:
 Returns total AP with aging buckets, change tracking, and trend data.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.logging_config import get_logger
@@ -136,7 +136,7 @@ class APMixin:
             days_90=ap_data["days_90"],
             over_90=ap_data["over_90"],
             count=ap_data["count"],
-            as_of=as_of_date or datetime.utcnow().strftime("%Y-%m-%d"),
+            as_of=as_of_date or datetime.now(UTC).strftime("%Y-%m-%d"),
             source=preferred_service,
         )
 
@@ -227,7 +227,7 @@ class APMixin:
             bills = result.get("bills", result.get("response_data", []))
 
             if isinstance(bills, list):
-                today = datetime.utcnow().date()
+                today = datetime.now(UTC).date()
 
                 for bill in bills:
                     amount = float(bill.get("amount", bill.get("amountDue", 0)))
@@ -361,7 +361,7 @@ class APMixin:
     ) -> list[dict[str, Any]]:
         """Generate trend data points for AP sparkline."""
         trend: list[dict[str, Any]] = []
-        today = datetime.utcnow()
+        today = datetime.now(UTC)
 
         for i in range(5, -1, -1):
             point_date = today - timedelta(days=30 * i)

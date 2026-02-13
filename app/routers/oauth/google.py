@@ -14,7 +14,7 @@ Token Lifecycle:
 
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
@@ -144,7 +144,7 @@ def _exchange_google_tokens(
 
     token_data = response.json()
     # Google tokens expire after 1 hour (3600 seconds)
-    token_expiry = datetime.utcnow() + timedelta(seconds=token_data.get("expires_in", 3600))
+    token_expiry = datetime.now(UTC) + timedelta(seconds=token_data.get("expires_in", 3600))
 
     logger.info(
         "Token exchange successful",

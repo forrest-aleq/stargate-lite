@@ -10,7 +10,7 @@ Aggregates AR aging data from connected accounting systems:
 Returns total AR with aging buckets, change tracking, and trend data.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.logging_config import get_logger
@@ -135,7 +135,7 @@ class ARMixin:
             days_90=ar_data["days_90"],
             over_90=ar_data["over_90"],
             count=ar_data["count"],
-            as_of=as_of_date or datetime.utcnow().strftime("%Y-%m-%d"),
+            as_of=as_of_date or datetime.now(UTC).strftime("%Y-%m-%d"),
             source=preferred_service,
         )
 
@@ -341,7 +341,7 @@ class ARMixin:
     ) -> list[dict[str, Any]]:
         """Generate trend data points for AR sparkline."""
         trend: list[dict[str, Any]] = []
-        today = datetime.utcnow()
+        today = datetime.now(UTC)
 
         for i in range(5, -1, -1):
             point_date = today - timedelta(days=30 * i)

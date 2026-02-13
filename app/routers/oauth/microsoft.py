@@ -5,7 +5,7 @@ Handles OAuth authorization and callback for Microsoft 365 (Excel, OneDrive, Out
 """
 
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
@@ -119,7 +119,7 @@ async def microsoft_oauth_callback(code: str, state: str) -> dict[str, Any]:
             service="microsoft",
             access_token=token_data["access_token"],
             refresh_token=token_data.get("refresh_token"),
-            token_expiry=datetime.utcnow() + timedelta(seconds=token_data["expires_in"]),
+            token_expiry=datetime.now(UTC) + timedelta(seconds=token_data["expires_in"]),
         )
 
         return {

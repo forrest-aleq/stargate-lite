@@ -283,9 +283,9 @@ class BillsMixin(InvoicesMixin):
             where_clauses.append(f'Contact.ContactID==GUID("{args["contact_id"]}")')
 
         if args.get("overdue_only"):
-            from datetime import datetime
+            from datetime import UTC, datetime
 
-            today = datetime.utcnow().strftime("%Y,%m,%d")
+            today = datetime.now(UTC).strftime("%Y,%m,%d")
             where_clauses.append(f"DueDate<DateTime({today})")
 
         params = {"where": " AND ".join(where_clauses), "order": "DueDate ASC"}
@@ -326,9 +326,9 @@ class BillsMixin(InvoicesMixin):
         result = self._make_api_call("GET", "Invoices", cred, tenant_id, params=params)
         bills = result.get("Invoices", [])
 
-        from datetime import datetime
+        from datetime import UTC, datetime
 
-        today = datetime.utcnow()
+        today = datetime.now(UTC)
         aging: dict[str, dict[str, float]] = {
             "current": {"amount": 0.0, "count": 0},
             "1_30_days": {"amount": 0.0, "count": 0},

@@ -5,11 +5,17 @@ These models define the API contract between Stargate and its consumers.
 All public models are automatically included in the OpenAPI specification.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field
+
+
+def _utcnow() -> datetime:
+    """Timezone-aware UTC now, suitable for Pydantic default_factory."""
+    return datetime.now(UTC)
+
 
 # ============================================================================
 # Enums (Contract v1.0)
@@ -102,7 +108,7 @@ class ToolExecutionResponse(BaseModel):
     credential_type: str | None = Field(
         None, description="Type of credential used: 'agent' or 'customer' or None"
     )
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Execution timestamp")
+    timestamp: datetime = Field(default_factory=_utcnow, description="Execution timestamp")
 
     class Config:
         json_schema_extra: ClassVar[dict[str, Any]] = {
@@ -145,9 +151,7 @@ class HealthResponse(BaseModel):
     status: str = Field(..., description="Service status: 'healthy' or 'degraded'")
     version: str = Field(..., description="Stargate Lite version (e.g., '0.9.0')")
     capabilities_count: int | None = Field(None, description="Total registered capabilities")
-    timestamp: datetime = Field(
-        default_factory=datetime.utcnow, description="Response timestamp (UTC)"
-    )
+    timestamp: datetime = Field(default_factory=_utcnow, description="Response timestamp (UTC)")
     services: dict[str, str] = Field(
         default_factory=dict, description="Status of dependent services"
     )
@@ -201,9 +205,7 @@ class ConnectorHealthResponse(BaseModel):
     connectors: list[ConnectorStatus] = Field(
         ..., description="Status of each individual connector"
     )
-    timestamp: datetime = Field(
-        default_factory=datetime.utcnow, description="Response timestamp (UTC)"
-    )
+    timestamp: datetime = Field(default_factory=_utcnow, description="Response timestamp (UTC)")
 
     class Config:
         json_schema_extra: ClassVar[dict[str, Any]] = {
@@ -337,7 +339,7 @@ class ErrorResponse(BaseModel):
         None, description="The capability that was being executed (if applicable)"
     )
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow, description="When the error occurred (UTC)"
+        default_factory=_utcnow, description="When the error occurred (UTC)"
     )
 
     class Config:
