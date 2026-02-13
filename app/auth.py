@@ -29,7 +29,10 @@ async def verify_api_key(
 
     When X-Timestamp and X-Signature-256 headers are present, validates:
     1. Timestamp is within 5 minutes of server time (replay protection)
-    2. HMAC-SHA256(body) matches the signature (tamper protection)
+    2. HMAC-SHA256(timestamp + body) matches the signature (tamper protection)
+
+    Baby MARS sends: X-Signature-256: sha256={hex}
+    Signing format:  HMAC-SHA256(key=API_SECRET_KEY, msg=timestamp + body)
     """
     if not API_SECRET_KEY:
         raise HTTPException(
@@ -50,8 +53,13 @@ async def verify_api_key(
             raise HTTPException(status_code=403, detail="Request timestamp expired")
 
         body = await request.body()
-        expected = hmac.new(API_SECRET_KEY.encode(), body, hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(x_signature_256, expected):
+        # Baby MARS signs: HMAC-SHA256(key, timestamp + body)
+        message = x_timestamp.encode() + body
+        expected = hmac.new(API_SECRET_KEY.encode(), message, hashlib.sha256).hexdigest()
+
+        # Baby MARS sends "sha256={hex}" — strip the prefix
+        signature = x_signature_256.removeprefix("sha256=")
+        if not hmac.compare_digest(signature, expected):
             raise HTTPException(status_code=403, detail="Invalid request signature")
 
     return True
