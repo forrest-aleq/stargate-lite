@@ -19,6 +19,7 @@ from app.errors import (
 )
 from app.logging_config import get_logger
 from app.models import ToolExecutionRequest
+from app.observability import increment_metric
 from app.posthog_client import track_capability_called, track_connector_error
 from app.redis_client import CACHE_TTL_PERMANENT, get_cache_ttl, redis_client
 from app.sentry_config import (
@@ -131,7 +132,8 @@ async def execute_handler(
         log_event="handler_success",
     )
 
-    # Track successful capability execution to PostHog
+    # Track successful capability execution
+    increment_metric("stargate_lite.execution.success", tags=[f"service:{service}"])
     await asyncio.to_thread(
         track_capability_called,
         user_id=request.user_id,
@@ -208,8 +210,12 @@ async def handle_stargate_error(
         },
     )
 
-    # Track error to PostHog
+    # Track error metrics and PostHog
     error_code_str = e.error_code.value if hasattr(e.error_code, "value") else str(e.error_code)
+    increment_metric(
+        "stargate_lite.execution.error",
+        tags=[f"service:{service}", f"error_code:{error_code_str}"],
+    )
     await asyncio.to_thread(
         track_connector_error,
         user_id=request.user_id,
@@ -277,11 +283,15 @@ async def handle_unexpected_error(
         },
     )
 
-    # Track error to PostHog
+    # Track error metrics and PostHog
     error_code_str = (
         classified_error.error_code.value
         if hasattr(classified_error.error_code, "value")
         else str(classified_error.error_code)
+    )
+    increment_metric(
+        "stargate_lite.execution.error",
+        tags=[f"service:{service}", f"error_code:{error_code_str}"],
     )
     await asyncio.to_thread(
         track_connector_error,
