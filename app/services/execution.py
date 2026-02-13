@@ -8,7 +8,13 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.constants.services import build_connect_url
-from app.errors import CapabilityNotFoundError, ErrorCode, StargateError, classify_exception
+from app.errors import (
+    CapabilityNotFoundError,
+    ErrorCode,
+    NetworkError,
+    StargateError,
+    classify_exception,
+)
 from app.logging_config import get_logger
 from app.models import ToolExecutionRequest
 from app.posthog_client import track_capability_called, track_connector_error
@@ -21,6 +27,9 @@ from app.sentry_config import (
 )
 
 logger = get_logger(__name__)
+
+# 5s buffer before Baby MARS's 30s client timeout
+HANDLER_TIMEOUT_SECONDS = 25.0
 
 
 async def check_idempotency_cache(turn_id: str, capability_key: str) -> dict[str, Any] | None:
@@ -79,9 +88,24 @@ async def execute_handler(
     logs.append(f"Executing {tool_name} for org_id={request.org_id}, user_id={request.user_id}")
 
     handler_start = time.time()
-    outputs = await asyncio.to_thread(
-        handler, org_id=request.org_id, user_id=request.user_id, args=request.args
-    )
+    try:
+        outputs = await asyncio.wait_for(
+            asyncio.to_thread(
+                handler, org_id=request.org_id, user_id=request.user_id, args=request.args
+            ),
+            timeout=HANDLER_TIMEOUT_SECONDS,
+        )
+    except TimeoutError:
+        handler_duration_ms = (time.time() - handler_start) * 1000
+        logger.error(
+            "Handler execution timed out",
+            tool_name=tool_name,
+            service=service,
+            handler_duration_ms=round(handler_duration_ms, 2),
+            timeout_seconds=HANDLER_TIMEOUT_SECONDS,
+            log_event="handler_timeout",
+        )
+        raise NetworkError(service=service) from None
     handler_duration_ms = (time.time() - handler_start) * 1000
 
     logs.append(f"Successfully executed {tool_name}")
