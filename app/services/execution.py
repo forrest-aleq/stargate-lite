@@ -11,7 +11,7 @@ from app.errors import CapabilityNotFoundError, ErrorCode, StargateError, classi
 from app.logging_config import get_logger
 from app.models import ToolExecutionRequest
 from app.posthog_client import track_capability_called, track_connector_error
-from app.redis_client import redis_client
+from app.redis_client import CACHE_TTL_PERMANENT, get_cache_ttl, redis_client
 from app.sentry_config import (
     add_breadcrumb,
     capture_connector_error as sentry_capture_connector_error,
@@ -38,7 +38,9 @@ def handle_capability_not_found(request: ToolExecutionRequest) -> dict[str, Any]
         **error.to_dict(),
         "logs": [f"Capability '{request.capability_key}' not found in registry"],
     }
-    redis_client.cache_response(request.turn_id, request.capability_key, response)
+    redis_client.cache_response(
+        request.turn_id, request.capability_key, response, ttl_seconds=CACHE_TTL_PERMANENT
+    )
     return response
 
 
@@ -176,7 +178,9 @@ def handle_stargate_error(
         total_duration_ms=round(total_duration_ms, 2),
         log_event="execute_error",
     )
-    redis_client.cache_response(request.turn_id, request.capability_key, error_dict)
+    redis_client.cache_response(
+        request.turn_id, request.capability_key, error_dict, ttl_seconds=get_cache_ttl(error_dict)
+    )
     return error_dict
 
 
@@ -242,5 +246,7 @@ def handle_unexpected_error(
         log_event="execute_unexpected_error",
         exc_info=True,
     )
-    redis_client.cache_response(request.turn_id, request.capability_key, error_dict)
+    redis_client.cache_response(
+        request.turn_id, request.capability_key, error_dict, ttl_seconds=get_cache_ttl(error_dict)
+    )
     return error_dict

@@ -14,6 +14,22 @@ from app.logging_config import get_logger
 # Initialize logger
 logger = get_logger(__name__)
 
+# Cache TTL constants (seconds)
+CACHE_TTL_SUCCESS = 86400  # 24 hours — success responses are safe to cache long
+CACHE_TTL_TRANSIENT = 300  # 5 minutes — transient errors (rate limits, timeouts)
+CACHE_TTL_PERMANENT = 86400  # 24 hours — permanent errors (not found, auth)
+
+
+def get_cache_ttl(response: dict[str, Any]) -> int:
+    """Return appropriate cache TTL based on response retry_strategy.
+
+    Transient errors (retry_strategy == "backoff") get a short TTL so the client
+    can retry after the backoff period.  Everything else caches for 24 hours.
+    """
+    if response.get("retry_strategy") == "backoff":
+        return CACHE_TTL_TRANSIENT
+    return CACHE_TTL_SUCCESS
+
 
 class RedisClient:
     """Redis client singleton for idempotency caching"""

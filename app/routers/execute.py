@@ -12,7 +12,7 @@ from app.errors import StargateError
 from app.logging_config import bind_request_context, clear_request_context, get_logger
 from app.models import ErrorResponse, ToolExecutionRequest, ToolExecutionResponse
 from app.rate_limiter import rate_limiter
-from app.redis_client import redis_client
+from app.redis_client import get_cache_ttl, redis_client
 from app.registry import get_capability
 from app.services.execution import (
     build_success_response,
@@ -122,7 +122,12 @@ async def execute_tool(
         outputs, _duration = execute_handler(capability, request, logs, session_id)
         response_data = build_success_response(request, capability, outputs, logs)
 
-        redis_client.cache_response(request.turn_id, request.capability_key, response_data)
+        redis_client.cache_response(
+            request.turn_id,
+            request.capability_key,
+            response_data,
+            ttl_seconds=get_cache_ttl(response_data),
+        )
         total_duration_ms = (time.time() - start_time) * 1000
         logger.info(
             "Execute request completed successfully",
