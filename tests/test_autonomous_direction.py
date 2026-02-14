@@ -11,6 +11,8 @@ Validates:
 
 import asyncio
 import contextlib
+import os
+import time
 from collections.abc import Generator
 from datetime import UTC, datetime
 from typing import Any
@@ -321,3 +323,151 @@ class TestWebhookForwarding:
             result = asyncio.get_event_loop().run_until_complete(forward_to_baby_mars(event))
             assert result is False
             assert mock_session.post.call_count == 3
+
+
+# ============================================================================
+# Commit 5: Stripe + QBO + Xero webhook receivers
+# ============================================================================
+
+
+class TestStripeWebhook:
+    """Test Stripe webhook receiver."""
+
+    def _make_stripe_signature(self, payload: bytes, secret: str, timestamp: str | None = None) -> str:
+        """Build a valid Stripe-Signature header."""
+        import hashlib
+        import hmac as _hmac
+
+        ts = timestamp or str(int(time.time()))
+        signed_payload = f"{ts}.".encode() + payload
+        sig = _hmac.new(secret.encode(), signed_payload, hashlib.sha256).hexdigest()
+        return f"t={ts},v1={sig}"
+
+    def test_stripe_rejects_invalid_signature(self, client: TestClient) -> None:
+        """Invalid Stripe signature returns 401."""
+        with patch.dict(os.environ, {"STRIPE_WEBHOOK_SECRET": "whsec_test123"}):
+            response = client.post(
+                "/webhooks/stripe",
+                content=b'{"type": "payment_intent.succeeded", "id": "evt_001"}',
+                headers={
+                    "Content-Type": "application/json",
+                    "Stripe-Signature": "t=1234567890,v1=invalidsignature",
+                },
+            )
+            assert response.status_code == 401
+
+    def test_stripe_normalizes_payment_event(self, client: TestClient) -> None:
+        """Valid Stripe event is accepted and forwarded."""
+        secret = "whsec_test_secret"
+        payload = b'{"type": "payment_intent.succeeded", "id": "evt_pi_001", "account": "acct_123"}'
+
+        sig = self._make_stripe_signature(payload, secret)
+
+        with (
+            patch.dict(os.environ, {"STRIPE_WEBHOOK_SECRET": secret}),
+            patch("app.routers.webhooks.stripe.forward_to_baby_mars", new_callable=AsyncMock) as mock_fwd,
+        ):
+            mock_fwd.return_value = True
+            response = client.post(
+                "/webhooks/stripe",
+                content=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "Stripe-Signature": sig,
+                },
+            )
+            assert response.status_code == 200
+            assert mock_fwd.called
+            forwarded_event = mock_fwd.call_args[0][0]
+            assert forwarded_event.event_type == "stripe.payment_intent.succeeded"
+            assert forwarded_event.org_id == "acct_123"
+
+
+class TestQBOWebhook:
+    """Test QuickBooks Online webhook receiver."""
+
+    def test_qbo_challenge_response(self, client: TestClient) -> None:
+        """QBO verification challenge returns correct HMAC."""
+        import hashlib
+        import hmac as _hmac
+
+        verifier = "test_verifier_token"
+        challenge = "challenge_abc"
+
+        expected_hash = _hmac.new(
+            verifier.encode(), challenge.encode(), hashlib.sha256
+        ).hexdigest()
+
+        with patch.dict(os.environ, {"QBO_WEBHOOK_VERIFIER_TOKEN": verifier}):
+            response = client.post(
+                "/webhooks/quickbooks",
+                json={"verifier_token": challenge},
+            )
+            assert response.status_code == 200
+            assert response.text == expected_hash
+
+    def test_qbo_normalizes_transaction_event(self, client: TestClient) -> None:
+        """QBO entity change notification is normalized and forwarded."""
+        import hashlib
+        import hmac as _hmac
+
+        verifier = "test_verifier_token"
+        payload_dict: dict[str, Any] = {
+            "eventNotifications": [
+                {
+                    "realmId": "realm_123",
+                    "dataChangeEvent": {
+                        "entities": [
+                            {"name": "Invoice", "id": "inv_001", "operation": "Create"}
+                        ]
+                    },
+                }
+            ]
+        }
+        import json
+
+        payload_bytes = json.dumps(payload_dict).encode()
+        sig = _hmac.new(verifier.encode(), payload_bytes, hashlib.sha256).hexdigest()
+
+        with (
+            patch.dict(os.environ, {"QBO_WEBHOOK_VERIFIER_TOKEN": verifier}),
+            patch("app.routers.webhooks.quickbooks.forward_to_baby_mars", new_callable=AsyncMock) as mock_fwd,
+        ):
+            mock_fwd.return_value = True
+            response = client.post(
+                "/webhooks/quickbooks",
+                content=payload_bytes,
+                headers={
+                    "Content-Type": "application/json",
+                    "intuit-signature": sig,
+                },
+            )
+            assert response.status_code == 200
+            assert mock_fwd.called
+            forwarded_event = mock_fwd.call_args[0][0]
+            assert forwarded_event.event_type == "qbo.invoice.create"
+            assert forwarded_event.org_id == "realm_123"
+
+
+class TestXeroWebhook:
+    """Test Xero webhook receiver."""
+
+    def test_xero_intent_to_receive_validation(self, client: TestClient) -> None:
+        """Xero intent-to-receive: valid sig + empty events = 200."""
+        import hashlib
+        import hmac as _hmac
+
+        webhook_key = "xero_test_key"
+        payload = b'{"events": []}'
+        sig = _hmac.new(webhook_key.encode(), payload, hashlib.sha256).hexdigest()
+
+        with patch.dict(os.environ, {"XERO_WEBHOOK_KEY": webhook_key}):
+            response = client.post(
+                "/webhooks/xero",
+                content=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "x-xero-signature": sig,
+                },
+            )
+            assert response.status_code == 200
