@@ -75,7 +75,13 @@ async def execute_tool(
         turn_id=request.turn_id,
         session_id=session_id,
     )
-    logger.info("Execute request received", log_event="execute_start")
+    verb_tier = (request.metadata or {}).get("verb_tier")
+    logger.info(
+        "Execute request received",
+        verb_tier=verb_tier,
+        proactive=(request.metadata or {}).get("proactive", False),
+        log_event="execute_start",
+    )
 
     # Rate limiting check
     is_allowed, rate_info = await asyncio.to_thread(rate_limiter.check_rate_limit, request.org_id)

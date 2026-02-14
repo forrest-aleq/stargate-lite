@@ -152,14 +152,8 @@ class TestVerbTierMetrics:
             calls = mock_metric.call_args_list
             success_calls = [c for c in calls if "execution.success" in str(c)]
             assert len(success_calls) >= 1
-            # Verify verb_tier tag is present
-            tags = success_calls[0].kwargs.get("tags", success_calls[0][1][0] if len(success_calls[0][1]) > 0 else [])
-            # tags is the second positional arg or keyword arg
-            call_args = success_calls[0]
-            if call_args.kwargs.get("tags"):
-                tag_list = call_args.kwargs["tags"]
-            else:
-                tag_list = call_args[0][1] if len(call_args[0]) > 1 else []
+            # Extract tags from the call (keyword arg)
+            tag_list: list[str] = success_calls[0].kwargs.get("tags", [])
             assert any("verb_tier:0" in t for t in tag_list)
 
     def test_verb_tier_unknown_when_no_metadata(self, client: TestClient) -> None:
@@ -189,9 +183,5 @@ class TestVerbTierMetrics:
             calls = mock_metric.call_args_list
             success_calls = [c for c in calls if "execution.success" in str(c)]
             assert len(success_calls) >= 1
-            call_args = success_calls[0]
-            if call_args.kwargs.get("tags"):
-                tag_list = call_args.kwargs["tags"]
-            else:
-                tag_list = call_args[0][1] if len(call_args[0]) > 1 else []
+            tag_list: list[str] = success_calls[0].kwargs.get("tags", [])
             assert any("verb_tier:unknown" in t for t in tag_list)

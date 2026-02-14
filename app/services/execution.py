@@ -78,11 +78,15 @@ async def execute_handler(
     set_user_context(request.org_id, request.user_id)
     set_capability_context(request.capability_key, service, tool_name)
 
+    # Extract verb_tier from metadata for metrics tagging
+    verb_tier = (request.metadata or {}).get("verb_tier")
+    verb_tier_tag = f"verb_tier:{verb_tier if verb_tier is not None else 'unknown'}"
+
     # Add breadcrumb for debugging
     add_breadcrumb(
         f"Executing {tool_name}",
         category="execution",
-        data={"service": service, "capability": request.capability_key},
+        data={"service": service, "capability": request.capability_key, "verb_tier": verb_tier},
     )
 
     # Circuit breaker check — fast-fail if service is known-bad
@@ -133,7 +137,7 @@ async def execute_handler(
     )
 
     # Track successful capability execution
-    increment_metric("stargate_lite.execution.success", tags=[f"service:{service}"])
+    increment_metric("stargate_lite.execution.success", tags=[f"service:{service}", verb_tier_tag])
     await asyncio.to_thread(
         track_capability_called,
         user_id=request.user_id,
@@ -212,9 +216,11 @@ async def handle_stargate_error(
 
     # Track error metrics and PostHog
     error_code_str = e.error_code.value if hasattr(e.error_code, "value") else str(e.error_code)
+    verb_tier = (request.metadata or {}).get("verb_tier")
+    verb_tier_tag = f"verb_tier:{verb_tier if verb_tier is not None else 'unknown'}"
     increment_metric(
         "stargate_lite.execution.error",
-        tags=[f"service:{service}", f"error_code:{error_code_str}"],
+        tags=[f"service:{service}", f"error_code:{error_code_str}", verb_tier_tag],
     )
     await asyncio.to_thread(
         track_connector_error,
@@ -231,6 +237,7 @@ async def handle_stargate_error(
         "Execute request failed with StargateError",
         error_code=error_code_str,
         error_message=e.message,
+        verb_tier=verb_tier,
         total_duration_ms=round(total_duration_ms, 2),
         log_event="execute_error",
     )
@@ -289,9 +296,11 @@ async def handle_unexpected_error(
         if hasattr(classified_error.error_code, "value")
         else str(classified_error.error_code)
     )
+    verb_tier = (request.metadata or {}).get("verb_tier")
+    verb_tier_tag = f"verb_tier:{verb_tier if verb_tier is not None else 'unknown'}"
     increment_metric(
         "stargate_lite.execution.error",
-        tags=[f"service:{service}", f"error_code:{error_code_str}"],
+        tags=[f"service:{service}", f"error_code:{error_code_str}", verb_tier_tag],
     )
     await asyncio.to_thread(
         track_connector_error,
@@ -308,6 +317,7 @@ async def handle_unexpected_error(
         "Execute request failed with unexpected error",
         error_type=type(e).__name__,
         error_message=str(e)[:200],
+        verb_tier=verb_tier,
         total_duration_ms=round(total_duration_ms, 2),
         log_event="execute_unexpected_error",
         exc_info=True,
