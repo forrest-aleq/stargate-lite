@@ -79,6 +79,10 @@ class ToolExecutionRequest(BaseModel):
         default=None,
         description="Session ID for event correlation (passed via X-Session-ID header or body)",
     )
+    metadata: dict[str, Any] | None = Field(
+        default=None,
+        description="Execution metadata from caller (verb_tier, proactive, trigger_id, belief_context)",
+    )
 
     class Config:
         json_schema_extra: ClassVar[dict[str, Any]] = {
@@ -90,6 +94,7 @@ class ToolExecutionRequest(BaseModel):
                 "args": {"vendor_name": "Acme Inc.", "email": "[email protected]"},
                 "use_delegation": False,
                 "session_id": "01936b3a-4f2e-7000-8000-abc123def456",
+                "metadata": None,
             }
         }
 
