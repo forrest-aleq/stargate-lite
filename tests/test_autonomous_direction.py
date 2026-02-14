@@ -756,3 +756,133 @@ class TestGmailWatchRenewal:
             result = check_watch_renewal_needed("org_test", "user_test", 1_000_000_000_000)
             assert result["needs_renewal"] is False
             assert result["reason"] == "active"
+
+
+# ============================================================================
+# Commit 8: Delivery events for Tier 3 actions
+# ============================================================================
+
+
+class TestDeliveryEvents:
+    """Test delivery event emission for Tier 3 actions."""
+
+    def test_delivery_event_sent_for_tier_3_success(self, client: TestClient) -> None:
+        """Tier 3 success emits delivery event with status=sent."""
+        with (
+            patch("app.routers.execute.get_capability") as mock_cap,
+            patch(
+                "app.services.execution.emit_delivery_event",
+                new_callable=AsyncMock,
+            ) as mock_emit,
+        ):
+            mock_cap.return_value = {
+                "handler": lambda org_id, user_id, args: {"result": "sent"},
+                "tool_name": "gmail.send",
+                "service": "google",
+                "credential_type": "user",
+            }
+
+            response = client.post(
+                "/api/v1/execute",
+                json={
+                    "capability_key": "email.send",
+                    "org_id": "org_tier3",
+                    "user_id": "user_tier3",
+                    "turn_id": "turn_delivery_success_001",
+                    "args": {},
+                    "metadata": {"verb_tier": 3, "proactive": True},
+                },
+            )
+
+            assert response.status_code == 200
+            assert response.json()["status"] == "success"
+
+            # Delivery event should have been emitted
+            assert mock_emit.called
+            emitted_event = mock_emit.call_args[0][0]
+            assert emitted_event.event_type == "delivery.email.send"
+            assert emitted_event.source_service == "stargate"
+            assert emitted_event.org_id == "org_tier3"
+            assert emitted_event.raw_event_id == "turn_delivery_success_001:email.send"
+            assert emitted_event.payload["status"] == "sent"
+            assert emitted_event.payload["turn_id"] == "turn_delivery_success_001"
+            assert emitted_event.payload["proactive"] is True
+            assert isinstance(emitted_event.payload["duration_ms"], int)
+
+    def test_delivery_event_sent_for_tier_3_failure(self, client: TestClient) -> None:
+        """Tier 3 failure emits delivery event with status=failed."""
+
+        def _raise_error(org_id: str, user_id: str, args: dict[str, Any]) -> None:
+            msg = "Gmail API error"
+            raise RuntimeError(msg)
+
+        with (
+            patch("app.routers.execute.get_capability") as mock_cap,
+            patch(
+                "app.services.execution.emit_delivery_event",
+                new_callable=AsyncMock,
+            ) as mock_emit,
+        ):
+            mock_cap.return_value = {
+                "handler": _raise_error,
+                "tool_name": "gmail.send",
+                "service": "google",
+                "credential_type": "user",
+            }
+
+            response = client.post(
+                "/api/v1/execute",
+                json={
+                    "capability_key": "email.send",
+                    "org_id": "org_tier3_fail",
+                    "user_id": "user_tier3_fail",
+                    "turn_id": "turn_delivery_fail_001",
+                    "args": {},
+                    "metadata": {"verb_tier": 3},
+                },
+            )
+
+            assert response.status_code == 200
+            assert response.json()["status"] == "error"
+
+            # Delivery event should have been emitted with failed status
+            assert mock_emit.called
+            emitted_event = mock_emit.call_args[0][0]
+            assert emitted_event.event_type == "delivery.email.send"
+            assert emitted_event.payload["status"] == "failed"
+            assert "error_code" in emitted_event.payload
+            assert emitted_event.payload["turn_id"] == "turn_delivery_fail_001"
+
+    def test_no_delivery_event_for_tier_0(self, client: TestClient) -> None:
+        """Tier 0 (read-only) actions do NOT emit delivery events."""
+        with (
+            patch("app.routers.execute.get_capability") as mock_cap,
+            patch(
+                "app.services.execution.emit_delivery_event",
+                new_callable=AsyncMock,
+            ) as mock_emit,
+        ):
+            mock_cap.return_value = {
+                "handler": lambda org_id, user_id, args: {"vendors": []},
+                "tool_name": "quickbooks.list_vendors",
+                "service": "quickbooks",
+                "credential_type": "user",
+            }
+
+            response = client.post(
+                "/api/v1/execute",
+                json={
+                    "capability_key": "vendor.list",
+                    "org_id": "org_tier0",
+                    "user_id": "user_tier0",
+                    "turn_id": "turn_no_delivery_001",
+                    "args": {},
+                    "metadata": {"verb_tier": 0},
+                },
+            )
+
+            assert response.status_code == 200
+            assert response.json()["status"] == "success"
+
+            # No delivery event for Tier 0
+            assert not mock_emit.called

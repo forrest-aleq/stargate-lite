@@ -19,9 +19,11 @@ from app.errors import (
 )
 from app.logging_config import get_logger
 from app.models import ToolExecutionRequest
+from app.models_webhook import WebhookEvent
 from app.observability import increment_metric
 from app.posthog_client import track_capability_called, track_connector_error
 from app.redis_client import CACHE_TTL_PERMANENT, get_cache_ttl, redis_client
+from app.routers.webhooks.base import emit_delivery_event
 from app.sentry_config import (
     add_breadcrumb,
     capture_connector_error as sentry_capture_connector_error,
@@ -33,6 +35,57 @@ logger = get_logger(__name__)
 
 # 5s buffer before Baby MARS's 30s client timeout
 HANDLER_TIMEOUT_SECONDS = 25.0
+
+# Background task references — prevents garbage collection of fire-and-forget tasks
+_background_tasks: set[asyncio.Task[None]] = set()
+
+
+async def maybe_emit_delivery_event(
+    request: ToolExecutionRequest,
+    status: str,
+    duration_ms: float,
+    error_code: str | None = None,
+) -> None:
+    """Emit a delivery event for Tier 3 actions (fire-and-forget).
+
+    Called after execution completes (success or failure) when
+    verb_tier == 3 in the request metadata.
+
+    Args:
+        request: The original execution request.
+        status: "sent" for success, "failed" for errors.
+        duration_ms: Handler execution duration in ms.
+        error_code: Error code string (only for failures).
+    """
+    verb_tier = (request.metadata or {}).get("verb_tier")
+    if verb_tier != 3:
+        return
+
+    payload: dict[str, Any] = {
+        "capability_key": request.capability_key,
+        "status": status,
+        "duration_ms": round(duration_ms),
+        "proactive": (request.metadata or {}).get("proactive", False),
+        "trigger_id": (request.metadata or {}).get("trigger_id"),
+        "turn_id": request.turn_id,
+    }
+    if error_code:
+        payload["error_code"] = error_code
+
+    event = WebhookEvent(
+        event_type=f"delivery.{request.capability_key}",
+        source_service="stargate",
+        org_id=request.org_id,
+        timestamp=datetime.now(UTC),
+        raw_event_id=f"{request.turn_id}:{request.capability_key}",
+        user_id=request.user_id,
+        payload=payload,
+    )
+
+    # Fire-and-forget — delivery event failure doesn't fail execution
+    task = asyncio.create_task(emit_delivery_event(event))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
 
 async def check_idempotency_cache(turn_id: str, capability_key: str) -> dict[str, Any] | None:
@@ -248,6 +301,10 @@ async def handle_stargate_error(
         error_dict,
         ttl_seconds=get_cache_ttl(error_dict),
     )
+
+    # Emit delivery event for Tier 3 failures
+    await maybe_emit_delivery_event(request, "failed", total_duration_ms, error_code=error_code_str)
+
     return error_dict
 
 
@@ -329,4 +386,8 @@ async def handle_unexpected_error(
         error_dict,
         ttl_seconds=get_cache_ttl(error_dict),
     )
+
+    # Emit delivery event for Tier 3 failures
+    await maybe_emit_delivery_event(request, "failed", total_duration_ms, error_code=error_code_str)
+
     return error_dict

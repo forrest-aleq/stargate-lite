@@ -22,6 +22,7 @@ from app.services.execution import (
     handle_capability_not_found,
     handle_stargate_error,
     handle_unexpected_error,
+    maybe_emit_delivery_event,
 )
 
 logger = get_logger(__name__)
@@ -126,7 +127,7 @@ async def execute_tool(
             f"Resolved capability '{request.capability_key}' to tool '{capability['tool_name']}'"
         )
 
-        outputs, _duration = await execute_handler(capability, request, logs, session_id)
+        outputs, handler_duration = await execute_handler(capability, request, logs, session_id)
         response_data = build_success_response(request, capability, outputs, logs)
 
         await asyncio.to_thread(
@@ -137,6 +138,9 @@ async def execute_tool(
             ttl_seconds=get_cache_ttl(response_data),
         )
         total_duration_ms = (time.time() - start_time) * 1000
+
+        # Emit delivery event for Tier 3 success
+        await maybe_emit_delivery_event(request, "sent", handler_duration)
         logger.info(
             "Execute request completed successfully",
             tool_name=capability["tool_name"],
