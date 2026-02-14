@@ -73,6 +73,11 @@ app.include_router(execute.router)
 app.include_router(oauth_router)
 app.include_router(schemas.router)
 
+# Webhook receivers (inbound events from external services → Baby MARS)
+from app.routers.webhooks import router as webhooks_router
+
+app.include_router(webhooks_router)
+
 # Re-export verify_api_key for backwards compatibility (now lives in app.auth)
 from app.auth import verify_api_key  # noqa: F401
 

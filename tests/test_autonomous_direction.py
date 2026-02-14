@@ -9,10 +9,12 @@ Validates:
 - Delivery events for Tier 3 actions
 """
 
+import asyncio
 import contextlib
 from collections.abc import Generator
+from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -185,3 +187,137 @@ class TestVerbTierMetrics:
             assert len(success_calls) >= 1
             tag_list: list[str] = success_calls[0].kwargs.get("tags", [])
             assert any("verb_tier:unknown" in t for t in tag_list)
+
+
+# ============================================================================
+# Commit 4: Webhook event model + forwarding infrastructure
+# ============================================================================
+
+
+class TestWebhookEventModel:
+    """Test WebhookEvent model validation."""
+
+    def test_webhook_event_requires_raw_event_id(self) -> None:
+        """raw_event_id is required — ValidationError without it."""
+        from pydantic import ValidationError
+
+        from app.models_webhook import WebhookEvent
+
+        with pytest.raises(ValidationError, match="raw_event_id"):
+            WebhookEvent(
+                event_type="test.event",
+                source_service="test",
+                org_id="org_test",
+                timestamp=datetime.now(UTC),
+                payload={"key": "value"},
+                # raw_event_id intentionally missing
+            )
+
+    def test_webhook_event_accepts_all_fields(self) -> None:
+        """Full WebhookEvent creation succeeds."""
+        from app.models_webhook import WebhookEvent
+
+        event = WebhookEvent(
+            event_type="stripe.payment.succeeded",
+            source_service="stripe",
+            org_id="org_123",
+            timestamp=datetime.now(UTC),
+            payload={"amount": 1000},
+            raw_event_id="evt_abc123",
+            user_id="user_456",
+        )
+        assert event.event_type == "stripe.payment.succeeded"
+        assert event.raw_event_id == "evt_abc123"
+
+
+class TestWebhookForwarding:
+    """Test forwarding infrastructure."""
+
+    def test_forward_skips_when_no_url(self) -> None:
+        """No crash when BABY_MARS_WEBHOOK_URL is unset."""
+        from app.models_webhook import WebhookEvent
+
+        event = WebhookEvent(
+            event_type="test.event",
+            source_service="test",
+            org_id="org_test",
+            timestamp=datetime.now(UTC),
+            payload={},
+            raw_event_id="evt_test_001",
+        )
+
+        with patch("app.routers.webhooks.base.BABY_MARS_WEBHOOK_URL", ""):
+            from app.routers.webhooks.base import forward_to_baby_mars
+
+            result = asyncio.get_event_loop().run_until_complete(forward_to_baby_mars(event))
+            assert result is False
+
+    def test_forward_deduplicates_by_raw_event_id(self) -> None:
+        """Send same event twice, second call is deduped."""
+        from app.models_webhook import WebhookEvent
+
+        event = WebhookEvent(
+            event_type="test.event",
+            source_service="test",
+            org_id="org_test",
+            timestamp=datetime.now(UTC),
+            payload={},
+            raw_event_id="evt_dedup_001",
+        )
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+
+        with (
+            patch("app.routers.webhooks.base.BABY_MARS_WEBHOOK_URL", "http://mars.test/webhooks/stargate"),
+            patch("app.routers.webhooks.base._get_forward_session") as mock_session_fn,
+        ):
+            mock_session = MagicMock()
+            mock_session.post.return_value = mock_response
+            mock_session_fn.return_value = mock_session
+
+            from app.routers.webhooks.base import forward_to_baby_mars
+
+            loop = asyncio.get_event_loop()
+
+            # First call — should forward
+            result1 = loop.run_until_complete(forward_to_baby_mars(event))
+            assert result1 is True
+
+            # Second call — should be deduped (no second HTTP call)
+            result2 = loop.run_until_complete(forward_to_baby_mars(event))
+            assert result2 is True
+
+            # HTTP POST should only have been called once
+            assert mock_session.post.call_count == 1
+
+    def test_forward_retries_on_failure(self) -> None:
+        """Mock HTTP failure, verify 3 attempts."""
+        from app.models_webhook import WebhookEvent
+
+        event = WebhookEvent(
+            event_type="test.event",
+            source_service="test",
+            org_id="org_test",
+            timestamp=datetime.now(UTC),
+            payload={},
+            raw_event_id="evt_retry_001",
+        )
+
+        mock_response = MagicMock()
+        mock_response.status_code = 500  # Server error — triggers retry
+
+        with (
+            patch("app.routers.webhooks.base.BABY_MARS_WEBHOOK_URL", "http://mars.test/webhooks/stargate"),
+            patch("app.routers.webhooks.base._get_forward_session") as mock_session_fn,
+            patch("app.routers.webhooks.base.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            mock_session = MagicMock()
+            mock_session.post.return_value = mock_response
+            mock_session_fn.return_value = mock_session
+
+            from app.routers.webhooks.base import forward_to_baby_mars
+
+            result = asyncio.get_event_loop().run_until_complete(forward_to_baby_mars(event))
+            assert result is False
+            assert mock_session.post.call_count == 3
