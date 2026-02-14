@@ -410,6 +410,18 @@
             "title": "Capability Key",
             "type": "string"
           },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Execution metadata from caller (verb_tier, proactive, etc.)",
+            "title": "Metadata"
+          },
           "org_id": {
             "description": "Organization ID for multi-tenancy",
             "title": "Org Id",
@@ -1757,6 +1769,16 @@
               "title": "Credential Type",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1869,6 +1891,16 @@
               "title": "Credential Type",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1926,10 +1958,7 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {
-                  "title": "Response Asana Oauth Callback Oauth Asana Callback Get",
-                  "type": "object"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -1982,6 +2011,16 @@
             "schema": {
               "default": "customer",
               "title": "Credential Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
               "type": "string"
             }
           }
@@ -2041,10 +2080,7 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {
-                  "title": "Response Brex Oauth Callback Oauth Brex Callback Get",
-                  "type": "object"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -2097,6 +2133,16 @@
             "schema": {
               "default": "customer",
               "title": "Credential Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
               "type": "string"
             }
           }
@@ -2156,10 +2202,7 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {
-                  "title": "Response Chase Oauth Callback Oauth Chase Callback Get",
-                  "type": "object"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -2212,6 +2255,16 @@
             "schema": {
               "default": "customer",
               "title": "Credential Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
               "type": "string"
             }
           }
@@ -2271,10 +2324,7 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {
-                  "title": "Response Clickup Oauth Callback Oauth Clickup Callback Get",
-                  "type": "object"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -2327,6 +2377,16 @@
             "schema": {
               "default": "customer",
               "title": "Credential Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
               "type": "string"
             }
           }
@@ -2451,6 +2511,16 @@
               "title": "Service",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2561,6 +2631,16 @@
             "schema": {
               "default": "customer",
               "title": "Credential Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
               "type": "string"
             }
           }
@@ -2675,6 +2755,16 @@
               "title": "Credential Type",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2787,6 +2877,16 @@
               "title": "Credential Type",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2844,10 +2944,7 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {
-                  "title": "Response Linear Oauth Callback Oauth Linear Callback Get",
-                  "type": "object"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -2912,6 +3009,16 @@
               "title": "Service",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2943,7 +3050,7 @@
     },
     "/oauth/microsoft/callback": {
       "get": {
-        "description": "Handle Microsoft 365 OAuth callback\n\nExchange authorization code for access/refresh tokens and store them\nState format: {org_id}:{user_id}:{credential_type}:{service}",
+        "description": "Handle Microsoft 365 OAuth callback\n\nExchange authorization code for access/refresh tokens and store them.\nState format: 4-part (org:user:cred_type:service) or 5-part (...:source).",
         "operationId": "microsoft_oauth_callback_oauth_microsoft_callback_get",
         "parameters": [
           {
@@ -2969,10 +3076,7 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {
-                  "title": "Response Microsoft Oauth Callback Oauth Microsoft Callback Get",
-                  "type": "object"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -3025,6 +3129,16 @@
             "schema": {
               "default": "customer",
               "title": "Credential Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
               "type": "string"
             }
           }
@@ -3084,10 +3198,7 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {
-                  "title": "Response Monday Oauth Callback Oauth Monday Callback Get",
-                  "type": "object"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -3140,6 +3251,16 @@
             "schema": {
               "default": "customer",
               "title": "Credential Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
               "type": "string"
             }
           }
@@ -3199,10 +3320,7 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {
-                  "title": "Response Netsuite Oauth Callback Oauth Netsuite Callback Get",
-                  "type": "object"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -3255,6 +3373,16 @@
             "schema": {
               "default": "customer",
               "title": "Credential Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
               "type": "string"
             }
           }
@@ -3314,10 +3442,7 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {
-                  "title": "Response Notion Oauth Callback Oauth Notion Callback Get",
-                  "type": "object"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -3429,10 +3554,7 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {
-                  "title": "Response Powerbi Oauth Callback Oauth Powerbi Callback Get",
-                  "type": "object"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -3618,6 +3740,16 @@
               "title": "Credential Type",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3675,10 +3807,7 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {
-                  "title": "Response Ramp Oauth Callback Oauth Ramp Callback Get",
-                  "type": "object"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -3731,6 +3860,16 @@
             "schema": {
               "default": "customer",
               "title": "Credential Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
               "type": "string"
             }
           }
@@ -3790,10 +3929,7 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {
-                  "title": "Response Schwab Oauth Callback Oauth Schwab Callback Get",
-                  "type": "object"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -3855,6 +3991,16 @@
             "schema": {
               "default": "customer",
               "title": "Credential Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
               "type": "string"
             }
           }
@@ -3997,6 +4143,16 @@
               "title": "Credential Type",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -4107,6 +4263,16 @@
             "schema": {
               "default": "customer",
               "title": "Credential Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
               "type": "string"
             }
           }
@@ -4221,6 +4387,16 @@
               "title": "Credential Type",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -4333,6 +4509,16 @@
               "title": "Credential Type",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -4410,6 +4596,126 @@
         "tags": [
           "oauth",
           "oauth"
+        ]
+      }
+    },
+    "/webhooks/gmail": {
+      "post": {
+        "description": "Receive Gmail push notification via Google Cloud Pub/Sub.\n\nGoogle sends a POST with JSON body:\n{\n    \"message\": {\n        \"data\": \"<base64-encoded JSON>\",\n        \"messageId\": \"...\",\n        \"publishTime\": \"...\"\n    },\n    \"subscription\": \"projects/.../subscriptions/...\"\n}\n\nThe base64-decoded data contains:\n{\n    \"emailAddress\": \"user@example.com\",\n    \"historyId\": \"12345\"\n}\n\nWe normalize this to a WebhookEvent and forward to Baby MARS.\nBaby MARS then calls gmail.get_history to fetch actual changes.",
+        "operationId": "gmail_push_notification_webhooks_gmail_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Gmail Push Notification",
+        "tags": [
+          "webhooks"
+        ]
+      }
+    },
+    "/webhooks/quickbooks": {
+      "post": {
+        "description": "Receive QuickBooks Online webhook events.\n\nHandles two cases:\n1. Verification challenge: QBO sends a challenge on registration.\n   Respond with HMAC of the payload.\n2. Entity change notifications: normalize and forward.",
+        "operationId": "quickbooks_webhook_webhooks_quickbooks_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Quickbooks Webhook",
+        "tags": [
+          "webhooks"
+        ]
+      }
+    },
+    "/webhooks/slack": {
+      "post": {
+        "description": "Receive Slack Events API webhook.\n\nHandles:\n1. URL verification: {\"type\": \"url_verification\"} \u2192 respond with challenge.\n2. Event callbacks: {\"type\": \"event_callback\"} \u2192 normalize + forward.",
+        "operationId": "slack_webhook_webhooks_slack_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Slack Webhook",
+        "tags": [
+          "webhooks"
+        ]
+      }
+    },
+    "/webhooks/stripe": {
+      "post": {
+        "description": "Receive Stripe webhook events.\n\n1. Verify Stripe-Signature (HMAC-SHA256 with timestamp).\n2. Extract event type + event ID.\n3. Resolve org_id from Stripe Connect account field.\n4. Normalize to WebhookEvent.\n5. Forward to Baby MARS.",
+        "operationId": "stripe_webhook_webhooks_stripe_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Stripe Webhook",
+        "tags": [
+          "webhooks"
+        ]
+      }
+    },
+    "/webhooks/twilio": {
+      "post": {
+        "description": "Receive Twilio inbound SMS webhook.\n\nTwilio sends POST with form-encoded params for inbound SMS.\nVerifies X-Twilio-Signature, normalizes to sms.received event,\nand forwards to Baby MARS.",
+        "operationId": "twilio_webhook_webhooks_twilio_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Twilio Webhook",
+        "tags": [
+          "webhooks"
+        ]
+      }
+    },
+    "/webhooks/xero": {
+      "post": {
+        "description": "Receive Xero webhook events.\n\nIntent-to-receive: Xero sends a validation request on registration.\nWe MUST respond 200 with correct HMAC for valid payloads, or 401 for\nintentionally invalid ones (Xero tests both).\n\nNormal events: verify signature, normalize, forward.",
+        "operationId": "xero_webhook_webhooks_xero_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Xero Webhook",
+        "tags": [
+          "webhooks"
         ]
       }
     }
