@@ -21,7 +21,9 @@ from app.routers.oauth.base import (
     build_oauth_error_redirect,
     build_oauth_success_redirect,
     build_signed_state_3parts,
+    build_signed_state_4parts,
     parse_oauth_state_3parts,
+    parse_oauth_state_4parts,
 )
 
 logger = get_logger(__name__)
@@ -141,7 +143,7 @@ def _store_quickbooks_credential(
 
 @router.get("/oauth/quickbooks/authorize")
 async def quickbooks_oauth_authorize(
-    org_id: str, user_id: str, credential_type: str = "customer"
+    org_id: str, user_id: str, credential_type: str = "customer", source: str = ""
 ) -> RedirectResponse:
     """
     Initiate QuickBooks OAuth flow
@@ -165,7 +167,11 @@ async def quickbooks_oauth_authorize(
         raise HTTPException(status_code=500, detail="QuickBooks OAuth not configured")
 
     # State is cryptographically signed to prevent CSRF/tampering
-    state = build_signed_state_3parts(org_id, user_id, credential_type)
+    # When source is provided (e.g. "chat"), use 4-part state so callback can thread it
+    if source:
+        state = build_signed_state_4parts(org_id, user_id, credential_type, source)
+    else:
+        state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     # OAuth authorization URL
     auth_base_url = "https://appcenter.intuit.com/connect/oauth2"
@@ -197,8 +203,15 @@ async def quickbooks_oauth_callback(code: str, state: str, realmId: str) -> Redi
 
     # Parse state first to get org_id for error redirects
     org_id: str | None = None
+    source = ""
     try:
-        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "quickbooks")
+        parts = state.split(":")
+        if len(parts) == 5:
+            # 4 data + 1 signature — has source (e.g. "chat")
+            org_id, user_id, credential_type, source = parse_oauth_state_4parts(state, "quickbooks")
+        else:
+            # 3 data + 1 signature — legacy, no source
+            org_id, user_id, credential_type = parse_oauth_state_3parts(state, "quickbooks")
     except HTTPException:
         return build_oauth_error_redirect(
             service="quickbooks",
@@ -223,7 +236,8 @@ async def quickbooks_oauth_callback(code: str, state: str, realmId: str) -> Redi
             credential_type,
         )
 
-        return build_oauth_success_redirect(service="quickbooks", org_id=org_id)
+        extra = {"source": source} if source else None
+        return build_oauth_success_redirect(service="quickbooks", org_id=org_id, extra_params=extra)
 
     except HTTPException:
         return build_oauth_error_redirect(
