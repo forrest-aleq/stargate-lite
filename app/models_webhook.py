@@ -19,23 +19,27 @@ class WebhookEvent(BaseModel):
     """
 
     event_type: str = Field(
-        ..., description="Normalized event type (e.g., 'stripe.payment.succeeded', 'gmail.message.received')"
+        ...,
+        description="Normalized event type (e.g., 'stripe.payment.succeeded')",
     )
     source_service: str = Field(
-        ..., description="Provider name (e.g., 'quickbooks', 'stripe', 'slack', 'stargate')"
+        ...,
+        description="Provider name (e.g., 'quickbooks', 'stripe', 'slack')",
     )
     org_id: str = Field(
-        ..., description="Resolved org_id from webhook registration/credentials"
+        ...,
+        description="Resolved org_id from webhook registration/credentials",
     )
-    timestamp: datetime = Field(
-        ..., description="Event timestamp (UTC)"
-    )
+    timestamp: datetime = Field(..., description="Event timestamp (UTC)")
     payload: dict[str, Any] = Field(
-        ..., description="Provider-specific payload (preserved as-is for external, structured for delivery)"
+        ...,
+        description="Provider-specific payload (preserved as-is)",
     )
     raw_event_id: str = Field(
-        ..., description="Provider's event ID — REQUIRED for dedup"
+        ...,
+        description="Provider's event ID — REQUIRED for dedup",
     )
     user_id: str | None = Field(
-        default=None, description="User ID if resolvable from event"
+        default=None,
+        description="User ID if resolvable from event",
     )

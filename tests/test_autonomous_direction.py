@@ -271,7 +271,10 @@ class TestWebhookForwarding:
         mock_response.status_code = 200
 
         with (
-            patch("app.routers.webhooks.base.BABY_MARS_WEBHOOK_URL", "http://mars.test/webhooks/stargate"),
+            patch(
+                "app.routers.webhooks.base.BABY_MARS_WEBHOOK_URL",
+                "http://mars.test/webhooks/stargate",
+            ),
             patch("app.routers.webhooks.base._get_forward_session") as mock_session_fn,
         ):
             mock_session = MagicMock()
@@ -310,7 +313,10 @@ class TestWebhookForwarding:
         mock_response.status_code = 500  # Server error — triggers retry
 
         with (
-            patch("app.routers.webhooks.base.BABY_MARS_WEBHOOK_URL", "http://mars.test/webhooks/stargate"),
+            patch(
+                "app.routers.webhooks.base.BABY_MARS_WEBHOOK_URL",
+                "http://mars.test/webhooks/stargate",
+            ),
             patch("app.routers.webhooks.base._get_forward_session") as mock_session_fn,
             patch("app.routers.webhooks.base.asyncio.sleep", new_callable=AsyncMock),
         ):
@@ -333,7 +339,9 @@ class TestWebhookForwarding:
 class TestStripeWebhook:
     """Test Stripe webhook receiver."""
 
-    def _make_stripe_signature(self, payload: bytes, secret: str, timestamp: str | None = None) -> str:
+    def _make_stripe_signature(
+        self, payload: bytes, secret: str, timestamp: str | None = None
+    ) -> str:
         """Build a valid Stripe-Signature header."""
         import hashlib
         import hmac as _hmac
@@ -365,7 +373,9 @@ class TestStripeWebhook:
 
         with (
             patch.dict(os.environ, {"STRIPE_WEBHOOK_SECRET": secret}),
-            patch("app.routers.webhooks.stripe.forward_to_baby_mars", new_callable=AsyncMock) as mock_fwd,
+            patch(
+                "app.routers.webhooks.stripe.forward_to_baby_mars", new_callable=AsyncMock
+            ) as mock_fwd,
         ):
             mock_fwd.return_value = True
             response = client.post(
@@ -394,9 +404,7 @@ class TestQBOWebhook:
         verifier = "test_verifier_token"
         challenge = "challenge_abc"
 
-        expected_hash = _hmac.new(
-            verifier.encode(), challenge.encode(), hashlib.sha256
-        ).hexdigest()
+        expected_hash = _hmac.new(verifier.encode(), challenge.encode(), hashlib.sha256).hexdigest()
 
         with patch.dict(os.environ, {"QBO_WEBHOOK_VERIFIER_TOKEN": verifier}):
             response = client.post(
@@ -417,9 +425,7 @@ class TestQBOWebhook:
                 {
                     "realmId": "realm_123",
                     "dataChangeEvent": {
-                        "entities": [
-                            {"name": "Invoice", "id": "inv_001", "operation": "Create"}
-                        ]
+                        "entities": [{"name": "Invoice", "id": "inv_001", "operation": "Create"}]
                     },
                 }
             ]
@@ -431,7 +437,9 @@ class TestQBOWebhook:
 
         with (
             patch.dict(os.environ, {"QBO_WEBHOOK_VERIFIER_TOKEN": verifier}),
-            patch("app.routers.webhooks.quickbooks.forward_to_baby_mars", new_callable=AsyncMock) as mock_fwd,
+            patch(
+                "app.routers.webhooks.quickbooks.forward_to_baby_mars", new_callable=AsyncMock
+            ) as mock_fwd,
         ):
             mock_fwd.return_value = True
             response = client.post(
@@ -471,3 +479,140 @@ class TestXeroWebhook:
                 },
             )
             assert response.status_code == 200
+
+
+# ============================================================================
+# Commit 6: Slack + Twilio webhook receivers
+# ============================================================================
+
+
+class TestSlackWebhook:
+    """Test Slack webhook receiver."""
+
+    def test_slack_url_verification_challenge(self, client: TestClient) -> None:
+        """Slack URL verification returns the challenge token."""
+        with patch.dict(os.environ, {"SLACK_SIGNING_SECRET": "test_secret"}):
+            response = client.post(
+                "/webhooks/slack",
+                json={"type": "url_verification", "challenge": "abc123xyz"},
+            )
+            assert response.status_code == 200
+            assert response.json() == {"challenge": "abc123xyz"}
+
+    def test_slack_dm_normalizes_and_forwards(self, client: TestClient) -> None:
+        """Slack DM event is normalized and forwarded."""
+        import hashlib
+        import hmac as _hmac
+        import json
+
+        signing_secret = "slack_test_secret_key"
+        payload_dict: dict[str, Any] = {
+            "type": "event_callback",
+            "team_id": "T_TESTTEAM",
+            "event_id": "Ev_TEST001",
+            "event": {
+                "type": "message",
+                "channel_type": "im",
+                "user": "U_TESTUSER",
+                "text": "hello aleq",
+            },
+        }
+        payload_bytes = json.dumps(payload_dict).encode()
+        timestamp = str(int(time.time()))
+        base_string = f"v0:{timestamp}:".encode() + payload_bytes
+        sig = "v0=" + _hmac.new(signing_secret.encode(), base_string, hashlib.sha256).hexdigest()
+
+        with (
+            patch.dict(os.environ, {"SLACK_SIGNING_SECRET": signing_secret}),
+            patch(
+                "app.routers.webhooks.slack.forward_to_baby_mars",
+                new_callable=AsyncMock,
+            ) as mock_fwd,
+        ):
+            mock_fwd.return_value = True
+            response = client.post(
+                "/webhooks/slack",
+                content=payload_bytes,
+                headers={
+                    "Content-Type": "application/json",
+                    "X-Slack-Request-Timestamp": timestamp,
+                    "X-Slack-Signature": sig,
+                },
+            )
+            assert response.status_code == 200
+            assert mock_fwd.called
+            forwarded_event = mock_fwd.call_args[0][0]
+            assert forwarded_event.event_type == "slack.message.received"
+            assert forwarded_event.org_id == "T_TESTTEAM"
+            assert forwarded_event.user_id == "U_TESTUSER"
+
+
+class TestTwilioWebhook:
+    """Test Twilio webhook receiver."""
+
+    def _make_twilio_signature(self, url: str, params: dict[str, str], auth_token: str) -> str:
+        """Build a valid X-Twilio-Signature header."""
+        import base64
+        import hashlib
+        import hmac as _hmac
+
+        data = url
+        for key in sorted(params.keys()):
+            data += key + params[key]
+
+        return base64.b64encode(
+            _hmac.new(auth_token.encode(), data.encode(), hashlib.sha1).digest()
+        ).decode()
+
+    def test_twilio_rejects_invalid_signature(self, client: TestClient) -> None:
+        """Invalid Twilio signature returns 401."""
+        with patch.dict(os.environ, {"TWILIO_AUTH_TOKEN": "test_token"}):
+            response = client.post(
+                "/webhooks/twilio",
+                data={
+                    "MessageSid": "SM_test001",
+                    "From": "+15551234567",
+                    "To": "+15559876543",
+                    "Body": "hello",
+                    "AccountSid": "AC_test",
+                },
+                headers={"X-Twilio-Signature": "invalidsignature"},
+            )
+            assert response.status_code == 401
+
+    def test_twilio_normalizes_inbound_sms(self, client: TestClient) -> None:
+        """Valid Twilio inbound SMS is normalized and forwarded."""
+        auth_token = "twilio_test_auth_token"
+        params = {
+            "MessageSid": "SM_test_msg_001",
+            "AccountSid": "AC_test_account",
+            "From": "+15551234567",
+            "To": "+15559876543",
+            "Body": "Hey Aleq, check my invoices",
+        }
+
+        # The test client URL — TestClient uses http://testserver by default
+        url = "http://testserver/webhooks/twilio"
+        sig = self._make_twilio_signature(url, params, auth_token)
+
+        with (
+            patch.dict(os.environ, {"TWILIO_AUTH_TOKEN": auth_token}),
+            patch(
+                "app.routers.webhooks.twilio.forward_to_baby_mars",
+                new_callable=AsyncMock,
+            ) as mock_fwd,
+        ):
+            mock_fwd.return_value = True
+            response = client.post(
+                "/webhooks/twilio",
+                data=params,
+                headers={"X-Twilio-Signature": sig},
+            )
+            assert response.status_code == 200
+            assert mock_fwd.called
+            forwarded_event = mock_fwd.call_args[0][0]
+            assert forwarded_event.event_type == "sms.received"
+            assert forwarded_event.source_service == "twilio"
+            assert forwarded_event.org_id == "AC_test_account"
+            assert forwarded_event.raw_event_id == "SM_test_msg_001"
+            assert forwarded_event.user_id == "+15551234567"

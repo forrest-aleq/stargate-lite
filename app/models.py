@@ -81,7 +81,7 @@ class ToolExecutionRequest(BaseModel):
     )
     metadata: dict[str, Any] | None = Field(
         default=None,
-        description="Execution metadata from caller (verb_tier, proactive, trigger_id, belief_context)",
+        description="Execution metadata from caller (verb_tier, proactive, etc.)",
     )
 
     class Config:
