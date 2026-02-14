@@ -24,16 +24,7 @@ logger = get_logger(__name__)
 
 
 def _get_state_signing_key() -> bytes:
-    """Get the key used to sign OAuth state parameters.
-
-    Uses OAUTH_STATE_SECRET if set, otherwise falls back to ENCRYPTION_KEY.
-
-    Returns:
-        Signing key as bytes
-
-    Raises:
-        HTTPException: If no signing key is configured
-    """
+    """Get the key used to sign OAuth state parameters."""
     key = os.getenv("OAUTH_STATE_SECRET") or os.getenv("ENCRYPTION_KEY")
     if not key:
         logger.error("No OAuth state signing key configured", log_event="oauth_state_key_missing")
@@ -42,14 +33,7 @@ def _get_state_signing_key() -> bytes:
 
 
 def _sign_state(payload: str) -> str:
-    """Create HMAC-SHA256 signature for state payload.
-
-    Args:
-        payload: The state data to sign (e.g., "org_id:user_id:credential_type")
-
-    Returns:
-        Hex-encoded signature (first 16 chars for brevity)
-    """
+    """Create HMAC-SHA256 signature for state payload."""
     key = _get_state_signing_key()
     signature = hmac.new(key, payload.encode("utf-8"), hashlib.sha256).hexdigest()
     # Use first 32 chars (128 bits) for CSRF protection
@@ -57,32 +41,13 @@ def _sign_state(payload: str) -> str:
 
 
 def _verify_state_signature(payload: str, signature: str) -> bool:
-    """Verify HMAC signature of state payload.
-
-    Args:
-        payload: The original state data
-        signature: The signature to verify
-
-    Returns:
-        True if signature is valid, False otherwise
-    """
+    """Verify HMAC signature of state payload."""
     expected = _sign_state(payload)
     return hmac.compare_digest(expected, signature)
 
 
 def build_signed_state_3parts(org_id: str, user_id: str, credential_type: str) -> str:
-    """Build a cryptographically signed OAuth state parameter.
-
-    Format: org_id:user_id:credential_type:signature
-
-    Args:
-        org_id: Organization ID
-        user_id: User ID
-        credential_type: Credential type (customer/agent)
-
-    Returns:
-        Signed state string
-    """
+    """Build signed state: org_id:user_id:credential_type:signature."""
     payload = f"{org_id}:{user_id}:{credential_type}"
     signature = _sign_state(payload)
     return f"{payload}:{signature}"
@@ -91,19 +56,7 @@ def build_signed_state_3parts(org_id: str, user_id: str, credential_type: str) -
 def build_signed_state_4parts(
     org_id: str, user_id: str, credential_type: str, sub_service: str
 ) -> str:
-    """Build a cryptographically signed OAuth state parameter with sub-service.
-
-    Format: org_id:user_id:credential_type:sub_service:signature
-
-    Args:
-        org_id: Organization ID
-        user_id: User ID
-        credential_type: Credential type (customer/agent)
-        sub_service: Sub-service identifier (e.g., "gmail", "drive")
-
-    Returns:
-        Signed state string
-    """
+    """Build signed state: org_id:user_id:credential_type:sub_service:signature."""
     payload = f"{org_id}:{user_id}:{credential_type}:{sub_service}"
     signature = _sign_state(payload)
     return f"{payload}:{signature}"
@@ -124,16 +77,7 @@ def build_oauth_success_redirect(
     org_id: str | None = None,
     extra_params: dict[str, str] | None = None,
 ) -> RedirectResponse:
-    """Build redirect response for successful OAuth completion.
-
-    Args:
-        service: Service name (e.g., "quickbooks")
-        org_id: Organization ID (optional, for logging)
-        extra_params: Additional query parameters
-
-    Returns:
-        RedirectResponse to N3 success page
-    """
+    """Build redirect to N3 success page after OAuth completion."""
     base_url = get_n3_base_url()
     params: dict[str, str] = {"connected": service}
     if extra_params:
@@ -158,17 +102,7 @@ def build_oauth_error_redirect(
     error_description: str | None = None,
     org_id: str | None = None,
 ) -> RedirectResponse:
-    """Build redirect response for failed OAuth.
-
-    Args:
-        service: Service name (e.g., "quickbooks")
-        error: Error code (e.g., "token_exchange_failed")
-        error_description: Human-readable error description
-        org_id: Organization ID (optional, for logging)
-
-    Returns:
-        RedirectResponse to N3 error page
-    """
+    """Build redirect to N3 error page after OAuth failure."""
     base_url = get_n3_base_url()
     params: dict[str, str] = {
         "error": error,
@@ -192,20 +126,7 @@ def build_oauth_error_redirect(
 
 
 def parse_oauth_state_3parts(state: str, service: str) -> tuple[str, str, str]:
-    """Parse and verify signed OAuth state parameter.
-
-    Expected format: org_id:user_id:credential_type:signature
-
-    Args:
-        state: The signed state parameter from OAuth callback
-        service: Service name for logging
-
-    Returns:
-        Tuple of (org_id, user_id, credential_type)
-
-    Raises:
-        HTTPException: If state is invalid, signature doesn't match, or contains empty values
-    """
+    """Parse signed state → (org_id, user_id, credential_type)."""
     parts = state.split(":")
 
     # New signed format has 4 parts (3 data + 1 signature)
@@ -259,42 +180,14 @@ def parse_oauth_state_3parts(state: str, service: str) -> tuple[str, str, str]:
 def build_signed_state_5parts(
     org_id: str, user_id: str, credential_type: str, sub_service: str, extra: str
 ) -> str:
-    """Build a cryptographically signed OAuth state parameter with 5 data parts.
-
-    Used for PKCE flows where we need to embed the code_verifier in the state.
-
-    Format: org_id:user_id:credential_type:sub_service:extra:signature
-
-    Args:
-        org_id: Organization ID
-        user_id: User ID
-        credential_type: Credential type (customer/agent)
-        sub_service: Sub-service identifier (e.g., "gmail", "drive")
-        extra: Additional data (e.g., PKCE code_verifier)
-
-    Returns:
-        Signed state string
-    """
+    """Build signed state: org_id:user_id:credential_type:sub_service:extra:signature."""
     payload = f"{org_id}:{user_id}:{credential_type}:{sub_service}:{extra}"
     signature = _sign_state(payload)
     return f"{payload}:{signature}"
 
 
 def parse_oauth_state_5parts(state: str, service: str) -> tuple[str, str, str, str, str]:
-    """Parse and verify signed OAuth state parameter with 5 data parts.
-
-    Expected format: org_id:user_id:credential_type:sub_service:extra:signature
-
-    Args:
-        state: The signed state parameter from OAuth callback
-        service: Service name for logging
-
-    Returns:
-        Tuple of (org_id, user_id, credential_type, sub_service, extra)
-
-    Raises:
-        HTTPException: If state is invalid, signature doesn't match, or contains empty values
-    """
+    """Parse signed state → (org_id, user_id, credential_type, sub_service, extra)."""
     parts = state.split(":")
 
     # Signed format has 6 parts (5 data + 1 signature)
@@ -334,43 +227,14 @@ def build_signed_state_6parts(
     extra: str,
     extra2: str,
 ) -> str:
-    """Build a cryptographically signed OAuth state parameter with 6 data parts.
-
-    Used when a 5-part state needs an additional field (e.g., source for chat redirect).
-
-    Format: org_id:user_id:credential_type:sub_service:extra:extra2:signature
-
-    Args:
-        org_id: Organization ID
-        user_id: User ID
-        credential_type: Credential type (customer/agent)
-        sub_service: Sub-service identifier
-        extra: Additional data (e.g., PKCE code_verifier)
-        extra2: Second additional data (e.g., source)
-
-    Returns:
-        Signed state string
-    """
+    """Build signed state with 6 data parts + signature."""
     payload = f"{org_id}:{user_id}:{credential_type}:{sub_service}:{extra}:{extra2}"
     signature = _sign_state(payload)
     return f"{payload}:{signature}"
 
 
 def parse_oauth_state_6parts(state: str, service: str) -> tuple[str, str, str, str, str, str]:
-    """Parse and verify signed OAuth state parameter with 6 data parts.
-
-    Expected format: org_id:user_id:credential_type:sub_service:extra:extra2:signature
-
-    Args:
-        state: The signed state parameter from OAuth callback
-        service: Service name for logging
-
-    Returns:
-        Tuple of (org_id, user_id, credential_type, sub_service, extra, extra2)
-
-    Raises:
-        HTTPException: If state is invalid, signature doesn't match, or contains empty values
-    """
+    """Parse signed state → (org_id, user_id, credential_type, sub_service, extra, extra2)."""
     parts = state.split(":")
 
     # Signed format has 7 parts (6 data + 1 signature)
@@ -403,20 +267,7 @@ def parse_oauth_state_6parts(state: str, service: str) -> tuple[str, str, str, s
 
 
 def parse_oauth_state_4parts(state: str, service: str) -> tuple[str, str, str, str]:
-    """Parse and verify signed OAuth state parameter with sub-service.
-
-    Expected format: org_id:user_id:credential_type:sub_service:signature
-
-    Args:
-        state: The signed state parameter from OAuth callback
-        service: Service name for logging
-
-    Returns:
-        Tuple of (org_id, user_id, credential_type, sub_service)
-
-    Raises:
-        HTTPException: If state is invalid, signature doesn't match, or contains empty values
-    """
+    """Parse signed state → (org_id, user_id, credential_type, sub_service)."""
     parts = state.split(":")
 
     # New signed format has 5 parts (4 data + 1 signature)
@@ -469,25 +320,7 @@ def exchange_tokens_basic_auth(
     user_id: str,
     extra_data: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Exchange authorization code for tokens using HTTP Basic Auth.
-
-    Args:
-        token_url: Token endpoint URL
-        code: Authorization code
-        redirect_uri: Redirect URI used in authorization
-        client_id: OAuth client ID
-        client_secret: OAuth client secret
-        service: Service name for logging
-        org_id: Organization ID for logging
-        user_id: User ID for logging
-        extra_data: Additional data to include in request
-
-    Returns:
-        Token data from OAuth provider
-
-    Raises:
-        HTTPException: If token exchange fails
-    """
+    """Exchange authorization code for tokens using HTTP Basic Auth."""
     logger.info(
         "Exchanging code for tokens",
         service=service,
@@ -547,24 +380,7 @@ def exchange_tokens_form_data(
     org_id: str,
     user_id: str,
 ) -> dict[str, Any]:
-    """Exchange authorization code for tokens using form data.
-
-    Args:
-        token_url: Token endpoint URL
-        code: Authorization code
-        redirect_uri: Redirect URI used in authorization
-        client_id: OAuth client ID
-        client_secret: OAuth client secret
-        service: Service name for logging
-        org_id: Organization ID for logging
-        user_id: User ID for logging
-
-    Returns:
-        Token data from OAuth provider
-
-    Raises:
-        HTTPException: If token exchange fails
-    """
+    """Exchange authorization code for tokens using form data."""
     response = requests.post(
         token_url,
         headers={"Content-Type": "application/x-www-form-urlencoded"},
@@ -598,16 +414,7 @@ def store_credential_with_expiry(
     credential_type: str,
     default_expiry_seconds: int = 3600,
 ) -> None:
-    """Store OAuth credentials with automatic expiry calculation.
-
-    Args:
-        org_id: Organization ID
-        user_id: User ID
-        service: Service name
-        token_data: Token data from OAuth provider
-        credential_type: Type of credential (customer/agent)
-        default_expiry_seconds: Default expiry if not in token_data
-    """
+    """Store OAuth credentials with automatic expiry calculation."""
     expires_in = token_data.get("expires_in", default_expiry_seconds)
     token_expiry = datetime.now(UTC) + timedelta(seconds=expires_in)
 
@@ -637,15 +444,7 @@ def store_credential_no_expiry(
     token_data: dict[str, Any],
     credential_type: str,
 ) -> None:
-    """Store OAuth credentials for tokens that don't expire.
-
-    Args:
-        org_id: Organization ID
-        user_id: User ID
-        service: Service name
-        token_data: Token data from OAuth provider
-        credential_type: Type of credential (customer/agent)
-    """
+    """Store OAuth credentials for tokens that don't expire."""
     # 100 years for tokens that don't expire
     token_expiry = datetime.now(UTC) + timedelta(days=36500)
 
@@ -669,18 +468,7 @@ def store_credential_no_expiry(
 
 
 def get_env_or_raise(var_name: str, service: str) -> str:
-    """Get environment variable or raise HTTPException.
-
-    Args:
-        var_name: Environment variable name
-        service: Service name for error message
-
-    Returns:
-        Environment variable value
-
-    Raises:
-        HTTPException: If environment variable is not set
-    """
+    """Get environment variable or raise HTTPException."""
     value = os.getenv(var_name)
     if not value:
         raise HTTPException(status_code=500, detail=f"{service} OAuth not configured")
