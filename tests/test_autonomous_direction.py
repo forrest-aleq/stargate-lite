@@ -616,3 +616,143 @@ class TestTwilioWebhook:
             assert forwarded_event.org_id == "AC_test_account"
             assert forwarded_event.raw_event_id == "SM_test_msg_001"
             assert forwarded_event.user_id == "+15551234567"
+
+
+# ============================================================================
+# Commit 7: Gmail push notification receiver
+# ============================================================================
+
+
+class TestGmailPushNotification:
+    """Test Gmail Pub/Sub push notification receiver."""
+
+    def _encode_pubsub_data(self, email: str, history_id: str) -> str:
+        """Base64-encode a Gmail push notification payload."""
+        import base64
+        import json
+
+        data = {"emailAddress": email, "historyId": history_id}
+        return base64.b64encode(json.dumps(data).encode()).decode()
+
+    def test_gmail_pubsub_token_verification(self, client: TestClient) -> None:
+        """Gmail endpoint rejects requests with wrong token."""
+        data_b64 = self._encode_pubsub_data("user@test.com", "100")
+
+        with patch.dict(os.environ, {"GMAIL_PUBSUB_TOKEN": "correct_token"}):
+            response = client.post(
+                "/webhooks/gmail?token=wrong_token",
+                json={
+                    "message": {
+                        "data": data_b64,
+                        "messageId": "msg_001",
+                    },
+                    "subscription": "projects/test/subscriptions/gmail",
+                },
+            )
+            assert response.status_code == 401
+
+    def test_gmail_push_normalizes_notification(self, client: TestClient) -> None:
+        """Valid Gmail push notification is normalized and forwarded."""
+        data_b64 = self._encode_pubsub_data("user@test.com", "12345")
+
+        with (
+            patch.dict(os.environ, {"GMAIL_PUBSUB_TOKEN": ""}),
+            patch(
+                "app.routers.webhooks.gmail.forward_to_baby_mars",
+                new_callable=AsyncMock,
+            ) as mock_fwd,
+            patch(
+                "app.routers.webhooks.gmail._get_last_history_id",
+                return_value=None,
+            ),
+            patch("app.routers.webhooks.gmail._set_last_history_id"),
+        ):
+            mock_fwd.return_value = True
+            response = client.post(
+                "/webhooks/gmail",
+                json={
+                    "message": {
+                        "data": data_b64,
+                        "messageId": "pubsub_msg_001",
+                    },
+                    "subscription": "projects/test/subscriptions/gmail",
+                },
+            )
+            assert response.status_code == 200
+            assert mock_fwd.called
+            forwarded = mock_fwd.call_args[0][0]
+            assert forwarded.event_type == "gmail.message.received"
+            assert forwarded.source_service == "gmail"
+            assert forwarded.org_id == "user@test.com"
+            assert forwarded.user_id == "user@test.com"
+            assert forwarded.payload["historyId"] == "12345"
+            assert forwarded.payload["previousHistoryId"] is None
+
+    def test_gmail_historyid_skip_regression(self, client: TestClient) -> None:
+        """Gmail skips notifications with already-processed historyId."""
+        data_b64 = self._encode_pubsub_data("user@test.com", "100")
+
+        with (
+            patch.dict(os.environ, {"GMAIL_PUBSUB_TOKEN": ""}),
+            patch(
+                "app.routers.webhooks.gmail._get_last_history_id",
+                return_value="200",
+            ),
+            patch(
+                "app.routers.webhooks.gmail.forward_to_baby_mars",
+                new_callable=AsyncMock,
+            ) as mock_fwd,
+        ):
+            response = client.post(
+                "/webhooks/gmail",
+                json={
+                    "message": {
+                        "data": data_b64,
+                        "messageId": "pubsub_msg_002",
+                    },
+                    "subscription": "projects/test/subscriptions/gmail",
+                },
+            )
+            assert response.status_code == 200
+            # Should NOT have forwarded (historyId 100 <= 200)
+            assert not mock_fwd.called
+
+
+class TestGmailWatchRenewal:
+    """Test Gmail watch renewal logic."""
+
+    def test_gmail_watch_renewal_needed_no_watch(self) -> None:
+        """Renewal needed when no watch exists."""
+        from app.services.gmail_watch import check_watch_renewal_needed
+
+        with patch("app.services.gmail_watch.redis_client") as mock_redis:
+            mock_redis.get_cached_response.return_value = None
+
+            result = check_watch_renewal_needed("org_test", "user_test", 1_000_000_000_000)
+            assert result["needs_renewal"] is True
+            assert result["reason"] == "no_watch_found"
+
+    def test_gmail_watch_renewal_needed_expired(self) -> None:
+        """Renewal needed when watch is expired."""
+        from app.services.gmail_watch import check_watch_renewal_needed
+
+        with patch("app.services.gmail_watch.redis_client") as mock_redis:
+            # Watch expired at time 900 billion, current time is 1 trillion
+            mock_redis.get_cached_response.return_value = {"expiration_ms": 900_000_000_000}
+
+            result = check_watch_renewal_needed("org_test", "user_test", 1_000_000_000_000)
+            assert result["needs_renewal"] is True
+            assert result["reason"] == "expired"
+
+    def test_gmail_watch_active(self) -> None:
+        """No renewal needed when watch is active and not near expiry."""
+        from app.services.gmail_watch import check_watch_renewal_needed
+
+        with patch("app.services.gmail_watch.redis_client") as mock_redis:
+            # Watch expires in 3 days (well within buffer)
+            future_ms = 1_000_000_000_000 + 259_200_000
+            mock_redis.get_cached_response.return_value = {"expiration_ms": future_ms}
+
+            result = check_watch_renewal_needed("org_test", "user_test", 1_000_000_000_000)
+            assert result["needs_renewal"] is False
+            assert result["reason"] == "active"
