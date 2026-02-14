@@ -24,9 +24,7 @@ router = APIRouter()
 
 def _verify_xero_signature(payload: bytes, signature: str, webhook_key: str) -> bool:
     """Verify Xero webhook HMAC-SHA256 signature."""
-    expected = hmac.new(
-        webhook_key.encode(), payload, hashlib.sha256
-    ).hexdigest()
+    expected = hmac.new(webhook_key.encode(), payload, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, signature)
 
 

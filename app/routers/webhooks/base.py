@@ -9,17 +9,14 @@ Auth: X-API-Key header (same shared key as /api/v1/execute).
 
 import asyncio
 import os
-import time
-from typing import Any
 
 import requests
+from fastapi import APIRouter
 
 from app.logging_config import get_logger
 from app.models_webhook import WebhookEvent
 from app.observability import increment_metric
 from app.redis_client import redis_client
-
-from fastapi import APIRouter
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -37,7 +34,7 @@ _forward_session: requests.Session | None = None
 
 def _get_forward_session() -> requests.Session:
     """Lazy-init a requests session for forwarding."""
-    global _forward_session  # noqa: PLW0603
+    global _forward_session
     if _forward_session is None:
         _forward_session = requests.Session()
     return _forward_session
@@ -65,9 +62,7 @@ async def forward_to_baby_mars(event: WebhookEvent) -> bool:
 
     # 1. Dedup check
     dedup_key = f"stargate:webhook:seen:{event.source_service}:{event.raw_event_id}"
-    already_seen = await asyncio.to_thread(
-        redis_client.get_cached_response, dedup_key, ""
-    )
+    already_seen = await asyncio.to_thread(redis_client.get_cached_response, dedup_key, "")
     if already_seen:
         logger.info(
             "Duplicate webhook event, skipping",
@@ -102,7 +97,10 @@ async def forward_to_baby_mars(event: WebhookEvent) -> bool:
                 )
                 increment_metric(
                     "stargate_lite.webhook.forwarded",
-                    tags=[f"source_service:{event.source_service}", f"event_type:{event.event_type}"],
+                    tags=[
+                        f"source_service:{event.source_service}",
+                        f"event_type:{event.event_type}",
+                    ],
                 )
                 logger.info(
                     "Webhook forwarded to Baby MARS",

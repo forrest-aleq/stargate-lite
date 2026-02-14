@@ -7,7 +7,6 @@ Handles OAuth authorization and callback for NetSuite ERP.
 import asyncio
 import os
 from datetime import UTC, datetime, timedelta
-from typing import Any
 from urllib.parse import urlencode
 
 import requests

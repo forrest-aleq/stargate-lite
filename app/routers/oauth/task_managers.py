@@ -10,7 +10,6 @@ Handles OAuth authorization and callback for task management tools:
 import asyncio
 import os
 from datetime import UTC, datetime, timedelta
-from typing import Any
 from urllib.parse import urlencode
 
 import requests
@@ -174,9 +173,7 @@ async def clickup_oauth_callback(code: str, state: str) -> RedirectResponse:
     try:
         parts = state.split(":")
         if len(parts) == 5:
-            org_id, user_id, credential_type, source = parse_oauth_state_4parts(
-                state, "clickup"
-            )
+            org_id, user_id, credential_type, source = parse_oauth_state_4parts(state, "clickup")
         else:
             org_id, user_id, credential_type = parse_oauth_state_3parts(state, "clickup")
 
@@ -272,9 +269,7 @@ async def monday_oauth_callback(code: str, state: str) -> RedirectResponse:
     try:
         parts = state.split(":")
         if len(parts) == 5:
-            org_id, user_id, credential_type, source = parse_oauth_state_4parts(
-                state, "monday"
-            )
+            org_id, user_id, credential_type, source = parse_oauth_state_4parts(state, "monday")
         else:
             org_id, user_id, credential_type = parse_oauth_state_3parts(state, "monday")
 

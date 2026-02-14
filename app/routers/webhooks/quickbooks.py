@@ -24,9 +24,7 @@ router = APIRouter()
 
 def _verify_qbo_signature(payload: bytes, signature: str, verifier_token: str) -> bool:
     """Verify QuickBooks webhook HMAC-SHA256 signature."""
-    expected = hmac.new(
-        verifier_token.encode(), payload, hashlib.sha256
-    ).hexdigest()
+    expected = hmac.new(verifier_token.encode(), payload, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, signature)
 
 
@@ -72,9 +70,7 @@ async def quickbooks_webhook(request: Request) -> Response:
 
     for notification in notifications:
         realm_id: str = notification.get("realmId", "")
-        entities: list[dict[str, Any]] = (
-            notification.get("dataChangeEvent", {}).get("entities", [])
-        )
+        entities: list[dict[str, Any]] = notification.get("dataChangeEvent", {}).get("entities", [])
 
         for entity in entities:
             entity_name: str = entity.get("name", "unknown").lower()

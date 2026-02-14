@@ -10,7 +10,6 @@ import asyncio
 import base64
 import os
 from datetime import UTC, datetime, timedelta
-from typing import Any
 from urllib.parse import urlencode
 
 import requests
@@ -78,9 +77,7 @@ async def notion_oauth_callback(code: str, state: str) -> RedirectResponse:
     try:
         parts = state.split(":")
         if len(parts) == 5:
-            org_id, user_id, credential_type, source = parse_oauth_state_4parts(
-                state, "notion"
-            )
+            org_id, user_id, credential_type, source = parse_oauth_state_4parts(state, "notion")
         else:
             org_id, user_id, credential_type = parse_oauth_state_3parts(state, "notion")
 
@@ -192,9 +189,7 @@ async def linear_oauth_callback(code: str, state: str) -> RedirectResponse:
     try:
         parts = state.split(":")
         if len(parts) == 5:
-            org_id, user_id, credential_type, source = parse_oauth_state_4parts(
-                state, "linear"
-            )
+            org_id, user_id, credential_type, source = parse_oauth_state_4parts(state, "linear")
         else:
             org_id, user_id, credential_type = parse_oauth_state_3parts(state, "linear")
 

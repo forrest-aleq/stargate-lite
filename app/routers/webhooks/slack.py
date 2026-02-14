@@ -40,9 +40,7 @@ def _verify_slack_signature(
         return False
 
     base_string = f"v0:{timestamp}:".encode() + body
-    expected = "v0=" + hmac.new(
-        signing_secret.encode(), base_string, hashlib.sha256
-    ).hexdigest()
+    expected = "v0=" + hmac.new(signing_secret.encode(), base_string, hashlib.sha256).hexdigest()
 
     return hmac.compare_digest(expected, signature)
 

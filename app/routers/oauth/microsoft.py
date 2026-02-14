@@ -7,7 +7,6 @@ Handles OAuth authorization and callback for Microsoft 365 (Excel, OneDrive, Out
 import asyncio
 import os
 from datetime import UTC, datetime, timedelta
-from typing import Any
 from urllib.parse import urlencode
 
 import requests
@@ -107,9 +106,7 @@ async def microsoft_oauth_callback(code: str, state: str) -> RedirectResponse:
                 state, "microsoft"
             )
         else:
-            org_id, user_id, credential_type, service = parse_oauth_state_4parts(
-                state, "microsoft"
-            )
+            org_id, user_id, credential_type, service = parse_oauth_state_4parts(state, "microsoft")
 
         # Exchange code for tokens
         client_id = os.getenv("MICROSOFT_CLIENT_ID")
@@ -149,9 +146,7 @@ async def microsoft_oauth_callback(code: str, state: str) -> RedirectResponse:
         )
 
         extra = {"source": source} if source else None
-        return build_oauth_success_redirect(
-            service="microsoft", org_id=org_id, extra_params=extra
-        )
+        return build_oauth_success_redirect(service="microsoft", org_id=org_id, extra_params=extra)
 
     except HTTPException:
         return build_oauth_error_redirect(service="microsoft", error="callback_failed")

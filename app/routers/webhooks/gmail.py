@@ -76,9 +76,7 @@ def _get_last_history_id(email: str) -> str | None:
 def _set_last_history_id(email: str, history_id: str) -> None:
     """Store last processed historyId for an email address."""
     key = f"{_HISTORY_KEY_PREFIX}:{email}"
-    redis_client.cache_response(
-        key, "", {"history_id": history_id}, ttl_seconds=604800
-    )  # 7 days
+    redis_client.cache_response(key, "", {"history_id": history_id}, ttl_seconds=604800)  # 7 days
 
 
 @router.post("/webhooks/gmail")

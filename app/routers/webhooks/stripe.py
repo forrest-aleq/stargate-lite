@@ -42,13 +42,13 @@ def _verify_stripe_signature(payload: bytes, sig_header: str, secret: str) -> bo
             return False
 
         signed_payload = f"{timestamp}.".encode() + payload
-        expected = hmac.new(
-            secret.encode(), signed_payload, hashlib.sha256
-        ).hexdigest()
+        expected = hmac.new(secret.encode(), signed_payload, hashlib.sha256).hexdigest()
 
         return hmac.compare_digest(expected, signature)
     except Exception:
-        logger.warning("Stripe signature parsing failed", log_event="stripe_sig_parse_error", exc_info=True)
+        logger.warning(
+            "Stripe signature parsing failed", log_event="stripe_sig_parse_error", exc_info=True
+        )
         return False
 
 

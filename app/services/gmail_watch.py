@@ -29,9 +29,7 @@ _WATCH_KEY_PREFIX = "stargate:gmail:watch"
 _RENEWAL_BUFFER_MS = 86_400_000  # 24 hours in milliseconds
 
 
-def store_watch_expiry(
-    org_id: str, user_id: str, expiration_ms: int
-) -> None:
+def store_watch_expiry(org_id: str, user_id: str, expiration_ms: int) -> None:
     """Store Gmail watch expiry timestamp in Redis.
 
     Called after a successful email.setup_watch execution.
@@ -58,9 +56,7 @@ def store_watch_expiry(
     )
 
 
-def check_watch_renewal_needed(
-    org_id: str, user_id: str, current_time_ms: int
-) -> dict[str, Any]:
+def check_watch_renewal_needed(org_id: str, user_id: str, current_time_ms: int) -> dict[str, Any]:
     """Check if a Gmail watch needs renewal.
 
     Returns a dict with:
