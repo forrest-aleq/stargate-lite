@@ -37,7 +37,7 @@ repos:
 
       - id: openapi-check
         name: OpenAPI spec sync
-        entry: python scripts/generate_openapi.py --check
+        entry: bash -c 'source venv/bin/activate && python scripts/generate_openapi.py --check'
         language: system
         pass_filenames: false
         files: ^(app/models\.py|app/routers/.*\.py|openapi\.json)$
