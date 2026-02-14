@@ -29,8 +29,10 @@ from app.routers.oauth.base import (
     build_oauth_error_redirect,
     build_oauth_success_redirect,
     build_signed_state_3parts,
+    build_signed_state_4parts,
     get_env_or_raise,
     parse_oauth_state_3parts,
+    parse_oauth_state_4parts,
 )
 
 logger = get_logger(__name__)
@@ -209,7 +211,7 @@ def _store_xero_credential(
 
 @router.get("/oauth/xero/authorize")
 async def xero_oauth_authorize(
-    org_id: str, user_id: str, credential_type: str = "customer"
+    org_id: str, user_id: str, credential_type: str = "customer", source: str = ""
 ) -> RedirectResponse:
     """
     Initiate Xero OAuth flow
@@ -228,7 +230,10 @@ async def xero_oauth_authorize(
     client_id = get_env_or_raise("XERO_CLIENT_ID", "Xero")
     redirect_uri = get_env_or_raise("XERO_REDIRECT_URI", "Xero")
 
-    state = build_signed_state_3parts(org_id, user_id, credential_type)
+    if source:
+        state = build_signed_state_4parts(org_id, user_id, credential_type, source)
+    else:
+        state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     params = {
         "response_type": "code",
@@ -256,8 +261,13 @@ async def xero_oauth_callback(code: str, state: str) -> RedirectResponse:
     logger.info("OAuth callback received", service="xero", log_event="oauth_callback_start")
 
     org_id: str | None = None
+    source = ""
     try:
-        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "xero")
+        parts = state.split(":")
+        if len(parts) == 5:
+            org_id, user_id, credential_type, source = parse_oauth_state_4parts(state, "xero")
+        else:
+            org_id, user_id, credential_type = parse_oauth_state_3parts(state, "xero")
     except HTTPException:
         return build_oauth_error_redirect(
             service="xero",
@@ -285,7 +295,8 @@ async def xero_oauth_callback(code: str, state: str) -> RedirectResponse:
             credential_type,
         )
 
-        return build_oauth_success_redirect(service="xero", org_id=org_id)
+        extra = {"source": source} if source else None
+        return build_oauth_success_redirect(service="xero", org_id=org_id, extra_params=extra)
 
     except HTTPException:
         return build_oauth_error_redirect(

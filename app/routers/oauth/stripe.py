@@ -22,7 +22,9 @@ from app.routers.oauth.base import (
     build_oauth_error_redirect,
     build_oauth_success_redirect,
     build_signed_state_3parts,
+    build_signed_state_4parts,
     parse_oauth_state_3parts,
+    parse_oauth_state_4parts,
 )
 
 logger = get_logger(__name__)
@@ -153,7 +155,7 @@ def _store_stripe_credential(
 
 @router.get("/oauth/stripe/authorize")
 async def stripe_oauth_authorize(
-    org_id: str, user_id: str, credential_type: str = "customer"
+    org_id: str, user_id: str, credential_type: str = "customer", source: str = ""
 ) -> RedirectResponse:
     """
     Initiate Stripe Connect OAuth flow
@@ -177,7 +179,10 @@ async def stripe_oauth_authorize(
         raise HTTPException(status_code=500, detail="Stripe Connect OAuth not configured")
 
     # State is cryptographically signed to prevent CSRF/tampering
-    state = build_signed_state_3parts(org_id, user_id, credential_type)
+    if source:
+        state = build_signed_state_4parts(org_id, user_id, credential_type, source)
+    else:
+        state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     params = {
         "client_id": client_id,
@@ -206,8 +211,13 @@ async def stripe_oauth_callback(code: str, state: str) -> RedirectResponse:
 
     # Parse state first to get org_id for error redirects
     org_id: str | None = None
+    source = ""
     try:
-        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "stripe")
+        parts = state.split(":")
+        if len(parts) == 5:
+            org_id, user_id, credential_type, source = parse_oauth_state_4parts(state, "stripe")
+        else:
+            org_id, user_id, credential_type = parse_oauth_state_3parts(state, "stripe")
     except HTTPException:
         return build_oauth_error_redirect(
             service="stripe",
@@ -224,7 +234,8 @@ async def stripe_oauth_callback(code: str, state: str) -> RedirectResponse:
             _store_stripe_credential, org_id, user_id, token_data, credential_type
         )
 
-        return build_oauth_success_redirect(service="stripe", org_id=org_id)
+        extra = {"source": source} if source else None
+        return build_oauth_success_redirect(service="stripe", org_id=org_id, extra_params=extra)
 
     except HTTPException:
         return build_oauth_error_redirect(

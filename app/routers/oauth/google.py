@@ -29,7 +29,9 @@ from app.routers.oauth.base import (
     build_oauth_error_redirect,
     build_oauth_success_redirect,
     build_signed_state_4parts,
+    build_signed_state_5parts,
     parse_oauth_state_4parts,
+    parse_oauth_state_5parts,
 )
 
 logger = get_logger(__name__)
@@ -203,7 +205,11 @@ def _store_google_credential(
 
 @router.get("/oauth/google/authorize")
 async def google_oauth_authorize(
-    org_id: str, user_id: str, credential_type: str = "customer", service: str = "gmail"
+    org_id: str,
+    user_id: str,
+    credential_type: str = "customer",
+    service: str = "gmail",
+    source: str = "",
 ) -> RedirectResponse:
     """
     Initiate Google Workspace OAuth flow
@@ -232,7 +238,10 @@ async def google_oauth_authorize(
         raise HTTPException(status_code=500, detail="Google OAuth not configured")
 
     # State is cryptographically signed to prevent CSRF/tampering
-    state = build_signed_state_4parts(org_id, user_id, credential_type, service)
+    if source:
+        state = build_signed_state_5parts(org_id, user_id, credential_type, service, source)
+    else:
+        state = build_signed_state_4parts(org_id, user_id, credential_type, service)
 
     scopes = GOOGLE_SCOPE_MAP.get(service, GOOGLE_SCOPE_MAP["all"])
 
@@ -271,8 +280,16 @@ async def google_oauth_callback(code: str, state: str) -> RedirectResponse:
     # Parse state first to get org_id for error redirects
     org_id: str | None = None
     service: str = "google"
+    source = ""
     try:
-        org_id, user_id, credential_type, service = parse_oauth_state_4parts(state, "google")
+        parts = state.split(":")
+        if len(parts) == 6:
+            # 5 data + 1 signature — has source
+            org_id, user_id, credential_type, service, source = parse_oauth_state_5parts(
+                state, "google"
+            )
+        else:
+            org_id, user_id, credential_type, service = parse_oauth_state_4parts(state, "google")
     except HTTPException:
         return build_oauth_error_redirect(
             service="google",
@@ -297,7 +314,8 @@ async def google_oauth_callback(code: str, state: str) -> RedirectResponse:
             service,
         )
 
-        return build_oauth_success_redirect(service="google", org_id=org_id)
+        extra = {"source": source} if source else None
+        return build_oauth_success_redirect(service="google", org_id=org_id, extra_params=extra)
 
     except HTTPException:
         return build_oauth_error_redirect(

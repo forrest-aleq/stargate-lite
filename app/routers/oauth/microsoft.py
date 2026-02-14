@@ -15,14 +15,25 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
 
 from app.database import CredentialManager
-from app.routers.oauth.base import build_signed_state_4parts, parse_oauth_state_4parts
+from app.routers.oauth.base import (
+    build_oauth_error_redirect,
+    build_oauth_success_redirect,
+    build_signed_state_4parts,
+    build_signed_state_5parts,
+    parse_oauth_state_4parts,
+    parse_oauth_state_5parts,
+)
 
 router = APIRouter(tags=["oauth"])
 
 
 @router.get("/oauth/microsoft/authorize")
 async def microsoft_oauth_authorize(
-    org_id: str, user_id: str, credential_type: str = "customer", service: str = "excel"
+    org_id: str,
+    user_id: str,
+    credential_type: str = "customer",
+    service: str = "excel",
+    source: str = "",
 ) -> RedirectResponse:
     """
     Initiate Microsoft 365 OAuth flow
@@ -42,7 +53,11 @@ async def microsoft_oauth_authorize(
         raise HTTPException(status_code=500, detail="Microsoft OAuth not configured")
 
     # State is cryptographically signed to prevent CSRF/tampering
-    state = build_signed_state_4parts(org_id, user_id, credential_type, service)
+    # Microsoft uses 4-part for sub_service; with source, use 5-part
+    if source:
+        state = build_signed_state_5parts(org_id, user_id, credential_type, service, source)
+    else:
+        state = build_signed_state_4parts(org_id, user_id, credential_type, service)
 
     # Service-specific scopes
     scope_map = {
@@ -76,16 +91,25 @@ async def microsoft_oauth_authorize(
 
 
 @router.get("/oauth/microsoft/callback")
-async def microsoft_oauth_callback(code: str, state: str) -> dict[str, Any]:
+async def microsoft_oauth_callback(code: str, state: str) -> RedirectResponse:
     """
     Handle Microsoft 365 OAuth callback
 
-    Exchange authorization code for access/refresh tokens and store them
-    State format: {org_id}:{user_id}:{credential_type}:{service}
+    Exchange authorization code for access/refresh tokens and store them.
+    State format: 4-part (org:user:cred_type:service) or 5-part (...:source).
     """
+    source = ""
     try:
-        # Parse and verify signed state
-        org_id, user_id, credential_type, service = parse_oauth_state_4parts(state, "microsoft")
+        # Parse state: 6 segments = 5-part with source, 5 segments = 4-part legacy
+        parts = state.split(":")
+        if len(parts) == 6:
+            org_id, user_id, credential_type, service, source = parse_oauth_state_5parts(
+                state, "microsoft"
+            )
+        else:
+            org_id, user_id, credential_type, service = parse_oauth_state_4parts(
+                state, "microsoft"
+            )
 
         # Exchange code for tokens
         client_id = os.getenv("MICROSOFT_CLIENT_ID")
@@ -114,7 +138,6 @@ async def microsoft_oauth_callback(code: str, state: str) -> dict[str, Any]:
 
         token_data = response.json()
 
-        # Store credentials (Microsoft tokens typically expire after 1 hour)
         await asyncio.to_thread(
             CredentialManager.store_credential,
             org_id=org_id,
@@ -125,19 +148,17 @@ async def microsoft_oauth_callback(code: str, state: str) -> dict[str, Any]:
             token_expiry=datetime.now(UTC) + timedelta(seconds=token_data["expires_in"]),
         )
 
-        return {
-            "success": True,
-            "message": f"Microsoft {service} OAuth completed successfully",
-            "org_id": org_id,
-            "user_id": user_id,
-            "credential_type": credential_type,
-            "service": service,
-        }
+        extra = {"source": source} if source else None
+        return build_oauth_success_redirect(
+            service="microsoft", org_id=org_id, extra_params=extra
+        )
 
     except HTTPException:
-        raise
+        return build_oauth_error_redirect(service="microsoft", error="callback_failed")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"OAuth callback failed: {e!s}") from e
+        return build_oauth_error_redirect(
+            service="microsoft", error="callback_failed", error_description=str(e)[:200]
+        )
 
 
 # Power BI uses Microsoft OAuth (same endpoints, different scopes)
@@ -150,6 +171,6 @@ async def powerbi_oauth_authorize(
 
 
 @router.get("/oauth/powerbi/callback")
-async def powerbi_oauth_callback(code: str, state: str) -> dict[str, Any]:
+async def powerbi_oauth_callback(code: str, state: str) -> RedirectResponse:
     """Handle Power BI OAuth callback (uses Microsoft OAuth)"""
     return await microsoft_oauth_callback(code, state)

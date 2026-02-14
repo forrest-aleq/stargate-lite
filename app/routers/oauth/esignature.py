@@ -23,8 +23,10 @@ from app.routers.oauth.base import (
     build_oauth_error_redirect,
     build_oauth_success_redirect,
     build_signed_state_3parts,
+    build_signed_state_4parts,
     get_env_or_raise,
     parse_oauth_state_3parts,
+    parse_oauth_state_4parts,
 )
 
 logger = get_logger(__name__)
@@ -74,7 +76,7 @@ def _fetch_docusign_account_info(
 
 @router.get("/oauth/docusign/authorize")
 async def docusign_oauth_authorize(
-    org_id: str, user_id: str, credential_type: str = "customer"
+    org_id: str, user_id: str, credential_type: str = "customer", source: str = ""
 ) -> RedirectResponse:
     """
     Initiate DocuSign OAuth flow.
@@ -96,7 +98,10 @@ async def docusign_oauth_authorize(
     auth_url, _, _ = _get_docusign_urls()
 
     # State is cryptographically signed to prevent CSRF/tampering
-    state = build_signed_state_3parts(org_id, user_id, credential_type)
+    if source:
+        state = build_signed_state_4parts(org_id, user_id, credential_type, source)
+    else:
+        state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     # DocuSign OAuth scopes for eSignature API
     # https://developers.docusign.com/platform/auth/reference/scopes/
@@ -131,8 +136,13 @@ async def docusign_oauth_authorize(
 @router.get("/oauth/docusign/callback")
 async def docusign_oauth_callback(code: str, state: str) -> RedirectResponse:
     """Handle DocuSign OAuth callback. Redirects to N3 on completion."""
+    source = ""
     try:
-        org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "docusign")
+        parts = state.split(":")
+        if len(parts) == 5:
+            org_id, user_id, _credential_type, source = parse_oauth_state_4parts(state, "docusign")
+        else:
+            org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "docusign")
     except HTTPException:
         return build_oauth_error_redirect(
             service="docusign",
@@ -184,7 +194,8 @@ async def docusign_oauth_callback(code: str, state: str) -> RedirectResponse:
         )
 
         logger.info("DocuSign OAuth completed", org_id=org_id)
-        return build_oauth_success_redirect(service="docusign", org_id=org_id)
+        extra = {"source": source} if source else None
+        return build_oauth_success_redirect(service="docusign", org_id=org_id, extra_params=extra)
 
     except HTTPException:
         return build_oauth_error_redirect(

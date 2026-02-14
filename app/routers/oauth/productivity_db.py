@@ -29,8 +29,10 @@ from app.routers.oauth.base import (
     build_oauth_error_redirect,
     build_oauth_success_redirect,
     build_signed_state_5parts,
+    build_signed_state_6parts,
     get_env_or_raise,
     parse_oauth_state_5parts,
+    parse_oauth_state_6parts,
 )
 
 logger = get_logger(__name__)
@@ -52,7 +54,7 @@ def _generate_pkce_pair() -> tuple[str, str]:
 
 @router.get("/oauth/airtable/authorize")
 async def airtable_oauth_authorize(
-    org_id: str, user_id: str, credential_type: str = "customer"
+    org_id: str, user_id: str, credential_type: str = "customer", source: str = ""
 ) -> RedirectResponse:
     """
     Initiate Airtable OAuth flow with PKCE.
@@ -77,8 +79,14 @@ async def airtable_oauth_authorize(
 
     # State is cryptographically signed and includes code_verifier
     # This is stateless - no in-memory or database storage needed
-    # Format: org_id:user_id:credential_type:airtable:code_verifier:signature
-    state = build_signed_state_5parts(org_id, user_id, credential_type, "airtable", code_verifier)
+    if source:
+        state = build_signed_state_6parts(
+            org_id, user_id, credential_type, "airtable", code_verifier, source
+        )
+    else:
+        state = build_signed_state_5parts(
+            org_id, user_id, credential_type, "airtable", code_verifier
+        )
 
     # Airtable OAuth scopes
     # https://airtable.com/developers/web/api/scopes
@@ -120,10 +128,18 @@ async def airtable_oauth_callback(code: str, state: str) -> RedirectResponse:
     # Parse state to get org_id, user_id, and code_verifier
     # The code_verifier is embedded in the signed state (stateless PKCE)
     org_id: str | None = None
+    source = ""
     try:
-        org_id, user_id, credential_type, _sub_service, code_verifier = parse_oauth_state_5parts(
-            state, "airtable"
-        )
+        parts = state.split(":")
+        if len(parts) == 7:
+            # 6 data + 1 signature — has source
+            org_id, user_id, credential_type, _sub_service, code_verifier, source = (
+                parse_oauth_state_6parts(state, "airtable")
+            )
+        else:
+            org_id, user_id, credential_type, _sub_service, code_verifier = (
+                parse_oauth_state_5parts(state, "airtable")
+            )
     except HTTPException:
         return build_oauth_error_redirect(
             service="airtable",
@@ -232,7 +248,8 @@ async def airtable_oauth_callback(code: str, state: str) -> RedirectResponse:
             user_id=user_id,
             log_event="oauth_callback_success",
         )
-        return build_oauth_success_redirect(service="airtable", org_id=org_id)
+        extra = {"source": source} if source else None
+        return build_oauth_success_redirect(service="airtable", org_id=org_id, extra_params=extra)
 
     except HTTPException:
         return build_oauth_error_redirect(

@@ -30,9 +30,11 @@ from app.routers.oauth.base import (
     build_oauth_success_redirect,
     build_signed_state_3parts,
     build_signed_state_4parts,
+    build_signed_state_5parts,
     get_env_or_raise,
     parse_oauth_state_3parts,
     parse_oauth_state_4parts,
+    parse_oauth_state_5parts,
 )
 
 logger = get_logger(__name__)
@@ -82,6 +84,7 @@ async def shopify_oauth_authorize(
     user_id: str,
     shop: str,
     credential_type: str = "customer",
+    source: str = "",
 ) -> RedirectResponse:
     """
     Initiate Shopify OAuth flow.
@@ -107,7 +110,10 @@ async def shopify_oauth_authorize(
 
     # State is cryptographically signed to prevent CSRF/tampering
     # We include shop as sub_service to verify it matches on callback
-    state = build_signed_state_4parts(org_id, user_id, credential_type, shop)
+    if source:
+        state = build_signed_state_5parts(org_id, user_id, credential_type, shop, source)
+    else:
+        state = build_signed_state_4parts(org_id, user_id, credential_type, shop)
 
     # Shopify scopes for e-commerce access
     # https://shopify.dev/docs/api/usage/access-scopes
@@ -158,8 +164,18 @@ async def shopify_oauth_callback(
     timestamp: str = "",
 ) -> RedirectResponse:
     """Handle Shopify OAuth callback with HMAC validation. Redirects to N3."""
+    source = ""
     try:
-        org_id, user_id, _credential_type, state_shop = parse_oauth_state_4parts(state, "shopify")
+        parts = state.split(":")
+        if len(parts) == 6:
+            # 5 data + 1 signature — has source
+            org_id, user_id, _credential_type, state_shop, source = parse_oauth_state_5parts(
+                state, "shopify"
+            )
+        else:
+            org_id, user_id, _credential_type, state_shop = parse_oauth_state_4parts(
+                state, "shopify"
+            )
     except HTTPException:
         return build_oauth_error_redirect(
             service="shopify",
@@ -218,7 +234,8 @@ async def shopify_oauth_callback(
         )
 
         logger.info("Shopify OAuth completed", org_id=org_id, shop=callback_shop)
-        return build_oauth_success_redirect(service="shopify", org_id=org_id)
+        extra = {"source": source} if source else None
+        return build_oauth_success_redirect(service="shopify", org_id=org_id, extra_params=extra)
 
     except HTTPException:
         return build_oauth_error_redirect(
@@ -250,7 +267,7 @@ async def shopify_oauth_callback(
 
 @router.get("/oauth/square/authorize")
 async def square_oauth_authorize(
-    org_id: str, user_id: str, credential_type: str = "customer"
+    org_id: str, user_id: str, credential_type: str = "customer", source: str = ""
 ) -> RedirectResponse:
     """
     Initiate Square OAuth flow.
@@ -273,7 +290,10 @@ async def square_oauth_authorize(
     auth_url, _ = _get_square_urls()
 
     # State is cryptographically signed to prevent CSRF/tampering
-    state = build_signed_state_3parts(org_id, user_id, credential_type)
+    if source:
+        state = build_signed_state_4parts(org_id, user_id, credential_type, source)
+    else:
+        state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     # Square OAuth scopes
     # https://developer.squareup.com/docs/oauth-api/square-permissions
@@ -319,8 +339,13 @@ async def square_oauth_authorize(
 async def square_oauth_callback(code: str, state: str) -> RedirectResponse:
     """Handle Square OAuth callback. Redirects to N3 on completion."""
     # Parse state first
+    source = ""
     try:
-        org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "square")
+        parts = state.split(":")
+        if len(parts) == 5:
+            org_id, user_id, _credential_type, source = parse_oauth_state_4parts(state, "square")
+        else:
+            org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "square")
     except HTTPException:
         return build_oauth_error_redirect(
             service="square",
@@ -380,7 +405,8 @@ async def square_oauth_callback(code: str, state: str) -> RedirectResponse:
         )
 
         logger.info("Square OAuth completed", org_id=org_id)
-        return build_oauth_success_redirect(service="square", org_id=org_id)
+        extra = {"source": source} if source else None
+        return build_oauth_success_redirect(service="square", org_id=org_id, extra_params=extra)
 
     except HTTPException:
         return build_oauth_error_redirect(

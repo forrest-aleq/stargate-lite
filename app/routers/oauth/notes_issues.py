@@ -18,7 +18,14 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
 
 from app.database import CredentialManager
-from app.routers.oauth.base import build_signed_state_3parts, parse_oauth_state_3parts
+from app.routers.oauth.base import (
+    build_oauth_error_redirect,
+    build_oauth_success_redirect,
+    build_signed_state_3parts,
+    build_signed_state_4parts,
+    parse_oauth_state_3parts,
+    parse_oauth_state_4parts,
+)
 
 router = APIRouter(tags=["oauth"])
 
@@ -28,7 +35,7 @@ router = APIRouter(tags=["oauth"])
 
 @router.get("/oauth/notion/authorize")
 async def notion_oauth_authorize(
-    org_id: str, user_id: str, credential_type: str = "customer"
+    org_id: str, user_id: str, credential_type: str = "customer", source: str = ""
 ) -> RedirectResponse:
     """
     Initiate Notion OAuth 2.0 flow
@@ -43,7 +50,10 @@ async def notion_oauth_authorize(
         raise HTTPException(status_code=500, detail="Notion OAuth not configured")
 
     # State is cryptographically signed to prevent CSRF/tampering
-    state = build_signed_state_3parts(org_id, user_id, credential_type)
+    if source:
+        state = build_signed_state_4parts(org_id, user_id, credential_type, source)
+    else:
+        state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     # Notion uses capabilities instead of traditional scopes
     # Authorization URL is provided in Notion integration settings
@@ -62,11 +72,17 @@ async def notion_oauth_authorize(
 
 
 @router.get("/oauth/notion/callback")
-async def notion_oauth_callback(code: str, state: str) -> dict[str, Any]:
+async def notion_oauth_callback(code: str, state: str) -> RedirectResponse:
     """Handle Notion OAuth callback"""
+    source = ""
     try:
-        # Parse and verify signed state
-        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "notes_issues")
+        parts = state.split(":")
+        if len(parts) == 5:
+            org_id, user_id, credential_type, source = parse_oauth_state_4parts(
+                state, "notion"
+            )
+        else:
+            org_id, user_id, credential_type = parse_oauth_state_3parts(state, "notion")
 
         client_id = os.getenv("NOTION_CLIENT_ID")
         client_secret = os.getenv("NOTION_CLIENT_SECRET")
@@ -96,31 +112,25 @@ async def notion_oauth_callback(code: str, state: str) -> dict[str, Any]:
 
         token_data = response.json()
 
-        # Notion tokens don't expire
         await asyncio.to_thread(
             CredentialManager.store_credential,
             org_id=org_id,
             user_id=user_id,
             service="notion",
             access_token=token_data["access_token"],
-            refresh_token=None,  # Notion tokens don't expire/refresh
-            token_expiry=datetime.now(UTC) + timedelta(days=36500),  # 100 years (doesn't expire)
+            refresh_token=None,
+            token_expiry=datetime.now(UTC) + timedelta(days=36500),
         )
 
-        return {
-            "success": True,
-            "message": "Notion OAuth completed successfully",
-            "org_id": org_id,
-            "user_id": user_id,
-            "credential_type": credential_type,
-            "workspace_name": token_data.get("workspace_name"),
-            "workspace_id": token_data.get("workspace_id"),
-        }
+        extra = {"source": source} if source else None
+        return build_oauth_success_redirect(service="notion", org_id=org_id, extra_params=extra)
 
     except HTTPException:
-        raise
+        return build_oauth_error_redirect(service="notion", error="callback_failed")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"OAuth callback failed: {e!s}") from e
+        return build_oauth_error_redirect(
+            service="notion", error="callback_failed", error_description=str(e)[:200]
+        )
 
 
 # ===== Linear OAuth =====
@@ -128,7 +138,7 @@ async def notion_oauth_callback(code: str, state: str) -> dict[str, Any]:
 
 @router.get("/oauth/linear/authorize")
 async def linear_oauth_authorize(
-    org_id: str, user_id: str, credential_type: str = "agent"
+    org_id: str, user_id: str, credential_type: str = "agent", source: str = ""
 ) -> RedirectResponse:
     """
     Initiate Linear OAuth flow with agent mode (actor=app)
@@ -143,7 +153,10 @@ async def linear_oauth_authorize(
         raise HTTPException(status_code=500, detail="Linear OAuth not configured")
 
     # State is cryptographically signed to prevent CSRF/tampering
-    state = build_signed_state_3parts(org_id, user_id, credential_type)
+    if source:
+        state = build_signed_state_4parts(org_id, user_id, credential_type, source)
+    else:
+        state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     # Agent-optimized scopes for Linear
     # read,write - Basic permissions
@@ -168,16 +181,22 @@ async def linear_oauth_authorize(
 
 
 @router.get("/oauth/linear/callback")
-async def linear_oauth_callback(code: str, state: str) -> dict[str, Any]:
+async def linear_oauth_callback(code: str, state: str) -> RedirectResponse:
     """
     Handle Linear OAuth callback
 
     Exchange authorization code for access/refresh tokens
     Linear tokens expire after 24 hours, refresh tokens auto-enabled (Oct 2025+)
     """
+    source = ""
     try:
-        # Parse and verify signed state
-        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "notes_issues")
+        parts = state.split(":")
+        if len(parts) == 5:
+            org_id, user_id, credential_type, source = parse_oauth_state_4parts(
+                state, "linear"
+            )
+        else:
+            org_id, user_id, credential_type = parse_oauth_state_3parts(state, "linear")
 
         client_id = os.getenv("LINEAR_CLIENT_ID")
         client_secret = os.getenv("LINEAR_CLIENT_SECRET")
@@ -206,7 +225,6 @@ async def linear_oauth_callback(code: str, state: str) -> dict[str, Any]:
 
         token_data = response.json()
 
-        # Linear access tokens expire after 24 hours
         await asyncio.to_thread(
             CredentialManager.store_credential,
             org_id=org_id,
@@ -217,16 +235,12 @@ async def linear_oauth_callback(code: str, state: str) -> dict[str, Any]:
             token_expiry=datetime.now(UTC) + timedelta(seconds=token_data["expires_in"]),
         )
 
-        return {
-            "success": True,
-            "message": "Linear OAuth completed successfully - Agent user created",
-            "org_id": org_id,
-            "user_id": user_id,
-            "credential_type": credential_type,
-            "agent_mode": True,
-        }
+        extra = {"source": source} if source else None
+        return build_oauth_success_redirect(service="linear", org_id=org_id, extra_params=extra)
 
     except HTTPException:
-        raise
+        return build_oauth_error_redirect(service="linear", error="callback_failed")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"OAuth callback failed: {e!s}") from e
+        return build_oauth_error_redirect(
+            service="linear", error="callback_failed", error_description=str(e)[:200]
+        )
