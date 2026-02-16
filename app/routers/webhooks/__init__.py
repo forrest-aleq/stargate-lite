@@ -11,11 +11,13 @@ Provider modules:
 - slack: Slack messaging events
 - twilio: Twilio SMS events
 - gmail: Gmail push notifications (Pub/Sub)
+- blandai: Bland AI voice call events
 """
 
 from fastapi import APIRouter
 
 from app.routers.webhooks.base import router as base_router
+from app.routers.webhooks.blandai import router as blandai_router
 from app.routers.webhooks.gmail import router as gmail_router
 from app.routers.webhooks.quickbooks import router as quickbooks_router
 from app.routers.webhooks.slack import router as slack_router
@@ -31,5 +33,6 @@ router.include_router(xero_router)
 router.include_router(slack_router)
 router.include_router(twilio_router)
 router.include_router(gmail_router)
+router.include_router(blandai_router)
 
 __all__ = ["router"]

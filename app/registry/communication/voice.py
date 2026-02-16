@@ -128,4 +128,13 @@ VOICE_CAPABILITIES = {
         "credential_type": None,
         "supports_delegation": False,
     },
+    "sms.incoming.list": {
+        "handler": twilio_connector.get_incoming_messages,
+        "tool_name": "twilio.get_incoming_messages",
+        "description": "List incoming SMS messages received by Aleq's number",
+        "requires_oauth": False,
+        "service": "twilio",
+        "credential_type": None,
+        "supports_delegation": False,
+    },
 }

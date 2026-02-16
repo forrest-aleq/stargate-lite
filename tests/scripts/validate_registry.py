@@ -25,8 +25,8 @@ EXPECTED_SERVICE_COUNTS = {
     "powerbi": 10,
     "google": 20,  # Gmail(3) + Drive(5) + Calendar(5) + Sheets(7) = 20
     "slack": 6,
-    "blandai": 8,
-    "twilio": 8,
+    "blandai": 7,
+    "twilio": 7,
     "ibkr": 15,
     "schwab": 12,
     "microsoft": 16,  # Excel(6) + OneDrive(5) + Outlook Calendar(5) = 16

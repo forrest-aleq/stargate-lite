@@ -4599,6 +4599,26 @@
         ]
       }
     },
+    "/webhooks/blandai": {
+      "post": {
+        "description": "Receive Bland AI call completion webhook.\n\nBland AI sends a JSON POST when a call finishes. Verification is\ndone via a shared secret sent as a Bearer token in the Authorization\nheader \u2014 compared against the BLANDAI_WEBHOOK_SECRET env var.\n\nThe payload is normalized to a WebhookEvent and forwarded to Baby MARS.",
+        "operationId": "blandai_webhook_webhooks_blandai_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Blandai Webhook",
+        "tags": [
+          "webhooks"
+        ]
+      }
+    },
     "/webhooks/gmail": {
       "post": {
         "description": "Receive Gmail push notification via Google Cloud Pub/Sub.\n\nGoogle sends a POST with JSON body:\n{\n    \"message\": {\n        \"data\": \"<base64-encoded JSON>\",\n        \"messageId\": \"...\",\n        \"publishTime\": \"...\"\n    },\n    \"subscription\": \"projects/.../subscriptions/...\"\n}\n\nThe base64-decoded data contains:\n{\n    \"emailAddress\": \"user@example.com\",\n    \"historyId\": \"12345\"\n}\n\nWe normalize this to a WebhookEvent and forward to Baby MARS.\nBaby MARS then calls gmail.get_history to fetch actual changes.",
