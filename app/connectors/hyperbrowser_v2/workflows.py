@@ -151,6 +151,107 @@ Return the full path to the downloaded file.
             "total_balance": sum(b["balance"] for b in all_balances if b["balance"]),
         }
 
+    def accept_invite(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """
+        Accept a service invite via browser automation.
+
+        Args:
+            invite_url: The invite link URL
+            display_name: Name to use if prompted (default: "Aleq")
+            email: Email to use if prompted (default: "aleq@aleq.net")
+        """
+        invite_url = args.get("invite_url")
+        display_name = args.get("display_name", "Aleq")
+        email = args.get("email", "aleq@aleq.net")
+
+        if not invite_url:
+            return {"status": "error", "error": "invite_url is required"}
+
+        goal = f"""
+Accept this invitation:
+
+1. Navigate to: {invite_url}
+2. If prompted for a name, use: {display_name}
+3. If prompted for an email, use: {email}
+4. If there is an "Accept" or "Join" button, click it
+5. If asked to create an account, fill in the signup form with the name and email above
+6. Complete any onboarding steps (skip optional ones)
+7. Confirm you've successfully joined/accepted by checking for a dashboard or welcome page
+
+Return the final page URL and any account details shown.
+"""
+
+        result = self._run_task(goal=goal, max_steps=25)
+
+        return {
+            "invite_url": invite_url,
+            "status": result["status"],
+            "accepted": result["status"] == "success",
+            "result": result.get("result", ""),
+            "iterations": result["iterations"],
+            "final_screenshot": result["final_screenshot"],
+        }
+
+    def signup_for_service(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """
+        Sign up for a new service via browser automation.
+
+        Args:
+            signup_url: The signup page URL
+            display_name: Name to use (default: "Aleq")
+            email: Email to use (default: "aleq@aleq.net")
+            password: Password to use (generate one if not provided)
+            extra_fields: Dict of additional form fields to fill
+        """
+        signup_url = args.get("signup_url")
+        display_name = args.get("display_name", "Aleq")
+        email = args.get("email", "aleq@aleq.net")
+        password = args.get("password", "")
+        extra_fields = args.get("extra_fields", {})
+
+        if not signup_url:
+            return {"status": "error", "error": "signup_url is required"}
+
+        goal = f"""
+Sign up for a new account:
+
+1. Navigate to: {signup_url}
+2. Find the signup/registration form
+3. Fill in:
+   - Name/Display Name: {display_name}
+   - Email: {email}
+"""
+        if password:
+            goal += f"   - Password: {password}\n"
+        else:
+            goal += "   - Password: Generate a strong password if required\n"
+
+        for field_name, field_value in extra_fields.items():
+            goal += f"   - {field_name}: {field_value}\n"
+
+        goal += """
+4. Accept any terms of service / privacy policy checkboxes
+5. Submit the registration form
+6. If email verification is required, note that in your response
+7. Complete any onboarding steps (skip optional ones)
+8. Return the final page URL and confirmation of account creation
+
+Return any account details, confirmation messages, or next steps shown.
+"""
+
+        result = self._run_task(goal=goal, max_steps=30)
+
+        return {
+            "signup_url": signup_url,
+            "email": email,
+            "status": result["status"],
+            "signed_up": result["status"] == "success",
+            "result": result.get("result", ""),
+            "needs_email_verification": "verif" in result.get("result", "").lower(),
+            "iterations": result["iterations"],
+            "final_screenshot": result["final_screenshot"],
+        }
+
     def get_action_log(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Return action log for debugging/audit"""
         return {"action_log": self.action_log, "metrics": self.metrics}

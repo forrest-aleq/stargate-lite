@@ -24,6 +24,7 @@ from app.registry.google_microsoft import GOOGLE_MICROSOFT_CAPABILITIES
 from app.registry.productivity import PRODUCTIVITY_CAPABILITIES
 from app.registry.trading import TRADING_CAPABILITIES
 from app.registry.utilities import UTILITIES_CAPABILITIES
+from app.registry.vault import VAULT_CAPABILITIES
 from app.schemas import has_schema
 
 logger = get_logger(__name__)
@@ -39,6 +40,7 @@ _KEY_GATED_SERVICES: dict[str, str] = {
     "blandai": "BLANDAI_API_KEY",
     "twilio": "TWILIO_ACCOUNT_SID",
     "hyperbrowser": "HYPERBROWSER_API_KEY",
+    "bitwarden": "BWS_ACCESS_TOKEN",
 }
 
 
@@ -83,6 +85,7 @@ _ALL_CAPABILITIES = {
     **TRADING_CAPABILITIES,
     **GOOGLE_MICROSOFT_CAPABILITIES,
     **UTILITIES_CAPABILITIES,
+    **VAULT_CAPABILITIES,
 }
 
 # Apply production safety filter
