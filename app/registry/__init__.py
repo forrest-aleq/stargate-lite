@@ -11,8 +11,10 @@ This module combines all sub-registries into a unified CAPABILITY_REGISTRY.
 PRODUCTION SAFETY: Certain high-risk services are explicitly disabled.
 """
 
+import os
 from typing import Any
 
+from app.logging_config import get_logger
 from app.registry.banking import BANKING_CAPABILITIES
 from app.registry.communication import COMMUNICATION_CAPABILITIES
 from app.registry.fci import FCI_CAPABILITIES
@@ -24,18 +26,38 @@ from app.registry.trading import TRADING_CAPABILITIES
 from app.registry.utilities import UTILITIES_CAPABILITIES
 from app.schemas import has_schema
 
+logger = get_logger(__name__)
+
 # =============================================================================
 # PRODUCTION SAFETY: DISABLED SERVICES
 # =============================================================================
-# These services are explicitly disabled for production safety:
-# - ibkr: Trading operations - HIGH RISK, requires extensive testing
-# - schwab: Trading operations - HIGH RISK, requires extensive testing
-# - blandai: Voice AI - cost implications, requires careful monitoring
-# - twilio: SMS/Voice - cost implications, potential for abuse
-#
-# To enable these services, remove them from DISABLED_SERVICES set.
-# =============================================================================
-DISABLED_SERVICES = {"ibkr", "schwab", "blandai", "twilio"}
+# Always disabled — trading operations are HIGH RISK
+_ALWAYS_DISABLED = {"ibkr", "schwab"}
+
+# Key-gated services — auto-enable when the env var is set
+_KEY_GATED_SERVICES: dict[str, str] = {
+    "blandai": "BLANDAI_API_KEY",
+    "twilio": "TWILIO_ACCOUNT_SID",
+    "hyperbrowser": "HYPERBROWSER_API_KEY",
+}
+
+
+def _build_disabled_services() -> set[str]:
+    """Build disabled set: always-disabled + key-gated services missing their key."""
+    disabled = set(_ALWAYS_DISABLED)
+    for service, env_var in _KEY_GATED_SERVICES.items():
+        if not os.getenv(env_var):
+            disabled.add(service)
+            logger.info(
+                f"Service '{service}' disabled (set {env_var} to enable)",
+                service=service,
+                env_var=env_var,
+                log_event="service_disabled_no_key",
+            )
+    return disabled
+
+
+DISABLED_SERVICES = _build_disabled_services()
 
 
 def _filter_capabilities(capabilities: dict[str, Any]) -> dict[str, Any]:

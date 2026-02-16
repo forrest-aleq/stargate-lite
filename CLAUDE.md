@@ -338,14 +338,18 @@ Pre-commit hooks enforce:
 
 ### Disabled Services (Production Safety)
 
-These services are **disabled by default** in `app/registry/__init__.py`:
-- `ibkr` - Interactive Brokers (trading)
-- `schwab` - Charles Schwab (trading)
-- `blandai` - Voice AI (cost)
-- `twilio` - SMS/Voice (cost/abuse)
-- `hyperbrowser` - Web automation (security)
+Services in `app/registry/__init__.py` are managed two ways:
 
-**Do NOT enable these without explicit approval.**
+**Always disabled** (trading — HIGH RISK):
+- `ibkr` - Interactive Brokers
+- `schwab` - Charles Schwab
+
+**Key-gated** (auto-enable when env var is set):
+- `blandai` - Voice AI (set `BLANDAI_API_KEY`)
+- `twilio` - SMS/Voice (set `TWILIO_ACCOUNT_SID`)
+- `hyperbrowser` - Web automation (set `HYPERBROWSER_API_KEY`)
+
+**Do NOT add trading services to key-gated — they stay always-disabled.**
 
 ### Commit Checklist
 
