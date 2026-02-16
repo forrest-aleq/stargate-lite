@@ -151,12 +151,19 @@ async def execute_handler(
     )
     logs.append(f"Executing {tool_name} for org_id={request.org_id}, user_id={request.user_id}")
 
+    # Agent credentials: use Aleq's system identity instead of caller's org/user
+    cred_type = capability.get("credential_type")
+    if cred_type == "agent":
+        exec_org_id = "ALEQ_SYSTEM"
+        exec_user_id = "ALEQ_AGENT"
+    else:
+        exec_org_id = request.org_id
+        exec_user_id = request.user_id
+
     handler_start = time.time()
     try:
         outputs = await asyncio.wait_for(
-            asyncio.to_thread(
-                handler, org_id=request.org_id, user_id=request.user_id, args=request.args
-            ),
+            asyncio.to_thread(handler, org_id=exec_org_id, user_id=exec_user_id, args=request.args),
             timeout=HANDLER_TIMEOUT_SECONDS,
         )
     except TimeoutError:
