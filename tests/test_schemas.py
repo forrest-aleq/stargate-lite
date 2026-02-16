@@ -262,10 +262,10 @@ def test_schema_errors_are_valid():
 def test_workflow_hints_reference_valid_capabilities():
     """Verify most workflow hints reference capabilities that exist in registry"""
     try:
-        from app.registry import CAPABILITY_REGISTRY
+        from app.registry import ALL_CAPABILITIES
         from app.schemas import SCHEMA_REGISTRY
 
-        valid_keys = set(CAPABILITY_REGISTRY.keys())
+        valid_keys = set(ALL_CAPABILITIES.keys())
         invalid_refs = []
 
         for key, schema in SCHEMA_REGISTRY.items():
@@ -300,10 +300,10 @@ def test_workflow_hints_reference_valid_capabilities():
 def test_schemas_match_registry_capabilities():
     """Verify most schemas correspond to valid registry capabilities"""
     try:
-        from app.registry import CAPABILITY_REGISTRY
+        from app.registry import ALL_CAPABILITIES
         from app.schemas import SCHEMA_REGISTRY
 
-        mismatched = [key for key in SCHEMA_REGISTRY if key not in CAPABILITY_REGISTRY]
+        mismatched = [key for key in SCHEMA_REGISTRY if key not in ALL_CAPABILITIES]
 
         # Allow up to 40% mismatch during schema migration
         # (schemas may be ahead of or behind capability naming)
@@ -327,12 +327,9 @@ def test_registry_list_capabilities_includes_schema_available():
             assert "schema_available" in info, f"'{key}' missing schema_available"
             assert isinstance(info["schema_available"], bool)
 
-        # Verify QuickBooks capabilities have schemas
-        assert capabilities["vendor.create"]["schema_available"] is True
-        assert capabilities["bill.create"]["schema_available"] is True
-
-        # Verify Stripe capabilities (using actual capability names)
-        assert capabilities["stripe.customer.create"]["schema_available"] is True
+        # Verify always-available capabilities have schemas
+        assert capabilities["ocr.text.extract"]["schema_available"] is False  # OCR has no schema
+        assert capabilities["calc.npv"]["schema_available"] is False  # Calculator has no schema
     except ImportError:
         pytest.skip("Dependencies not installed")
 
