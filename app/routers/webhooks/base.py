@@ -5,6 +5,7 @@ Handles forwarding normalized webhook events from Stargate to Baby MARS's
 /webhooks/stargate endpoint with dedup, retry, and graceful degradation.
 
 Auth: X-API-Key header (same shared key as /api/v1/execute).
+Durability: Redis stream write BEFORE forwarding, DLQ on exhausted retries.
 """
 
 import asyncio
@@ -28,6 +29,13 @@ BABY_MARS_API_KEY = os.getenv("API_SECRET_KEY", "")
 # Dedup TTL: 24 hours
 _DEDUP_TTL_SECONDS = 86400
 
+# Redis keys
+_STREAM_KEY = "stargate:webhooks:outbound"
+_DLQ_KEY = "stargate:dlq:webhooks"
+
+# Retry backoff schedule: 1s, 2s, 4s (contract v1.0)
+_BACKOFF_SECONDS = [1, 2, 4]
+
 # HTTP session for forwarding (reuse connections)
 _forward_session: requests.Session | None = None
 
@@ -44,9 +52,10 @@ async def forward_to_baby_mars(event: WebhookEvent) -> bool:
     """Forward normalized event to Baby MARS.
 
     1. Dedup by raw_event_id (skip if already forwarded).
-    2. Forward via HTTP POST with X-API-Key auth.
-    3. Retry 3x with exponential backoff (1s, 2s, 4s).
-    4. Returns True on success or dedup, False on exhausted retries.
+    2. Write to Redis stream (durability — survives restart).
+    3. Forward via HTTP POST with X-API-Key auth.
+    4. Retry 3x with backoff (1s, 2s, 4s) = 4 total attempts.
+    5. Dead letter queue on exhausted retries.
 
     Graceful no-op if BABY_MARS_WEBHOOK_URL is not set.
     """
@@ -72,11 +81,16 @@ async def forward_to_baby_mars(event: WebhookEvent) -> bool:
         )
         return True
 
-    # 2. Forward with X-API-Key (same auth as /api/v1/execute)
-    session = _get_forward_session()
+    # 2. Write to Redis stream BEFORE forwarding (durability)
     body = event.model_dump(mode="json")
+    await asyncio.to_thread(redis_client.xadd_event, _STREAM_KEY, body)
 
-    for attempt in range(3):
+    # 3. Forward with X-API-Key (same auth as /api/v1/execute)
+    # 1 initial attempt + 3 retries = 4 total attempts, backoff 1s/2s/4s
+    session = _get_forward_session()
+    max_attempts = len(_BACKOFF_SECONDS) + 1
+
+    for attempt in range(max_attempts):
         try:
             resp = await asyncio.to_thread(
                 session.post,
@@ -128,19 +142,23 @@ async def forward_to_baby_mars(event: WebhookEvent) -> bool:
                 exc_info=True,
             )
 
-        if attempt < 2:
-            await asyncio.sleep(2**attempt)
+        # Backoff before next attempt (skip after final attempt)
+        if attempt < len(_BACKOFF_SECONDS):
+            await asyncio.sleep(_BACKOFF_SECONDS[attempt])
 
-    # Exhausted retries
+    # 4. Exhausted retries — push to dead letter queue
+    await asyncio.to_thread(redis_client.lpush_event, _DLQ_KEY, body)
+
     increment_metric(
         "stargate_lite.webhook.dead_letter",
         tags=[f"source_service:{event.source_service}"],
     )
     logger.error(
-        "Webhook forward exhausted retries, dead letter",
+        "Webhook forward exhausted retries, pushed to DLQ",
         event_type=event.event_type,
         raw_event_id=event.raw_event_id,
         source_service=event.source_service,
+        dlq_key=_DLQ_KEY,
         log_event="webhook_forward_dead_letter",
     )
     return False

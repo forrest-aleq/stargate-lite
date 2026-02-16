@@ -199,6 +199,61 @@ class RedisClient:
             )
             return False
 
+    def xadd_event(self, stream_key: str, fields: dict[str, Any]) -> str | None:
+        """Write event to Redis stream for durability.
+
+        Returns the stream entry ID on success, None on failure.
+        """
+        if not self._redis_client:
+            return None
+
+        try:
+            # Serialize any non-string values to JSON strings for Redis streams
+            serialized: dict[str, str] = {
+                k: v if isinstance(v, str) else json.dumps(v) for k, v in fields.items()
+            }
+            entry_id: str = self._redis_client.xadd(stream_key, serialized)
+            logger.debug(
+                "Event written to stream",
+                stream_key=stream_key,
+                entry_id=entry_id,
+                log_event="stream_xadd_success",
+            )
+            return entry_id
+        except Exception as e:
+            logger.error(
+                "Redis stream write failed",
+                stream_key=stream_key,
+                error_type=type(e).__name__,
+                log_event="stream_xadd_error",
+                exc_info=True,
+            )
+            return None
+
+    def lpush_event(self, list_key: str, data: dict[str, Any]) -> bool:
+        """Push event to a Redis list (used for dead letter queue)."""
+        if not self._redis_client:
+            return False
+
+        try:
+            serialized = json.dumps(data)
+            self._redis_client.lpush(list_key, serialized)
+            logger.debug(
+                "Event pushed to list",
+                list_key=list_key,
+                log_event="list_lpush_success",
+            )
+            return True
+        except Exception as e:
+            logger.error(
+                "Redis list push failed",
+                list_key=list_key,
+                error_type=type(e).__name__,
+                log_event="list_lpush_error",
+                exc_info=True,
+            )
+            return False
+
     def is_available(self) -> bool:
         """Check if Redis is available"""
         return self._redis_client is not None

@@ -297,7 +297,7 @@ class TestWebhookForwarding:
             assert mock_session.post.call_count == 1
 
     def test_forward_retries_on_failure(self) -> None:
-        """Mock HTTP failure, verify 3 attempts."""
+        """Mock HTTP failure, verify 4 attempts (1 initial + 3 retries)."""
         from app.models_webhook import WebhookEvent
 
         event = WebhookEvent(
@@ -328,7 +328,7 @@ class TestWebhookForwarding:
 
             result = asyncio.get_event_loop().run_until_complete(forward_to_baby_mars(event))
             assert result is False
-            assert mock_session.post.call_count == 3
+            assert mock_session.post.call_count == 4  # 1 initial + 3 retries
 
 
 # ============================================================================
