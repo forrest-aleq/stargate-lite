@@ -101,8 +101,10 @@ class TestToolExecutionResponseSchema:
         schema = openapi_spec["components"]["schemas"]["ToolExecutionResponse"]
         required = set(schema["required"])
         contract_required = set(MARS_CONTRACT["success_response"]["required"])  # type: ignore[arg-type]
-        # OpenAPI required is a subset check — all contract-required must be in schema
-        assert contract_required.issubset(required)
+        # OpenAPI omits fields with defaults from "required"; compare only strict-requireds.
+        defaults_backed = {"outputs", "logs", "timestamp"}
+        strict_required = contract_required - defaults_backed
+        assert strict_required.issubset(required)
         # 'outputs', 'logs', 'timestamp' have defaults in Pydantic so they're
         # not in OpenAPI 'required' — but they're always present at runtime.
         # The critical ones are status, capability_key, tool_used.
