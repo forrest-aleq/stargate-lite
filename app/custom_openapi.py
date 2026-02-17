@@ -2,8 +2,9 @@
 
 Ensures the runtime /openapi.json endpoint and the committed openapi.json
 file serve identical schemas. Post-processes the FastAPI-generated spec to:
-  - Include ToolExecutionResponse even when hidden by union typing
+  - Include schemas that can be dropped by inference/caching edge cases
   - Replace anyOf with oneOf + discriminator on the /api/v1/execute response
+  - Pin /api/v1/capabilities response to typed CapabilitiesResponse
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ def custom_openapi(app: Any) -> dict[str, Any]:
 
     from fastapi.openapi.utils import get_openapi
 
-    from app.models import ToolExecutionResponse
+    from app.models import CapabilitiesResponse, CapabilityInfo, ToolExecutionResponse
 
     spec: dict[str, Any] = get_openapi(
         title=app.title,
@@ -31,11 +32,18 @@ def custom_openapi(app: Any) -> dict[str, Any]:
         routes=app.routes,
     )
 
-    # Ensure ToolExecutionResponse is in the schema (used in execute endpoint
-    # but not automatically included due to union type response)
+    # Ensure key models are present even if FastAPI omits them due to inference quirks.
     schemas = spec.setdefault("components", {}).setdefault("schemas", {})
     if "ToolExecutionResponse" not in schemas:
         schemas["ToolExecutionResponse"] = ToolExecutionResponse.model_json_schema(
+            ref_template="#/components/schemas/{model}"
+        )
+    if "CapabilityInfo" not in schemas:
+        schemas["CapabilityInfo"] = CapabilityInfo.model_json_schema(
+            ref_template="#/components/schemas/{model}"
+        )
+    if "CapabilitiesResponse" not in schemas:
+        schemas["CapabilitiesResponse"] = CapabilitiesResponse.model_json_schema(
             ref_template="#/components/schemas/{model}"
         )
 
@@ -52,6 +60,12 @@ def custom_openapi(app: Any) -> dict[str, Any]:
                 "error": "#/components/schemas/ErrorResponse",
             },
         }
+
+    # Stabilize capabilities response as typed model reference.
+    capabilities_path = spec.get("paths", {}).get("/api/v1/capabilities", {})
+    cap_200 = capabilities_path.get("get", {}).get("responses", {}).get("200", {})
+    cap_content = cap_200.get("content", {}).get("application/json", {})
+    cap_content["schema"] = {"$ref": "#/components/schemas/CapabilitiesResponse"}
 
     app.openapi_schema = spec
     return spec
