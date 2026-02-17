@@ -1,6 +1,87 @@
 {
   "components": {
     "schemas": {
+      "CapabilitiesResponse": {
+        "description": "Response model for GET /api/v1/capabilities.",
+        "properties": {
+          "capabilities": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CapabilityInfo"
+            },
+            "description": "Map of capability_key to capability info",
+            "title": "Capabilities",
+            "type": "object"
+          },
+          "count": {
+            "description": "Total number of capabilities",
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "capabilities",
+          "count"
+        ],
+        "title": "CapabilitiesResponse",
+        "type": "object"
+      },
+      "CapabilityInfo": {
+        "description": "Schema for a single capability entry.",
+        "properties": {
+          "credential_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "'customer', 'agent', or null",
+            "title": "Credential Type"
+          },
+          "description": {
+            "description": "Human-readable description",
+            "title": "Description",
+            "type": "string"
+          },
+          "requires_oauth": {
+            "description": "Whether OAuth credentials are needed",
+            "title": "Requires Oauth",
+            "type": "boolean"
+          },
+          "schema_available": {
+            "description": "Whether input schema is available",
+            "title": "Schema Available",
+            "type": "boolean"
+          },
+          "service": {
+            "description": "Service name (e.g., 'quickbooks', 'stripe')",
+            "title": "Service",
+            "type": "string"
+          },
+          "supports_delegation": {
+            "description": "Whether delegation is supported",
+            "title": "Supports Delegation",
+            "type": "boolean"
+          },
+          "tool_name": {
+            "description": "Underlying tool (e.g., 'quickbooks.create_vendor')",
+            "title": "Tool Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool_name",
+          "description",
+          "service",
+          "supports_delegation",
+          "requires_oauth",
+          "schema_available"
+        ],
+        "title": "CapabilityInfo",
+        "type": "object"
+      },
       "ConnectorHealthResponse": {
         "description": "Detailed health check for all connectors (admin endpoint)",
         "example": {
@@ -240,7 +321,7 @@
         "type": "string"
       },
       "ErrorResponse": {
-        "description": "Standard error response format (Contract v1.0)\n\nAll Stargate errors return HTTP 200 with status='error' to enable\nstructured error handling by AI agents. The error_code field allows\nprogrammatic error classification and retry strategy selection.",
+        "description": "Standard error response format (Contract v1.0)\n\nBusiness errors return HTTP 200 with status='error'. Rate-limit\nerrors return HTTP 429. The error_code field allows programmatic\nerror classification and retry strategy selection.",
         "example": {
           "capability_key": "vendor.create",
           "details": {
@@ -753,8 +834,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "title": "Response Get Capabilities Api V1 Capabilities Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/CapabilitiesResponse"
                 }
               }
             },
@@ -1375,7 +1455,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
+                  "discriminator": {
+                    "mapping": {
+                      "error": "#/components/schemas/ErrorResponse",
+                      "success": "#/components/schemas/ToolExecutionResponse"
+                    },
+                    "propertyName": "status"
+                  },
+                  "oneOf": [
                     {
                       "$ref": "#/components/schemas/ToolExecutionResponse"
                     },
@@ -1388,7 +1475,7 @@
                 }
               }
             },
-            "description": "Successful execution or error (Stargate always returns 200)"
+            "description": "Successful execution or business error (rate-limit returns 429)"
           },
           "422": {
             "content": {

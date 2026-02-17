@@ -32,7 +32,7 @@ router = APIRouter(prefix="/api/v1", tags=["execute"])
 # Note: We include both models explicitly so FastAPI registers them in the schema
 EXECUTE_RESPONSES: dict[int | str, dict[str, Any]] = {
     200: {
-        "description": "Successful execution or error (Stargate always returns 200)",
+        "description": "Successful execution or business error (rate-limit returns 429)",
         "model": ToolExecutionResponse | ErrorResponse,
     },
     429: {

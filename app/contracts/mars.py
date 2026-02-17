@@ -1,9 +1,14 @@
 """
 Baby MARS Provider Contract (v1.1.0)
 
+The runtime OpenAPI spec (``openapi.json``) is the machine-readable source
+of truth.  This file declares the *semantic* contract (error taxonomy,
+guarantees, batch rules).  For field-level schemas, always defer to
+``openapi.json``.
+
 Declares the locked API surface for Baby MARS (Aleq): error taxonomy,
 response shapes, retry strategies, capability discovery, and the full
-capability catalog (service → key mapping).
+capability catalog (service -> key mapping).
 
 Any change to this contract must be reflected in CHANGELOG.md.
 """
@@ -104,6 +109,7 @@ MARS_CONTRACT: dict[str, object] = {
         "optional": ["details", "capability_key"],
         "status_value": "error",
         "http_code": 200,
+        "rate_limit_http_code": 429,
     },
     # -- Error Taxonomy (locked — 10 codes, 3 strategies) -------------------
     "error_codes": {
@@ -168,8 +174,9 @@ MARS_CONTRACT: dict[str, object] = {
     # or use get_capability_catalog() in tests to verify key correctness.
     # -- Guarantees ---------------------------------------------------------
     "guarantees": {
-        "http_200_always": (
-            "Errors return HTTP 200 with status='error' — never 4xx/5xx for business errors"
+        "http_200_for_business_errors": (
+            "Business errors return HTTP 200 with status='error'. "
+            "Exception: rate-limit returns HTTP 429 with Retry-After header."
         ),
         "idempotency": ("Same turn_id + capability_key within 24h returns cached response"),
         "multi_tenant_isolation": ("Credentials keyed by org_id:user_id:service — never cross-org"),

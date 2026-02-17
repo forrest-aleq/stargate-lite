@@ -139,6 +139,15 @@ jobs:
           REDIS_PORT: 6379
         run: python -c "from app.main import app; print(f'Stargate v{app.version} ready')"
 
+      - name: OpenAPI spec check
+        env:
+          PYTHONPATH: .
+          ENCRYPTION_KEY: ${{ secrets.TEST_ENCRYPTION_KEY || 'rYmVfKcRBe4vfoGz7RJUeffnPpA_ycSk6PFtYvtKFeg=' }}
+          DD_TRACE_ENABLED: "false"
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+        run: python scripts/generate_openapi.py --check
+
       - name: Check version matches changelog
         env:
           PYTHONPATH: .

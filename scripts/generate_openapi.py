@@ -28,23 +28,13 @@ sys.path.insert(0, str(project_root))
 def get_openapi_spec() -> dict:
     """Generate OpenAPI spec from FastAPI app.
 
-    Ensures all contract-critical schemas are included even if they're
-    not directly referenced by endpoints (e.g., union response types).
+    All post-processing (oneOf + discriminator, ToolExecutionResponse
+    inclusion) is handled by the custom_openapi override in app/main.py,
+    so app.openapi() returns the production-identical schema.
     """
     from app.main import app
-    from app.models import ToolExecutionResponse
 
-    spec = app.openapi()
-
-    # Ensure ToolExecutionResponse is in the schema (used in execute endpoint
-    # but not automatically included due to union type response)
-    schemas = spec.setdefault("components", {}).setdefault("schemas", {})
-    if "ToolExecutionResponse" not in schemas:
-        schemas["ToolExecutionResponse"] = ToolExecutionResponse.model_json_schema(
-            ref_template="#/components/schemas/{model}"
-        )
-
-    return spec
+    return app.openapi()
 
 
 def normalize_spec(spec: dict) -> str:

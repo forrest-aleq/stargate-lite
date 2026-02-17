@@ -25,6 +25,7 @@ if os.getenv("DD_TRACE_ENABLED", "true").lower() != "false":
     statsd.host = os.getenv("DD_AGENT_HOST", "localhost")
     statsd.port = int(os.getenv("DD_DOGSTATSD_PORT", "8125"))
 
+from app.custom_openapi import custom_openapi
 from app.database import init_db
 from app.logging_config import get_logger
 from app.observability import setup_logging
@@ -77,6 +78,10 @@ app.include_router(schemas.router)
 from app.routers.webhooks import router as webhooks_router
 
 app.include_router(webhooks_router)
+
+# Override OpenAPI schema so runtime /openapi.json serves oneOf + discriminator
+# (not anyOf) for the execute endpoint. This ensures deployed and generated specs match.
+app.openapi = lambda: custom_openapi(app)  # type: ignore[method-assign]
 
 # Re-export verify_api_key for backwards compatibility (now lives in app.auth)
 from app.auth import verify_api_key  # noqa: F401

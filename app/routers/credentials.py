@@ -9,18 +9,17 @@ from fastapi import APIRouter, Depends
 
 from app.auth import verify_api_key
 from app.database import CredentialManager
+from app.models import CapabilitiesResponse
 from app.registry import get_capability, list_capabilities
 
 router = APIRouter(prefix="/api/v1", tags=["credentials"])
 
 
 @router.get("/capabilities")
-async def get_capabilities(_: bool = Depends(verify_api_key)) -> dict[str, Any]:
+async def get_capabilities(_: bool = Depends(verify_api_key)) -> CapabilitiesResponse:
     """List all available capabilities"""
-    return {
-        "capabilities": list_capabilities(),
-        "count": len(list_capabilities()),
-    }
+    caps = list_capabilities()
+    return CapabilitiesResponse(capabilities=caps, count=len(caps))
 
 
 @router.post("/credentials/status")

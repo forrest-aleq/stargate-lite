@@ -57,6 +57,27 @@ class RetryStrategy(str, Enum):
 # ============================================================================
 
 
+class CapabilityInfo(BaseModel):
+    """Schema for a single capability entry."""
+
+    tool_name: str = Field(..., description="Underlying tool (e.g., 'quickbooks.create_vendor')")
+    description: str = Field(..., description="Human-readable description")
+    service: str = Field(..., description="Service name (e.g., 'quickbooks', 'stripe')")
+    credential_type: str | None = Field(None, description="'customer', 'agent', or null")
+    supports_delegation: bool = Field(..., description="Whether delegation is supported")
+    requires_oauth: bool = Field(..., description="Whether OAuth credentials are needed")
+    schema_available: bool = Field(..., description="Whether input schema is available")
+
+
+class CapabilitiesResponse(BaseModel):
+    """Response model for GET /api/v1/capabilities."""
+
+    capabilities: dict[str, CapabilityInfo] = Field(
+        ..., description="Map of capability_key to capability info"
+    )
+    count: int = Field(..., description="Total number of capabilities")
+
+
 class ToolExecutionRequest(BaseModel):
     """Request model for tool execution (Contract v1.0 compliant)"""
 
@@ -324,9 +345,9 @@ class ConnectorStatusResponse(BaseModel):
 class ErrorResponse(BaseModel):
     """Standard error response format (Contract v1.0)
 
-    All Stargate errors return HTTP 200 with status='error' to enable
-    structured error handling by AI agents. The error_code field allows
-    programmatic error classification and retry strategy selection.
+    Business errors return HTTP 200 with status='error'. Rate-limit
+    errors return HTTP 429. The error_code field allows programmatic
+    error classification and retry strategy selection.
     """
 
     status: str = Field(default="error", description="Always 'error' for error responses")

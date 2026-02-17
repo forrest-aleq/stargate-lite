@@ -2,7 +2,7 @@
 **Last Updated:** February 3, 2026
 **Status:** DRAFT - Requires agreement from MARS, NAOS, and Stargate teams
 **Purpose:** Define explicit integration contract between Stargate and consuming systems
-**Total Capabilities:** 711 across 34 services
+**Total Capabilities:** 770 across 34 services
 
 ---
 
@@ -35,7 +35,7 @@ This contract defines the **guaranteed behavior** of Stargate Lite that MARS and
   "capability_key": "qb.vendor.create",
   "org_id": "org_abc123",
   "user_id": "user_xyz789",
-  "turn_id": "turn_uuid_12345",  // OPTIONAL but REQUIRED for idempotency
+  "turn_id": "turn_uuid_12345",
   "args": {
     "vendor_name": "Acme Corp",
     "email": "vendor@acme.com"
@@ -50,50 +50,45 @@ This contract defines the **guaranteed behavior** of Stargate Lite that MARS and
 | `capability_key` | string | ✅ YES | Must exist in registry | Identifies what to execute |
 | `org_id` | string | ✅ YES | 3-100 chars | Multi-tenant isolation |
 | `user_id` | string | ✅ YES | 3-100 chars | Credential lookup |
-| `turn_id` | string | ⚠️ CONDITIONAL | UUID format | **REQUIRED for idempotency** |
+| `turn_id` | string | ✅ REQUIRED | UUID format | **Idempotency key (422 if missing)** |
 | `args` | object | ✅ YES | Varies by capability | Capability-specific parameters |
 
 **⚠️ CRITICAL: `turn_id` Contract**
-- **MARS MUST send `turn_id` for ALL executions that require idempotency**
+- **`turn_id` is REQUIRED — Stargate returns 422 if omitted**
 - **Stargate caches responses by `turn_id + capability_key` for 24 hours**
 - **If MARS retries with same `turn_id`, Stargate returns cached response (no re-execution)**
-- **If `turn_id` is omitted, Stargate executes capability (NO idempotency protection)**
 
-**Response Schema (Success):**
+**Response Schema (Success — HTTP 200):**
 ```json
 {
-  "success": true,
+  "status": "success",
   "capability_key": "qb.vendor.create",
+  "tool_used": "quickbooks.create_vendor",
   "outputs": {
     "vendor_id": "123",
     "vendor_name": "Acme Corp"
   },
-  "execution_logs": [
+  "logs": [
     "Retrieved QuickBooks credentials for org_abc123",
-    "Created vendor in QuickBooks: Acme Corp",
-    "Vendor ID: 123"
+    "Created vendor in QuickBooks: Acme Corp"
   ],
+  "credential_type": "customer",
   "timestamp": "2025-11-23T10:30:00Z"
 }
 ```
 
-**Response Schema (Error):**
+**Response Schema (Error — HTTP 200 for business errors, HTTP 429 for rate limits):**
 ```json
 {
-  "success": false,
+  "status": "error",
+  "error_code": "CREDENTIALS_INVALID",
+  "error_message": "QuickBooks OAuth token expired",
+  "retry_strategy": "human_intervention",
+  "details": {
+    "service": "quickbooks"
+  },
   "capability_key": "qb.vendor.create",
-  "error": {
-    "error_type": "CredentialInvalidError",
-    "error_code": "CREDENTIAL_INVALID",
-    "message": "QuickBooks OAuth token expired",
-    "service": "quickbooks",
-    "details": {
-      "status_code": 401,
-      "credential_type": "customer"
-    },
-    "retry_strategy": "DO_NOT_RETRY",
-    "timestamp": "2025-11-23T10:30:00Z"
-  }
+  "timestamp": "2025-11-23T10:30:00Z"
 }
 ```
 
@@ -101,36 +96,40 @@ This contract defines the **guaranteed behavior** of Stargate Lite that MARS and
 
 ## 3. Error Taxonomy & Retry Contract
 
-### 3.1 Error Types
+### 3.1 Error Codes (10 canonical codes)
 
-Stargate uses a **standardized error taxonomy** (defined in `app/errors.py`). MARS/NAOS **MUST** use the `error_type` field to determine retry behavior.
+Stargate uses a **standardized error taxonomy** (defined in `app/errors.py`). MARS/NAOS **MUST** use the `error_code` field to determine retry behavior.
 
-| Error Type | Error Code | Retry Strategy | Typical Cause |
-|------------|------------|----------------|---------------|
-| `CredentialMissingError` | `CREDENTIAL_MISSING` | **DO_NOT_RETRY** | User hasn't connected OAuth |
-| `CredentialInvalidError` | `CREDENTIAL_INVALID` | **DO_NOT_RETRY** | Token expired/revoked |
-| `PermissionDeniedError` | `PERMISSION_DENIED` | **DO_NOT_RETRY** | Insufficient API permissions |
-| `NotFoundError` | `NOT_FOUND` | **DO_NOT_RETRY** | Resource doesn't exist |
-| `ValidationError` | `VALIDATION_ERROR` | **DO_NOT_RETRY** | Invalid input parameters |
-| `RateLimitError` | `RATE_LIMIT` | **RETRY_AFTER_DELAY** | API rate limit exceeded |
-| `NetworkError` | `NETWORK_ERROR` | **RETRY_WITH_BACKOFF** | Network timeout/connection failed |
-| `ExecutionError` | `EXECUTION_ERROR` | **CONDITIONAL** | Generic execution failure |
+| Error Code | Retry Strategy | Typical Cause |
+|------------|----------------|---------------|
+| `CAPABILITY_NOT_FOUND` | `none` | Unknown capability_key |
+| `CREDENTIALS_MISSING` | `human_intervention` | User hasn't connected OAuth |
+| `CREDENTIALS_INVALID` | `human_intervention` | Token expired/revoked |
+| `CREDENTIALS_INSUFFICIENT` | `human_intervention` | Missing OAuth scopes |
+| `RATE_LIMIT` | `backoff` | API rate limit exceeded (HTTP 429) |
+| `NETWORK_ERROR` | `backoff` | Network timeout/connection failed |
+| `VALIDATION_ERROR` | `none` | Invalid input parameters |
+| `EXECUTION_ERROR` | `backoff` | Generic execution failure |
+| `QUOTA_EXCEEDED` | `human_intervention` | External service quota hit |
+| `PERMISSION_DENIED` | `human_intervention` | User lacks required permission |
 
-### 3.2 Retry Strategy Mapping
+### 3.2 Retry Strategy Mapping (3 strategies)
 
-**DO_NOT_RETRY** - Permanent failure, retry will always fail
-- `CredentialMissingError` - User must reconnect OAuth first
-- `CredentialInvalidError` - User must re-authorize
-- `PermissionDeniedError` - Admin must grant permissions
-- `NotFoundError` - Resource doesn't exist
-- `ValidationError` - Fix input parameters
+**`none`** — Permanent failure, do not retry
+- `CAPABILITY_NOT_FOUND` — Fix the capability key
+- `VALIDATION_ERROR` — Fix input parameters
 
-**RETRY_AFTER_DELAY** - Temporary failure, retry after specified delay
-- `RateLimitError` - Check `details.retry_after` seconds before retrying
+**`human_intervention`** — User action required before retry
+- `CREDENTIALS_MISSING` — User must connect OAuth
+- `CREDENTIALS_INVALID` — User must re-authorize
+- `CREDENTIALS_INSUFFICIENT` — Admin must grant scopes
+- `QUOTA_EXCEEDED` — Upgrade plan or wait for quota reset
+- `PERMISSION_DENIED` — Admin must grant permissions
 
-**RETRY_WITH_BACKOFF** - Transient failure, retry with exponential backoff
-- `NetworkError` - Network issues, try again with backoff
-- `ExecutionError` (if `details.retryable=true`) - Some execution errors may resolve
+**`backoff`** — Transient failure, retry with exponential backoff
+- `RATE_LIMIT` — Check `details.retry_after_seconds` before retrying
+- `NETWORK_ERROR` — Network issues, try again with backoff
+- `EXECUTION_ERROR` — Tool failed, may be transient
 
 ### 3.3 Example Retry Logic (MARS)
 
@@ -148,31 +147,26 @@ def execute_with_retry(capability_key, org_id, user_id, turn_id, args):
             args=args
         )
 
-        if response["success"]:
+        if response["status"] == "success":
             return response
 
-        error = response["error"]
-        error_type = error["error_type"]
-        retry_strategy = error["retry_strategy"]
+        error_code = response["error_code"]
+        retry_strategy = response["retry_strategy"]
 
-        # Check retry strategy
-        if retry_strategy == "DO_NOT_RETRY":
-            # Permanent failure - escalate to user or Brain
-            raise Exception(f"Permanent failure: {error['message']}")
+        if retry_strategy == "none":
+            raise Exception(f"Permanent failure: {response['error_message']}")
 
-        elif retry_strategy == "RETRY_AFTER_DELAY":
-            # Rate limit - wait specified time
-            retry_after = error["details"].get("retry_after", 60)
-            time.sleep(retry_after)
-            continue
+        elif retry_strategy == "human_intervention":
+            raise Exception(f"User action needed: {response['error_message']}")
 
-        elif retry_strategy == "RETRY_WITH_BACKOFF":
-            # Network error - exponential backoff
-            if attempt < max_retries - 1:
+        elif retry_strategy == "backoff":
+            if error_code == "RATE_LIMIT":
+                retry_after = response.get("details", {}).get("retry_after_seconds", 60)
+                time.sleep(retry_after)
+            elif attempt < max_retries - 1:
                 time.sleep(backoff ** attempt)
-                continue
             else:
-                raise Exception(f"Max retries exceeded: {error['message']}")
+                raise Exception(f"Max retries exceeded: {response['error_message']}")
 
     raise Exception("Max retries exceeded")
 ```
@@ -279,7 +273,7 @@ Stargate supports **two credential types:**
 - Read timeout: 30 seconds
 
 **If external API exceeds timeout:**
-- Stargate returns `NetworkError` with `retry_strategy="RETRY_WITH_BACKOFF"`
+- Stargate returns `NETWORK_ERROR` with `retry_strategy="backoff"`
 - MARS should retry with exponential backoff
 
 ### 6.3 Concurrency
@@ -553,8 +547,8 @@ Stargate supports **two credential types:**
 
 **What MARS/NAOS MUST do:**
 - ✅ Send `turn_id` for idempotent operations
-- ✅ Use `error_type` to determine retry strategy
-- ✅ Handle `CredentialMissingError` by prompting user OAuth
+- ✅ Use `error_code` and `retry_strategy` to determine retry behavior
+- ✅ Handle `CREDENTIALS_MISSING` by prompting user OAuth
 - ✅ Respect `retry_after` in `RateLimitError`
 - ✅ Send `X-API-Key` header for authentication
 
@@ -580,7 +574,7 @@ Stargate supports **two credential types:**
 - **QuickBooks (6):** Journal entries (CRUD operations)
 - **HubSpot (6):** Associations, notes, owners, pipelines, properties, tickets
 
-**Total:** 711 capabilities across 34 services
+**Total:** 770 capabilities across 34 services
 
 ### v1.1 - November 23, 2025
 - Added retry strategy classification

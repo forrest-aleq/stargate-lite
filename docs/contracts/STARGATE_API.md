@@ -51,7 +51,7 @@ Returns all registered capabilities grouped by service.
       "requires_oauth": false
     }
   },
-  "count": 366
+  "count": 770
 }
 ```
 
@@ -95,6 +95,7 @@ Execute any capability.
   "capability_key": "recurly.payment.apply",
   "org_id": "dockwa",
   "user_id": "maria",
+  "turn_id": "turn_01HZ8Y3K5G4N2M6X9W7Q",
   "args": {
     "invoice_id": "inv_abc123",
     "amount": 875.00,
@@ -122,7 +123,7 @@ Execute any capability.
 ```json
 {
   "status": "error",
-  "error_code": "CREDENTIAL_MISSING",
+  "error_code": "CREDENTIALS_MISSING",
   "error_message": "No credentials found for recurly",
   "retry_strategy": "human_intervention"
 }
@@ -134,12 +135,16 @@ Execute any capability.
 
 | Code | Retry Strategy | Meaning |
 |------|---------------|---------|
-| `CREDENTIAL_MISSING` | `human_intervention` | User needs to connect service |
-| `CREDENTIAL_INVALID` | `human_intervention` | Token expired/revoked |
-| `RATE_LIMIT` | `backoff` | API rate limit hit |
+| `CAPABILITY_NOT_FOUND` | `none` | Unknown capability_key |
+| `CREDENTIALS_MISSING` | `human_intervention` | User needs to connect service |
+| `CREDENTIALS_INVALID` | `human_intervention` | Token expired/revoked |
+| `CREDENTIALS_INSUFFICIENT` | `human_intervention` | Missing OAuth scopes |
+| `RATE_LIMIT` | `backoff` | API rate limit hit (HTTP 429) |
+| `NETWORK_ERROR` | `backoff` | Network timeout/connection failed |
 | `VALIDATION_ERROR` | `none` | Invalid input |
-| `NOT_FOUND` | `none` | Resource doesn't exist |
-| `EXTERNAL_API_ERROR` | `backoff` | External service error |
+| `EXECUTION_ERROR` | `backoff` | Generic execution failure |
+| `QUOTA_EXCEEDED` | `human_intervention` | External service quota hit |
+| `PERMISSION_DENIED` | `human_intervention` | User lacks required permission |
 
 ---
 
