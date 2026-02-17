@@ -53,18 +53,16 @@ class TestExecuteResponseUnion:
     """1. /api/v1/execute response uses oneOf + discriminator."""
 
     def test_execute_200_uses_oneof(self, openapi_spec: dict[str, Any]) -> None:
-        schema = (
-            openapi_spec["paths"]["/api/v1/execute"]["post"]["responses"]["200"]
-            ["content"]["application/json"]["schema"]
-        )
+        schema = openapi_spec["paths"]["/api/v1/execute"]["post"]["responses"]["200"]["content"][
+            "application/json"
+        ]["schema"]
         assert "oneOf" in schema, "Execute 200 response must use oneOf (not anyOf)"
         assert "anyOf" not in schema, "anyOf must not be present alongside oneOf"
 
     def test_execute_200_has_discriminator(self, openapi_spec: dict[str, Any]) -> None:
-        schema = (
-            openapi_spec["paths"]["/api/v1/execute"]["post"]["responses"]["200"]
-            ["content"]["application/json"]["schema"]
-        )
+        schema = openapi_spec["paths"]["/api/v1/execute"]["post"]["responses"]["200"]["content"][
+            "application/json"
+        ]["schema"]
         disc = schema.get("discriminator", {})
         assert disc.get("propertyName") == "status"
         mapping = disc.get("mapping", {})
@@ -104,7 +102,7 @@ class TestToolExecutionResponseSchema:
         required = set(schema["required"])
         contract_required = set(MARS_CONTRACT["success_response"]["required"])  # type: ignore[arg-type]
         # OpenAPI required is a subset check — all contract-required must be in schema
-        missing = contract_required - required
+        assert contract_required.issubset(required)
         # 'outputs', 'logs', 'timestamp' have defaults in Pydantic so they're
         # not in OpenAPI 'required' — but they're always present at runtime.
         # The critical ones are status, capability_key, tool_used.
@@ -115,22 +113,15 @@ class TestToolExecutionResponseSchema:
 class TestCapabilitiesResponseSchema:
     """4. /api/v1/capabilities returns typed CapabilitiesResponse."""
 
-    def test_capabilities_endpoint_returns_typed_model(
-        self, openapi_spec: dict[str, Any]
-    ) -> None:
-        cap_resp = (
-            openapi_spec["paths"]["/api/v1/capabilities"]["get"]["responses"]["200"]
-            ["content"]["application/json"]["schema"]
-        )
+    def test_capabilities_endpoint_returns_typed_model(self, openapi_spec: dict[str, Any]) -> None:
+        cap_resp = openapi_spec["paths"]["/api/v1/capabilities"]["get"]["responses"]["200"][
+            "content"
+        ]["application/json"]["schema"]
         # Should reference CapabilitiesResponse, not be a generic object
         ref = cap_resp.get("$ref", "")
-        assert "CapabilitiesResponse" in ref, (
-            f"Expected CapabilitiesResponse ref, got: {cap_resp}"
-        )
+        assert "CapabilitiesResponse" in ref, f"Expected CapabilitiesResponse ref, got: {cap_resp}"
 
-    def test_capabilities_response_has_required_fields(
-        self, openapi_spec: dict[str, Any]
-    ) -> None:
+    def test_capabilities_response_has_required_fields(self, openapi_spec: dict[str, Any]) -> None:
         schema = openapi_spec["components"]["schemas"]["CapabilitiesResponse"]
         assert "capabilities" in schema["properties"]
         assert "count" in schema["properties"]
@@ -169,8 +160,7 @@ class TestMarsRetryStrategiesMatchEnum:
         mars_strategies = set(MARS_CONTRACT["retry_strategies"])  # type: ignore[arg-type]
         enum_strategies = {s.value for s in RetryStrategy}
         assert mars_strategies == enum_strategies, (
-            f"Mars strategies: {mars_strategies}\n"
-            f"Enum strategies: {enum_strategies}"
+            f"Mars strategies: {mars_strategies}\n" f"Enum strategies: {enum_strategies}"
         )
 
     def test_mars_error_retry_mappings_match(self) -> None:
@@ -194,10 +184,9 @@ class TestRuntimeSchemaMatchesCommitted:
         resp = client.get("/openapi.json")
         assert resp.status_code == 200
         runtime_spec = resp.json()
-        schema = (
-            runtime_spec["paths"]["/api/v1/execute"]["post"]["responses"]["200"]
-            ["content"]["application/json"]["schema"]
-        )
+        schema = runtime_spec["paths"]["/api/v1/execute"]["post"]["responses"]["200"]["content"][
+            "application/json"
+        ]["schema"]
         assert "oneOf" in schema, "Runtime spec must use oneOf (not anyOf)"
         assert "anyOf" not in schema
 
