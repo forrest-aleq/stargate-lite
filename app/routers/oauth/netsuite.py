@@ -88,9 +88,9 @@ async def netsuite_oauth_callback(code: str, state: str) -> RedirectResponse:
         # Parse and verify signed state (3-part or 4-part with source)
         parts = state.split(":")
         if len(parts) == 5:
-            org_id, user_id, credential_type, source = parse_oauth_state_4parts(state, "netsuite")
+            org_id, user_id, _credential_type, source = parse_oauth_state_4parts(state, "netsuite")
         else:
-            org_id, user_id, credential_type = parse_oauth_state_3parts(state, "netsuite")
+            org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "netsuite")
 
         # Exchange code for tokens
         account_id = os.getenv("NETSUITE_ACCOUNT_ID")

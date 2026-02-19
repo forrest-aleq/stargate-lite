@@ -78,9 +78,9 @@ async def brex_oauth_callback(code: str, state: str) -> RedirectResponse:
     try:
         parts = state.split(":")
         if len(parts) == 5:
-            org_id, user_id, credential_type, source = parse_oauth_state_4parts(state, "brex")
+            org_id, user_id, _credential_type, source = parse_oauth_state_4parts(state, "brex")
         else:
-            org_id, user_id, credential_type = parse_oauth_state_3parts(state, "brex")
+            org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "brex")
 
         client_id = os.getenv("BREX_CLIENT_ID")
         client_secret = os.getenv("BREX_CLIENT_SECRET")
@@ -175,9 +175,9 @@ async def ramp_oauth_callback(code: str, state: str) -> RedirectResponse:
     try:
         parts = state.split(":")
         if len(parts) == 5:
-            org_id, user_id, credential_type, source = parse_oauth_state_4parts(state, "ramp")
+            org_id, user_id, _credential_type, source = parse_oauth_state_4parts(state, "ramp")
         else:
-            org_id, user_id, credential_type = parse_oauth_state_3parts(state, "ramp")
+            org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "ramp")
 
         client_id = os.getenv("RAMP_CLIENT_ID")
         client_secret = os.getenv("RAMP_CLIENT_SECRET")
@@ -268,9 +268,9 @@ async def chase_oauth_callback(code: str, state: str) -> RedirectResponse:
     try:
         parts = state.split(":")
         if len(parts) == 5:
-            org_id, user_id, credential_type, source = parse_oauth_state_4parts(state, "chase")
+            org_id, user_id, _credential_type, source = parse_oauth_state_4parts(state, "chase")
         else:
-            org_id, user_id, credential_type = parse_oauth_state_3parts(state, "chase")
+            org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "chase")
 
         client_id = os.getenv("CHASE_CLIENT_ID")
         client_secret = os.getenv("CHASE_CLIENT_SECRET")
@@ -350,9 +350,9 @@ async def schwab_oauth_callback(code: str, state: str) -> RedirectResponse:
     try:
         parts = state.split(":")
         if len(parts) == 5:
-            org_id, user_id, credential_type, source = parse_oauth_state_4parts(state, "schwab")
+            org_id, user_id, _credential_type, source = parse_oauth_state_4parts(state, "schwab")
         else:
-            org_id, user_id, credential_type = parse_oauth_state_3parts(state, "schwab")
+            org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "schwab")
 
         client_id = os.getenv("SCHWAB_CLIENT_ID")
         client_secret = os.getenv("SCHWAB_CLIENT_SECRET")

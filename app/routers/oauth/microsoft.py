@@ -102,11 +102,13 @@ async def microsoft_oauth_callback(code: str, state: str) -> RedirectResponse:
         # Parse state: 6 segments = 5-part with source, 5 segments = 4-part legacy
         parts = state.split(":")
         if len(parts) == 6:
-            org_id, user_id, credential_type, service, source = parse_oauth_state_5parts(
+            org_id, user_id, _credential_type, _service, source = parse_oauth_state_5parts(
                 state, "microsoft"
             )
         else:
-            org_id, user_id, credential_type, service = parse_oauth_state_4parts(state, "microsoft")
+            org_id, user_id, _credential_type, _service = parse_oauth_state_4parts(
+                state, "microsoft"
+            )
 
         # Exchange code for tokens
         client_id = os.getenv("MICROSOFT_CLIENT_ID")

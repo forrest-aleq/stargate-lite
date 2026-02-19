@@ -6,7 +6,7 @@ All public models are automatically included in the OpenAPI specification.
 """
 
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field
@@ -22,7 +22,7 @@ def _utcnow() -> datetime:
 # ============================================================================
 
 
-class ErrorCode(str, Enum):
+class ErrorCode(StrEnum):
     """Standardized error codes for Stargate API (Contract v1.0)
 
     These codes allow consumers to programmatically handle errors
@@ -41,7 +41,7 @@ class ErrorCode(str, Enum):
     PERMISSION_DENIED = "PERMISSION_DENIED"
 
 
-class RetryStrategy(str, Enum):
+class RetryStrategy(StrEnum):
     """Recommended retry strategy for each error type
 
     Consumers should follow these strategies when handling errors.

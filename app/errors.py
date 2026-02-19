@@ -4,11 +4,11 @@ Standardized error codes and retry strategies for MARS integration
 Per management directive - critical for Subgraph error handling
 """
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class ErrorCode(str, Enum):
+class ErrorCode(StrEnum):
     """Standardized error codes that MARS Subgraphs expect (per Contract v1.0)"""
 
     # Contract-required error codes
@@ -33,7 +33,7 @@ class ErrorCode(str, Enum):
     EXTERNAL_API_ERROR = "EXECUTION_ERROR"  # Alias for EXECUTION_ERROR
 
 
-class RetryStrategy(str, Enum):
+class RetryStrategy(StrEnum):
     """Retry strategies that MARS should follow"""
 
     HUMAN_INTERVENTION = "human_intervention"  # User must fix (reconnect, grant permission)

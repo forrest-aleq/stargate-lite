@@ -78,9 +78,9 @@ async def asana_oauth_callback(code: str, state: str) -> RedirectResponse:
     try:
         parts = state.split(":")
         if len(parts) == 5:
-            org_id, user_id, credential_type, source = parse_oauth_state_4parts(state, "asana")
+            org_id, user_id, _credential_type, source = parse_oauth_state_4parts(state, "asana")
         else:
-            org_id, user_id, credential_type = parse_oauth_state_3parts(state, "asana")
+            org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "asana")
 
         client_id = os.getenv("ASANA_CLIENT_ID")
         client_secret = os.getenv("ASANA_CLIENT_SECRET")
@@ -173,9 +173,9 @@ async def clickup_oauth_callback(code: str, state: str) -> RedirectResponse:
     try:
         parts = state.split(":")
         if len(parts) == 5:
-            org_id, user_id, credential_type, source = parse_oauth_state_4parts(state, "clickup")
+            org_id, user_id, _credential_type, source = parse_oauth_state_4parts(state, "clickup")
         else:
-            org_id, user_id, credential_type = parse_oauth_state_3parts(state, "clickup")
+            org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "clickup")
 
         client_id = os.getenv("CLICKUP_CLIENT_ID")
         client_secret = os.getenv("CLICKUP_CLIENT_SECRET")
@@ -269,9 +269,9 @@ async def monday_oauth_callback(code: str, state: str) -> RedirectResponse:
     try:
         parts = state.split(":")
         if len(parts) == 5:
-            org_id, user_id, credential_type, source = parse_oauth_state_4parts(state, "monday")
+            org_id, user_id, _credential_type, source = parse_oauth_state_4parts(state, "monday")
         else:
-            org_id, user_id, credential_type = parse_oauth_state_3parts(state, "monday")
+            org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "monday")
 
         client_id = os.getenv("MONDAY_CLIENT_ID")
         client_secret = os.getenv("MONDAY_CLIENT_SECRET")
