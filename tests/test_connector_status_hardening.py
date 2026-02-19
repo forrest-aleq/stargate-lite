@@ -83,7 +83,9 @@ def test_normalize_services_dedupes_and_lowers() -> None:
 async def test_connectors_status_route_uses_normalized_services(monkeypatch) -> None:
     calls: list[str] = []
 
-    def _fake_build(service: str, org_id: str, user_id: str, now: datetime) -> WorkflowConnectorStatus:
+    def _fake_build(
+        service: str, org_id: str, user_id: str, now: datetime
+    ) -> WorkflowConnectorStatus:
         calls.append(service)
         return WorkflowConnectorStatus(
             kind=service,
