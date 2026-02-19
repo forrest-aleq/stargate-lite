@@ -112,7 +112,8 @@ def build_workflow_connector_status(
     service: str, org_id: str, user_id: str, now: datetime
 ) -> WorkflowConnectorStatus:
     """Build WorkflowConnectorStatus for a single service."""
-    requires_oauth = WORKFLOW_OAUTH_REQUIREMENTS.get(service, False)
+    # Fail closed for unknown services to avoid false "connected" states.
+    requires_oauth = WORKFLOW_OAUTH_REQUIREMENTS.get(service, True)
     display_name = SERVICE_DISPLAY_NAMES.get(service, service.title())
 
     if not requires_oauth:
