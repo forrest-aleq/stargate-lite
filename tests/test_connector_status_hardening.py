@@ -67,4 +67,3 @@ def test_unknown_service_fails_closed(monkeypatch) -> None:
     )
     assert status.requires_oauth is True
     assert status.status == "missing"
-
