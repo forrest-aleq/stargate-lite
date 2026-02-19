@@ -19,6 +19,19 @@ router = APIRouter(prefix="/api/v1", tags=["connectors"])
 logger = get_logger(__name__)
 
 
+def _normalize_services(services: list[str]) -> list[str]:
+    """Normalize service names and dedupe while preserving order."""
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for raw in services:
+        service = raw.strip().lower()
+        if not service or service in seen:
+            continue
+        seen.add(service)
+        normalized.append(service)
+    return normalized
+
+
 @router.post("/connectors/status", response_model=ConnectorStatusResponse)
 async def check_workflow_connector_status(
     request: ConnectorStatusRequest, _: bool = Depends(verify_api_key)
@@ -29,7 +42,8 @@ async def check_workflow_connector_status(
     This endpoint is called by the workflow manifest builder to check which
     connectors are authenticated before presenting a workflow preview to the user.
     """
-    if not request.services:
+    services = _normalize_services(request.services)
+    if not services:
         # Fail closed: empty service set should never imply "all connected".
         logger.warning(
             "connectors/status called with empty services list",
@@ -46,7 +60,7 @@ async def check_workflow_connector_status(
                 asyncio.to_thread(
                     build_workflow_connector_status, service, request.org_id, request.user_id, now
                 )
-                for service in request.services
+                for service in services
             ]
         )
     )
