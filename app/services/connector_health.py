@@ -116,17 +116,6 @@ def build_workflow_connector_status(
     requires_oauth = WORKFLOW_OAUTH_REQUIREMENTS.get(service, True)
     display_name = SERVICE_DISPLAY_NAMES.get(service, service.title())
 
-    if not requires_oauth:
-        return WorkflowConnectorStatus(
-            kind=service,
-            display_name=display_name,
-            status="connected",
-            requires_oauth=False,
-            credential_type=None,
-            token_expiry=None,
-            last_updated=None,
-        )
-
     cred, credential_type = get_credential_with_fallback(org_id, user_id, service)
 
     if not cred:
@@ -134,7 +123,7 @@ def build_workflow_connector_status(
             kind=service,
             display_name=display_name,
             status="missing",
-            requires_oauth=True,
+            requires_oauth=requires_oauth,
             credential_type=None,
             token_expiry=None,
             last_updated=None,
@@ -149,7 +138,7 @@ def build_workflow_connector_status(
         kind=service,
         display_name=display_name,
         status="expired" if is_expired else "connected",
-        requires_oauth=True,
+        requires_oauth=requires_oauth,
         credential_type=credential_type,
         token_expiry=token_expiry,
         last_updated=cred.get("updated_at"),

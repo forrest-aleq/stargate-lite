@@ -57,6 +57,43 @@ def test_dropbox_status_requires_auth_and_missing_when_no_credential(monkeypatch
     assert status.status == "missing"
 
 
+def test_non_oauth_service_is_missing_without_credential(monkeypatch) -> None:
+    monkeypatch.setattr(
+        connector_health,
+        "get_credential_with_fallback",
+        lambda org_id, user_id, service: (None, None),
+    )
+    status = connector_health.build_workflow_connector_status(
+        "stripe",
+        "org_1",
+        "user_1",
+        datetime.now(UTC),
+    )
+    assert status.kind == "stripe"
+    assert status.requires_oauth is False
+    assert status.status == "missing"
+
+
+def test_non_oauth_service_connected_with_credential(monkeypatch) -> None:
+    now = datetime.now(UTC)
+    mock_cred = {"token_expiry": None, "updated_at": now}
+    monkeypatch.setattr(
+        connector_health,
+        "get_credential_with_fallback",
+        lambda org_id, user_id, service: (mock_cred, "customer"),
+    )
+    status = connector_health.build_workflow_connector_status(
+        "plaid",
+        "org_1",
+        "user_1",
+        now,
+    )
+    assert status.kind == "plaid"
+    assert status.requires_oauth is False
+    assert status.status == "connected"
+    assert status.credential_type == "customer"
+
+
 def test_unknown_service_fails_closed(monkeypatch) -> None:
     monkeypatch.setattr(
         connector_health,
