@@ -28,7 +28,12 @@ class DocuSignConnector:
     def __init__(self) -> None:
         self.client_id = os.getenv("DOCUSIGN_CLIENT_ID")
         self.client_secret = os.getenv("DOCUSIGN_CLIENT_SECRET")
-        self.environment = os.getenv("DOCUSIGN_ENVIRONMENT", "demo")
+        env = os.getenv("DOCUSIGN_ENVIRONMENT", "").strip().lower()
+        if env:
+            self.environment = env
+        else:
+            use_demo = os.getenv("DOCUSIGN_USE_DEMO", "true").lower() == "true"
+            self.environment = "demo" if use_demo else "production"
 
     def _get_base_url(self, account_id: str) -> str:
         """Get base URL for account"""

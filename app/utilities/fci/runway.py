@@ -125,6 +125,10 @@ class RunwayMixin:
             burn=round(burn_avg, 2),
             cash_out_date=cash_out_date,
             confidence=confidence,
+            data_quality={
+                "historical_comparison": "unavailable",
+                "trend_mode": "projection_from_current_snapshot",
+            },
         )
 
     def _calculate_runway_confidence(
@@ -195,23 +199,13 @@ class RunwayMixin:
         cash: float,
         burn: float,
     ) -> float:
+        """Estimate prior month's runway for comparison.
+
+        Historical runway snapshots are not yet wired. Return current value so
+        delta metrics remain truthful instead of inferred.
         """
-        Estimate prior month's runway for comparison.
-
-        In production, this would use historical snapshots.
-        For now, estimate based on typical cash/burn changes.
-        """
-        # Assume cash was slightly lower last month (showing ~5% growth)
-        # and burn was similar
-        estimated_prior_cash = cash * 0.95  # Prior month had ~5% less cash
-        estimated_prior_burn = burn * 0.98  # Slightly lower burn
-
-        if estimated_prior_burn > 0:
-            prior_runway = estimated_prior_cash / estimated_prior_burn
-        else:
-            prior_runway = current_runway
-
-        return prior_runway
+        _ = (org_id, user_id, cash, burn)
+        return current_runway
 
     def _generate_runway_trend(
         self,

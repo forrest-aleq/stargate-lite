@@ -46,7 +46,13 @@ DOCUSIGN_DEMO_USERINFO_URL = "https://account-d.docusign.com/oauth/userinfo"
 
 def _get_docusign_urls() -> tuple[str, str, str]:
     """Get DocuSign OAuth URLs based on environment."""
-    use_demo = os.getenv("DOCUSIGN_USE_DEMO", "false").lower() == "true"
+    env = os.getenv("DOCUSIGN_ENVIRONMENT", "").strip().lower()
+    if env:
+        use_demo = env in {"demo", "sandbox"}
+    else:
+        # Backward compatibility for older deployments.
+        use_demo = os.getenv("DOCUSIGN_USE_DEMO", "true").lower() == "true"
+
     if use_demo:
         return DOCUSIGN_DEMO_AUTH_URL, DOCUSIGN_DEMO_TOKEN_URL, DOCUSIGN_DEMO_USERINFO_URL
     return DOCUSIGN_AUTH_URL, DOCUSIGN_TOKEN_URL, DOCUSIGN_USERINFO_URL

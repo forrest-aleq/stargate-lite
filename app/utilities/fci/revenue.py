@@ -13,7 +13,7 @@ change tracking, and trend data.
 """
 
 import contextlib
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 from app.logging_config import get_logger
@@ -72,11 +72,11 @@ class RevenueMixin:
         # Get primary accounting system for P&L-based revenue
         primary_service = self._get_primary_accounting_service(org_id, user_id, PL_REPORT_SERVICES)
 
-        revenue_data = {
+        revenue_data: dict[str, Any] = {
             "total": 0.0,
-            "mtd": 0.0,
-            "ytd": 0.0,
-            "last_month": 0.0,
+            "mtd": None,
+            "ytd": None,
+            "last_month": None,
             "mrr": None,
             "by_category": [],
         }
@@ -114,8 +114,10 @@ class RevenueMixin:
             if "stripe" not in all_sources:
                 all_sources.append("stripe")
 
-        # Calculate MTD, YTD, last month values
-        revenue_data = self._calculate_period_values(org_id, user_id, revenue_data, primary_service)
+        # Populate only the period value actually queried (no synthetic period backfills).
+        revenue_data = self._calculate_period_values(
+            org_id, user_id, revenue_data, primary_service, period
+        )
 
         # Calculate change
         current_value = revenue_data["total"]
@@ -123,9 +125,7 @@ class RevenueMixin:
         change, change_percent = self._calculate_change(current_value, prior_total)
 
         # Determine trend direction
-        trend_direction = self._determine_trend_direction(
-            [revenue_data.get("last_month", 0), revenue_data.get("mtd", current_value)]
-        )
+        trend_direction = "stable"
 
         # Generate trend data points
         trend_data = self._generate_revenue_trend(current_value, change_percent)
@@ -150,6 +150,11 @@ class RevenueMixin:
             period=period,
             period_start=start_date.strftime("%Y-%m-%d"),
             period_end=end_date.strftime("%Y-%m-%d"),
+            data_quality={
+                "historical_comparison": "unavailable",
+                "trend_mode": "snapshot_only",
+                "period_values": "only_requested_period_populated",
+            },
         )
 
     def _parse_pl_revenue(
@@ -281,29 +286,14 @@ class RevenueMixin:
         user_id: str,
         revenue_data: dict[str, Any],
         primary_service: str | None,
+        period: str,
     ) -> dict[str, Any]:
-        """
-        Calculate MTD, YTD, and last month values.
-
-        In production, this would make separate P&L calls for each period.
-        For now, we estimate based on the current total.
-        """
+        """Populate only period values explicitly requested by caller."""
+        _ = (org_id, user_id, primary_service)
         current = revenue_data["total"]
-
-        # Estimate period values based on current
-        # These would be actual P&L calls in production
-        today = datetime.now(UTC)
-        month_of_year = today.month
-
-        # MTD is the current value if period is mtd
-        revenue_data["mtd"] = current
-
-        # Estimate YTD (multiply MTD by months elapsed, adjusted)
-        monthly_estimate = current if current > 0 else 0
-        revenue_data["ytd"] = monthly_estimate * month_of_year * 0.95  # Slight adjustment
-
-        # Estimate last month (similar to current, slight variance)
-        revenue_data["last_month"] = current * 0.97  # Assume slight growth
+        revenue_data["mtd"] = current if period == "mtd" else None
+        revenue_data["ytd"] = current if period == "ytd" else None
+        revenue_data["last_month"] = current if period == "last_month" else None
 
         return revenue_data
 
@@ -314,11 +304,13 @@ class RevenueMixin:
         current_total: float,
         period: str,
     ) -> float:
-        """Get prior period revenue for comparison."""
-        # Estimate based on typical revenue patterns
-        estimated_growth_rate = 0.05  # 5% MoM growth assumption
-        prior_total = current_total / (1 + estimated_growth_rate)
-        return prior_total
+        """Get prior period revenue for comparison.
+
+        Historical revenue snapshots are not yet wired. Return current value so
+        delta metrics remain truthful instead of inferred.
+        """
+        _ = (org_id, user_id, period)
+        return current_total
 
     def _generate_revenue_trend(
         self,
@@ -326,22 +318,9 @@ class RevenueMixin:
         change_percent: float,
     ) -> list[dict[str, Any]]:
         """Generate trend data points for revenue sparkline."""
-        trend: list[dict[str, Any]] = []
+        _ = change_percent  # reserved for future historical mode
         today = datetime.now(UTC)
-
-        for i in range(5, -1, -1):
-            point_date = today - timedelta(days=30 * i)
-            factor = 1 - (change_percent / 100) * (i / 5)
-            value = current_total * max(0.5, min(1.5, factor))
-
-            trend.append(
-                {
-                    "date": point_date.strftime("%Y-%m"),
-                    "value": round(value, 2),
-                }
-            )
-
-        return trend
+        return [{"date": today.strftime("%Y-%m"), "value": round(current_total, 2)}]
 
     def _generate_revenue_insight(
         self,
