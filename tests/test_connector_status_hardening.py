@@ -110,6 +110,32 @@ def test_unknown_service_fails_closed(monkeypatch) -> None:
     assert status.status == "missing"
 
 
+def test_aggregate_counts_missing_for_non_oauth_services() -> None:
+    connectors = [
+        WorkflowConnectorStatus(
+            kind="quickbooks",
+            display_name="QuickBooks",
+            status="connected",
+            requires_oauth=True,
+            credential_type="customer",
+            token_expiry=None,
+            last_updated=None,
+        ),
+        WorkflowConnectorStatus(
+            kind="stripe",
+            display_name="Stripe",
+            status="missing",
+            requires_oauth=False,
+            credential_type=None,
+            token_expiry=None,
+            last_updated=None,
+        ),
+    ]
+    all_connected, missing_count = connector_health.aggregate_connector_status(connectors)
+    assert all_connected is False
+    assert missing_count == 1
+
+
 def test_normalize_services_dedupes_and_lowers() -> None:
     assert connectors_router._normalize_services(
         [" QuickBooks ", "quickbooks", "PLAID", "plaid", "", "   "]

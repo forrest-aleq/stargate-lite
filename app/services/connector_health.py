@@ -147,7 +147,6 @@ def build_workflow_connector_status(
 
 def aggregate_connector_status(connectors: list[WorkflowConnectorStatus]) -> tuple[bool, int]:
     """Calculate all_connected and missing_count from connector list."""
-    oauth_connectors = [c for c in connectors if c.requires_oauth]
-    all_connected = all(c.status == "connected" for c in oauth_connectors)
-    missing_count = sum(1 for c in oauth_connectors if c.status in ["missing", "expired"])
+    all_connected = all(c.status == "connected" for c in connectors)
+    missing_count = sum(1 for c in connectors if c.status in ["missing", "expired"])
     return all_connected, missing_count
