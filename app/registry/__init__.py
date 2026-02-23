@@ -1,7 +1,7 @@
 """
 Tool Registry for Stargate Lite
 Maps capability keys to actual tool implementations
-Updated February 2026 - 34 SERVICES + Cognitive Utilities + Financial Ops - 711 CAPABILITIES
+Updated February 2026 - Includes dynamic Zoho Books parity registry
 + Cognitive Utilities Phase 1: web_search, summarizer, financial_calculator
 + Financial Operations: reconciliation, matching, covenants, waterfall, tiered_fees, forecasting
 + Recent additions: Google Workspace, Microsoft 365, Dropbox, DocuSign, Power BI expansions
@@ -55,6 +55,7 @@ _KEY_GATED_SERVICES: dict[str, str] = {
     "slack": "SLACK_CLIENT_ID",
     "stripe": "STRIPE_SECRET_KEY",
     "xero": "XERO_CLIENT_ID",
+    "zoho_books": "ZOHO_BOOKS_CLIENT_ID",
     "billcom": "BILLCOM_CLIENT_ID",
     "netsuite": "NETSUITE_ACCOUNT_ID",
     "sage_intacct": "SAGE_INTACCT_CLIENT_ID",

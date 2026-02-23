@@ -40,6 +40,7 @@ async def root() -> HealthResponse:
         capabilities_count=len(CAPABILITY_REGISTRY),
         services={
             "quickbooks": ("configured" if os.getenv("QUICKBOOKS_CLIENT_ID") else "not_configured"),
+            "zoho_books": ("configured" if os.getenv("ZOHO_BOOKS_CLIENT_ID") else "not_configured"),
             "stripe": ("configured" if os.getenv("STRIPE_SECRET_KEY") else "not_configured"),
             "hubspot": ("configured" if os.getenv("HUBSPOT_CLIENT_ID") else "not_configured"),
             "google": ("configured" if os.getenv("GOOGLE_CLIENT_ID") else "not_configured"),

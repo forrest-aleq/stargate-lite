@@ -125,14 +125,11 @@ async def airtable_oauth_authorize(
 @router.get("/oauth/airtable/callback")
 async def airtable_oauth_callback(code: str, state: str) -> RedirectResponse:
     """Handle Airtable OAuth callback with PKCE verification. Redirects to N3 on completion."""
-    # Parse state to get org_id, user_id, and code_verifier
-    # The code_verifier is embedded in the signed state (stateless PKCE)
     org_id: str | None = None
     source = ""
     try:
         parts = state.split(":")
         if len(parts) == 7:
-            # 6 data + 1 signature — has source
             org_id, user_id, credential_type, _sub_service, code_verifier, source = (
                 parse_oauth_state_6parts(state, "airtable")
             )
@@ -162,7 +159,6 @@ async def airtable_oauth_callback(code: str, state: str) -> RedirectResponse:
 
         token_start = time.time()
 
-        # Exchange code for tokens (Airtable uses HTTP Basic Auth)
         auth_header = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
         response = await asyncio.to_thread(
             requests.post,
@@ -211,7 +207,6 @@ async def airtable_oauth_callback(code: str, state: str) -> RedirectResponse:
             log_event="oauth_token_exchange_success",
         )
 
-        # Validate required token field
         access_token = token_data.get("access_token")
         if not access_token:
             logger.error(
@@ -228,7 +223,6 @@ async def airtable_oauth_callback(code: str, state: str) -> RedirectResponse:
                 org_id=org_id,
             )
 
-        # Store credentials (tokens expire in 60 days)
         expires_in = token_data.get("expires_in", 5184000)
         await asyncio.to_thread(
             CredentialManager.store_credential,

@@ -4686,6 +4686,136 @@
         ]
       }
     },
+    "/oauth/zoho_books/authorize": {
+      "get": {
+        "operationId": "zoho_books_oauth_authorize_oauth_zoho_books_authorize_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credential_type",
+            "required": false,
+            "schema": {
+              "default": "customer",
+              "title": "Credential Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zoho Books Oauth Authorize",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/zoho_books/callback": {
+      "get": {
+        "operationId": "zoho_books_oauth_callback_oauth_zoho_books_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "location",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Location",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Zoho Books Oauth Callback",
+        "tags": [
+          "oauth",
+          "oauth"
+        ]
+      }
+    },
     "/webhooks/blandai": {
       "post": {
         "description": "Receive Bland AI call completion webhook.\n\nBland AI sends a JSON POST when a call finishes. Verification is\ndone via a shared secret sent as a Bearer token in the Authorization\nheader \u2014 compared against the BLANDAI_WEBHOOK_SECRET env var.\n\nThe payload is normalized to a WebhookEvent and forwarded to Baby MARS.",

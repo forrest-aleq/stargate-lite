@@ -17,6 +17,7 @@ This package provides OAuth flows for all integrated services, split by category
 - productivity_db: Airtable
 - stripe: Stripe Connect (payments)
 - xero: Xero Accounting
+- zoho_books: Zoho Books Accounting
 """
 
 from fastapi import APIRouter
@@ -36,6 +37,7 @@ from app.routers.oauth.slack import router as slack_router
 from app.routers.oauth.stripe import router as stripe_router
 from app.routers.oauth.task_managers import router as task_managers_router
 from app.routers.oauth.xero import router as xero_router
+from app.routers.oauth.zoho_books import router as zoho_books_router
 
 # Create combined router
 router = APIRouter(tags=["oauth"])
@@ -56,5 +58,6 @@ router.include_router(esignature_router)
 router.include_router(productivity_db_router)
 router.include_router(stripe_router)
 router.include_router(xero_router)
+router.include_router(zoho_books_router)
 
 __all__ = ["router"]

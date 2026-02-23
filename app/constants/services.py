@@ -64,6 +64,7 @@ ALL_SERVICES_OAUTH: dict[str, bool] = {
     "schwab": True,
     "microsoft": True,
     "xero": True,
+    "zoho_books": True,
     "ocr": False,
     "hyperbrowser": False,
 }
@@ -78,6 +79,7 @@ WORKFLOW_OAUTH_REQUIREMENTS: dict[str, bool] = {
 SERVICE_DISPLAY_NAMES: dict[str, str] = {
     "quickbooks": "QuickBooks",
     "xero": "Xero",
+    "zoho_books": "Zoho Books",
     "netsuite": "NetSuite",
     "gmail": "Gmail",
     "google": "Google",
@@ -118,6 +120,7 @@ SERVICE_DISPLAY_NAMES: dict[str, str] = {
 OAUTH_AUTHORIZE_PATHS: dict[str, str] = {
     "quickbooks": "/oauth/quickbooks/authorize",
     "xero": "/oauth/xero/authorize",
+    "zoho_books": "/oauth/zoho_books/authorize",
     "hubspot": "/oauth/hubspot/authorize",
     "google": "/oauth/google/authorize",
     "slack": "/oauth/slack/authorize",

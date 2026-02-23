@@ -11,6 +11,7 @@ from app.services import connector_health
 def test_workflow_oauth_requirements_include_n3_services() -> None:
     required = {
         "quickbooks",
+        "zoho_books",
         "xero",
         "netsuite",
         "slack",

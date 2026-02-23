@@ -8,6 +8,7 @@ Aggregates capabilities from:
 - NetSuite
 - Recurly
 - Xero
+- Zoho Books
 - Sage Intacct
 - Gusto (payroll/HR)
 - Shopify (e-commerce)
@@ -27,6 +28,7 @@ from app.registry.financial.square import SQUARE_CAPABILITIES
 from app.registry.financial.stripe_billing import STRIPE_BILLING_CAPABILITIES
 from app.registry.financial.stripe_core import STRIPE_CORE_CAPABILITIES
 from app.registry.financial.xero import XERO_CAPABILITIES
+from app.registry.financial.zoho_books import ZOHO_BOOKS_CAPABILITIES
 
 # Aggregate all financial capabilities
 FINANCIAL_CAPABILITIES = {
@@ -43,6 +45,7 @@ FINANCIAL_CAPABILITIES = {
     **GUSTO_CAPABILITIES,
     **SHOPIFY_CAPABILITIES,
     **SQUARE_CAPABILITIES,
+    **ZOHO_BOOKS_CAPABILITIES,
 }
 
 __all__ = ["FINANCIAL_CAPABILITIES"]
