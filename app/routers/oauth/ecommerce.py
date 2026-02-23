@@ -235,7 +235,9 @@ async def shopify_oauth_callback(
 
         logger.info("Shopify OAuth completed", org_id=org_id, shop=callback_shop)
         extra = {"source": source} if source else None
-        return build_oauth_success_redirect(service="shopify", org_id=org_id, extra_params=extra)
+        return build_oauth_success_redirect(
+            service="shopify", org_id=org_id, extra_params=extra, user_id=user_id
+        )
 
     except HTTPException:
         return build_oauth_error_redirect(
@@ -406,7 +408,9 @@ async def square_oauth_callback(code: str, state: str) -> RedirectResponse:
 
         logger.info("Square OAuth completed", org_id=org_id)
         extra = {"source": source} if source else None
-        return build_oauth_success_redirect(service="square", org_id=org_id, extra_params=extra)
+        return build_oauth_success_redirect(
+            service="square", org_id=org_id, extra_params=extra, user_id=user_id
+        )
 
     except HTTPException:
         return build_oauth_error_redirect(

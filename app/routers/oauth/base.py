@@ -72,12 +72,88 @@ def get_n3_base_url() -> str:
     return os.getenv("N3_FRONTEND_URL", "http://localhost:3000")
 
 
+def _emit_connector_connected_event(service: str, org_id: str | None, user_id: str | None) -> None:
+    """Best-effort connector lifecycle event for Baby MARS after OAuth success."""
+    if not org_id:
+        return
+
+    webhook_url = os.getenv("BABY_MARS_WEBHOOK_URL", "").strip()
+    api_key = os.getenv("API_SECRET_KEY", "").strip()
+    if not webhook_url or not api_key:
+        logger.debug(
+            "Skipping connector event emit; webhook target not configured",
+            service=service,
+            org_id=org_id,
+            log_event="oauth_connector_event_skip",
+        )
+        return
+
+    now = datetime.now(UTC)
+    raw_event_id = f"oauth:{service}:{org_id}:{user_id or 'unknown'}:{int(now.timestamp() * 1000)}"
+    payload: dict[str, Any] = {
+        "platform": service,
+        "service": service,
+        "status": "connected",
+        "origin": "oauth_callback",
+        "connected_at": now.isoformat(),
+    }
+    if user_id:
+        payload["user_id"] = user_id
+
+    event_body = {
+        "event_type": "connector.connected",
+        "source_service": "stargate",
+        "org_id": org_id,
+        "timestamp": now.isoformat(),
+        "raw_event_id": raw_event_id,
+        "user_id": user_id,
+        "payload": payload,
+    }
+
+    try:
+        response = requests.post(
+            webhook_url,
+            json=event_body,
+            headers={"X-API-Key": api_key},
+            timeout=2,
+        )
+        if response.status_code >= 400:
+            logger.warning(
+                "Connector lifecycle event emit returned non-success",
+                service=service,
+                org_id=org_id,
+                status_code=response.status_code,
+                log_event="oauth_connector_event_emit_failed",
+            )
+            return
+
+        logger.info(
+            "Connector lifecycle event emitted",
+            service=service,
+            org_id=org_id,
+            user_id=user_id,
+            log_event="oauth_connector_event_emitted",
+        )
+    except Exception:
+        logger.warning(
+            "Connector lifecycle event emit failed",
+            service=service,
+            org_id=org_id,
+            user_id=user_id,
+            log_event="oauth_connector_event_exception",
+            exc_info=True,
+        )
+
+
 def build_oauth_success_redirect(
     service: str,
     org_id: str | None = None,
     extra_params: dict[str, str] | None = None,
+    user_id: str | None = None,
 ) -> RedirectResponse:
     """Build redirect to N3 success page after OAuth completion."""
+    _emit_connector_connected_event(service=service, org_id=org_id, user_id=user_id)
+
     base_url = get_n3_base_url()
     params: dict[str, str] = {"connected": service}
     if extra_params:

@@ -118,7 +118,9 @@ async def asana_oauth_callback(code: str, state: str) -> RedirectResponse:
         )
 
         extra = {"source": source} if source else None
-        return build_oauth_success_redirect(service="asana", org_id=org_id, extra_params=extra)
+        return build_oauth_success_redirect(
+            service="asana", org_id=org_id, extra_params=extra, user_id=user_id
+        )
 
     except HTTPException:
         return build_oauth_error_redirect(service="asana", error="callback_failed")
@@ -205,7 +207,9 @@ async def clickup_oauth_callback(code: str, state: str) -> RedirectResponse:
         )
 
         extra = {"source": source} if source else None
-        return build_oauth_success_redirect(service="clickup", org_id=org_id, extra_params=extra)
+        return build_oauth_success_redirect(
+            service="clickup", org_id=org_id, extra_params=extra, user_id=user_id
+        )
 
     except HTTPException:
         return build_oauth_error_redirect(service="clickup", error="callback_failed")
@@ -310,7 +314,9 @@ async def monday_oauth_callback(code: str, state: str) -> RedirectResponse:
         )
 
         extra = {"source": source} if source else None
-        return build_oauth_success_redirect(service="monday", org_id=org_id, extra_params=extra)
+        return build_oauth_success_redirect(
+            service="monday", org_id=org_id, extra_params=extra, user_id=user_id
+        )
 
     except HTTPException:
         return build_oauth_error_redirect(service="monday", error="callback_failed")

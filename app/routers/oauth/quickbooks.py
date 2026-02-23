@@ -237,7 +237,9 @@ async def quickbooks_oauth_callback(code: str, state: str, realmId: str) -> Redi
         )
 
         extra = {"source": source} if source else None
-        return build_oauth_success_redirect(service="quickbooks", org_id=org_id, extra_params=extra)
+        return build_oauth_success_redirect(
+            service="quickbooks", org_id=org_id, extra_params=extra, user_id=user_id
+        )
 
     except HTTPException:
         return build_oauth_error_redirect(

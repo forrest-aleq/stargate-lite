@@ -134,7 +134,9 @@ async def netsuite_oauth_callback(code: str, state: str) -> RedirectResponse:
         )
 
         extra = {"source": source} if source else None
-        return build_oauth_success_redirect(service="netsuite", org_id=org_id, extra_params=extra)
+        return build_oauth_success_redirect(
+            service="netsuite", org_id=org_id, extra_params=extra, user_id=user_id
+        )
 
     except HTTPException:
         return build_oauth_error_redirect(

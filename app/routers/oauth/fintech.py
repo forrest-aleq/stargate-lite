@@ -115,7 +115,9 @@ async def brex_oauth_callback(code: str, state: str) -> RedirectResponse:
         )
 
         extra = {"source": source} if source else None
-        return build_oauth_success_redirect(service="brex", org_id=org_id, extra_params=extra)
+        return build_oauth_success_redirect(
+            service="brex", org_id=org_id, extra_params=extra, user_id=user_id
+        )
 
     except HTTPException:
         return build_oauth_error_redirect(service="brex", error="callback_failed")
@@ -215,7 +217,9 @@ async def ramp_oauth_callback(code: str, state: str) -> RedirectResponse:
         )
 
         extra = {"source": source} if source else None
-        return build_oauth_success_redirect(service="ramp", org_id=org_id, extra_params=extra)
+        return build_oauth_success_redirect(
+            service="ramp", org_id=org_id, extra_params=extra, user_id=user_id
+        )
 
     except HTTPException:
         return build_oauth_error_redirect(service="ramp", error="callback_failed")
@@ -305,7 +309,9 @@ async def chase_oauth_callback(code: str, state: str) -> RedirectResponse:
         )
 
         extra = {"source": source} if source else None
-        return build_oauth_success_redirect(service="chase", org_id=org_id, extra_params=extra)
+        return build_oauth_success_redirect(
+            service="chase", org_id=org_id, extra_params=extra, user_id=user_id
+        )
 
     except HTTPException:
         return build_oauth_error_redirect(service="chase", error="callback_failed")
@@ -387,7 +393,9 @@ async def schwab_oauth_callback(code: str, state: str) -> RedirectResponse:
         )
 
         extra = {"source": source} if source else None
-        return build_oauth_success_redirect(service="schwab", org_id=org_id, extra_params=extra)
+        return build_oauth_success_redirect(
+            service="schwab", org_id=org_id, extra_params=extra, user_id=user_id
+        )
 
     except HTTPException:
         return build_oauth_error_redirect(service="schwab", error="callback_failed")
