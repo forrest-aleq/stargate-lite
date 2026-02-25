@@ -164,6 +164,32 @@ def _exchange_google_tokens(
     return token_data, token_expiry
 
 
+def _fetch_google_email(access_token: str) -> str | None:
+    """Fetch authenticated Google account email for webhook identity resolution."""
+    try:
+        response = requests.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=15,
+        )
+        if response.status_code != 200:
+            return None
+
+        profile: dict[str, Any] = response.json()
+        email = profile.get("email")
+        if isinstance(email, str) and email.strip():
+            return email.strip().lower()
+        return None
+    except Exception:
+        logger.warning(
+            "Failed to fetch Google profile email",
+            service="google",
+            log_event="google_profile_fetch_error",
+            exc_info=True,
+        )
+        return None
+
+
 def _store_google_credential(
     org_id: str,
     user_id: str,
@@ -182,6 +208,11 @@ def _store_google_credential(
         credential_type: Type of credential (customer/agent)
         service: Google service name
     """
+    extra_data = {"google_service": service}
+    google_email = _fetch_google_email(token_data["access_token"])
+    if google_email:
+        extra_data["google_email"] = google_email
+
     CredentialManager.store_credential(
         org_id=org_id,
         user_id=user_id,
@@ -189,7 +220,7 @@ def _store_google_credential(
         access_token=token_data["access_token"],
         refresh_token=token_data.get("refresh_token"),
         token_expiry=token_expiry,
-        extra_data={"google_service": service},
+        extra_data=extra_data,
     )
 
     logger.info(
@@ -199,6 +230,7 @@ def _store_google_credential(
         org_id=org_id,
         user_id=user_id,
         credential_type=credential_type,
+        google_email=google_email,
         log_event="oauth_callback_success",
     )
 

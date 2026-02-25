@@ -17,6 +17,7 @@ from fastapi import APIRouter, Request, Response
 from app.logging_config import get_logger
 from app.models_webhook import WebhookEvent
 from app.routers.webhooks.base import forward_to_baby_mars
+from app.routers.webhooks.tenant_resolution import resolve_webhook_identity
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -70,6 +71,12 @@ async def quickbooks_webhook(request: Request) -> Response:
 
     for notification in notifications:
         realm_id: str = notification.get("realmId", "")
+        fallback_org_id = realm_id or "default"
+        org_id, user_id = await resolve_webhook_identity(
+            "quickbooks",
+            fallback_org_id=fallback_org_id,
+            realm_id=realm_id or None,
+        )
         entities: list[dict[str, Any]] = notification.get("dataChangeEvent", {}).get("entities", [])
 
         for entity in entities:
@@ -80,10 +87,11 @@ async def quickbooks_webhook(request: Request) -> Response:
             event = WebhookEvent(
                 event_type=f"qbo.{entity_name}.{operation}",
                 source_service="quickbooks",
-                org_id=realm_id,
+                org_id=org_id,
                 timestamp=datetime.now(UTC),
                 payload=entity,
                 raw_event_id=f"{realm_id}:{entity_name}:{entity_id}:{operation}",
+                user_id=user_id,
             )
 
             await forward_to_baby_mars(event)

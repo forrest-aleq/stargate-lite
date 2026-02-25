@@ -17,6 +17,7 @@ from fastapi import APIRouter, Request, Response
 from app.logging_config import get_logger
 from app.models_webhook import WebhookEvent
 from app.routers.webhooks.base import forward_to_baby_mars
+from app.routers.webhooks.tenant_resolution import resolve_webhook_identity
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -71,14 +72,21 @@ async def xero_webhook(request: Request) -> Response:
         event_type_raw: str = xero_event.get("eventType", "unknown").lower()
         tenant_id: str = xero_event.get("tenantId", "")
         event_id: str = xero_event.get("eventId", "")
+        fallback_org_id = tenant_id or "default"
+        org_id, user_id = await resolve_webhook_identity(
+            "xero",
+            fallback_org_id=fallback_org_id,
+            realm_id=tenant_id or None,
+        )
 
         event = WebhookEvent(
             event_type=f"xero.{event_category}.{event_type_raw}",
             source_service="xero",
-            org_id=tenant_id,
+            org_id=org_id,
             timestamp=datetime.now(UTC),
             payload=xero_event,
             raw_event_id=event_id or f"{tenant_id}:{resource_url}",
+            user_id=user_id,
         )
 
         await forward_to_baby_mars(event)

@@ -392,6 +392,39 @@ class TestStripeWebhook:
             assert forwarded_event.event_type == "stripe.payment_intent.succeeded"
             assert forwarded_event.org_id == "acct_123"
 
+    def test_stripe_resolves_internal_tenant_identity(self, client: TestClient) -> None:
+        """Stripe webhook uses credential-backed identity when available."""
+        secret = "whsec_test_secret"
+        payload = b'{"type": "payment_intent.succeeded", "id": "evt_pi_002", "account": "acct_456"}'
+        sig = self._make_stripe_signature(payload, secret)
+
+        with (
+            patch.dict(os.environ, {"STRIPE_WEBHOOK_SECRET": secret}),
+            patch(
+                "app.routers.webhooks.stripe.resolve_webhook_identity",
+                new_callable=AsyncMock,
+            ) as mock_resolve,
+            patch(
+                "app.routers.webhooks.stripe.forward_to_baby_mars", new_callable=AsyncMock
+            ) as mock_fwd,
+        ):
+            mock_resolve.return_value = ("org_internal", "user_internal")
+            mock_fwd.return_value = True
+
+            response = client.post(
+                "/webhooks/stripe",
+                content=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "Stripe-Signature": sig,
+                },
+            )
+
+            assert response.status_code == 200
+            forwarded_event = mock_fwd.call_args[0][0]
+            assert forwarded_event.org_id == "org_internal"
+            assert forwarded_event.user_id == "user_internal"
+
 
 class TestQBOWebhook:
     """Test QuickBooks Online webhook receiver."""
@@ -456,6 +489,54 @@ class TestQBOWebhook:
             assert forwarded_event.event_type == "qbo.invoice.create"
             assert forwarded_event.org_id == "realm_123"
 
+    def test_qbo_resolves_internal_tenant_identity(self, client: TestClient) -> None:
+        """QBO webhook uses credential-backed identity when available."""
+        import hashlib
+        import hmac as _hmac
+        import json
+
+        verifier = "test_verifier_token"
+        payload_dict: dict[str, Any] = {
+            "eventNotifications": [
+                {
+                    "realmId": "realm_456",
+                    "dataChangeEvent": {
+                        "entities": [{"name": "Invoice", "id": "inv_002", "operation": "Create"}]
+                    },
+                }
+            ]
+        }
+        payload_bytes = json.dumps(payload_dict).encode()
+        sig = _hmac.new(verifier.encode(), payload_bytes, hashlib.sha256).hexdigest()
+
+        with (
+            patch.dict(os.environ, {"QBO_WEBHOOK_VERIFIER_TOKEN": verifier}),
+            patch(
+                "app.routers.webhooks.quickbooks.resolve_webhook_identity",
+                new_callable=AsyncMock,
+            ) as mock_resolve,
+            patch(
+                "app.routers.webhooks.quickbooks.forward_to_baby_mars",
+                new_callable=AsyncMock,
+            ) as mock_fwd,
+        ):
+            mock_resolve.return_value = ("org_internal_qbo", "user_internal_qbo")
+            mock_fwd.return_value = True
+
+            response = client.post(
+                "/webhooks/quickbooks",
+                content=payload_bytes,
+                headers={
+                    "Content-Type": "application/json",
+                    "intuit-signature": sig,
+                },
+            )
+
+            assert response.status_code == 200
+            forwarded_event = mock_fwd.call_args[0][0]
+            assert forwarded_event.org_id == "org_internal_qbo"
+            assert forwarded_event.user_id == "user_internal_qbo"
+
 
 class TestXeroWebhook:
     """Test Xero webhook receiver."""
@@ -479,6 +560,42 @@ class TestXeroWebhook:
                 },
             )
             assert response.status_code == 200
+
+    def test_xero_resolves_internal_tenant_identity(self, client: TestClient) -> None:
+        """Xero webhook uses credential-backed identity when available."""
+        import hashlib
+        import hmac as _hmac
+
+        webhook_key = "xero_test_key"
+        payload = b'{"events":[{"tenantId":"tenant_123","eventCategory":"INVOICE","eventType":"CREATE","eventId":"evt_xero_001","resourceUrl":"https://api.xero.com/api.xro/2.0/Invoices/1"}]}'
+        sig = _hmac.new(webhook_key.encode(), payload, hashlib.sha256).hexdigest()
+
+        with (
+            patch.dict(os.environ, {"XERO_WEBHOOK_KEY": webhook_key}),
+            patch(
+                "app.routers.webhooks.xero.resolve_webhook_identity",
+                new_callable=AsyncMock,
+            ) as mock_resolve,
+            patch(
+                "app.routers.webhooks.xero.forward_to_baby_mars", new_callable=AsyncMock
+            ) as mock_fwd,
+        ):
+            mock_resolve.return_value = ("org_internal_xero", "user_internal_xero")
+            mock_fwd.return_value = True
+
+            response = client.post(
+                "/webhooks/xero",
+                content=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "x-xero-signature": sig,
+                },
+            )
+
+            assert response.status_code == 200
+            forwarded_event = mock_fwd.call_args[0][0]
+            assert forwarded_event.org_id == "org_internal_xero"
+            assert forwarded_event.user_id == "user_internal_xero"
 
 
 # ============================================================================
@@ -545,6 +662,58 @@ class TestSlackWebhook:
             assert forwarded_event.event_type == "slack.message.received"
             assert forwarded_event.org_id == "T_TESTTEAM"
             assert forwarded_event.user_id == "U_TESTUSER"
+
+    def test_slack_resolves_internal_tenant_identity(self, client: TestClient) -> None:
+        """Slack webhook uses credential-backed identity when available."""
+        import hashlib
+        import hmac as _hmac
+        import json
+
+        signing_secret = "slack_test_secret_key"
+        payload_dict: dict[str, Any] = {
+            "type": "event_callback",
+            "team_id": "T_RESOLVE",
+            "event_id": "Ev_RESOLVE001",
+            "event": {
+                "type": "message",
+                "channel_type": "im",
+                "user": "U_EXTERNAL",
+                "text": "hello aleq",
+            },
+        }
+        payload_bytes = json.dumps(payload_dict).encode()
+        timestamp = str(int(time.time()))
+        base_string = f"v0:{timestamp}:".encode() + payload_bytes
+        sig = "v0=" + _hmac.new(signing_secret.encode(), base_string, hashlib.sha256).hexdigest()
+
+        with (
+            patch.dict(os.environ, {"SLACK_SIGNING_SECRET": signing_secret}),
+            patch(
+                "app.routers.webhooks.slack.resolve_webhook_identity",
+                new_callable=AsyncMock,
+            ) as mock_resolve,
+            patch(
+                "app.routers.webhooks.slack.forward_to_baby_mars",
+                new_callable=AsyncMock,
+            ) as mock_fwd,
+        ):
+            mock_resolve.return_value = ("org_internal_slack", "user_internal_slack")
+            mock_fwd.return_value = True
+
+            response = client.post(
+                "/webhooks/slack",
+                content=payload_bytes,
+                headers={
+                    "Content-Type": "application/json",
+                    "X-Slack-Request-Timestamp": timestamp,
+                    "X-Slack-Signature": sig,
+                },
+            )
+
+            assert response.status_code == 200
+            forwarded_event = mock_fwd.call_args[0][0]
+            assert forwarded_event.org_id == "org_internal_slack"
+            assert forwarded_event.user_id == "user_internal_slack"
 
 
 class TestTwilioWebhook:
@@ -687,6 +856,45 @@ class TestGmailPushNotification:
             assert forwarded.user_id == "user@test.com"
             assert forwarded.payload["historyId"] == "12345"
             assert forwarded.payload["previousHistoryId"] is None
+
+    def test_gmail_resolves_internal_tenant_identity(self, client: TestClient) -> None:
+        """Gmail webhook uses credential-backed identity when available."""
+        data_b64 = self._encode_pubsub_data("owner@test.com", "12346")
+
+        with (
+            patch.dict(os.environ, {"GMAIL_PUBSUB_TOKEN": ""}),
+            patch(
+                "app.routers.webhooks.gmail.resolve_webhook_identity",
+                new_callable=AsyncMock,
+            ) as mock_resolve,
+            patch(
+                "app.routers.webhooks.gmail.forward_to_baby_mars",
+                new_callable=AsyncMock,
+            ) as mock_fwd,
+            patch(
+                "app.routers.webhooks.gmail._get_last_history_id",
+                return_value=None,
+            ),
+            patch("app.routers.webhooks.gmail._set_last_history_id"),
+        ):
+            mock_resolve.return_value = ("org_internal_google", "user_internal_google")
+            mock_fwd.return_value = True
+
+            response = client.post(
+                "/webhooks/gmail",
+                json={
+                    "message": {
+                        "data": data_b64,
+                        "messageId": "pubsub_msg_003",
+                    },
+                    "subscription": "projects/test/subscriptions/gmail",
+                },
+            )
+
+            assert response.status_code == 200
+            forwarded = mock_fwd.call_args[0][0]
+            assert forwarded.org_id == "org_internal_google"
+            assert forwarded.user_id == "user_internal_google"
 
     def test_gmail_historyid_skip_regression(self, client: TestClient) -> None:
         """Gmail skips notifications with already-processed historyId."""

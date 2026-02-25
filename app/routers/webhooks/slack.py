@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse
 from app.logging_config import get_logger
 from app.models_webhook import WebhookEvent
 from app.routers.webhooks.base import forward_to_baby_mars
+from app.routers.webhooks.tenant_resolution import resolve_webhook_identity
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -95,15 +96,22 @@ async def slack_webhook(request: Request) -> Response:
             normalized_type = f"slack.{event_type}"
 
         user_id = slack_event.get("user")
+        fallback_org_id = team_id or "default"
+        resolved_org_id, resolved_user_id = await resolve_webhook_identity(
+            "slack",
+            fallback_org_id=fallback_org_id,
+            fallback_user_id=user_id,
+            extra_data_matches=({"team_id": team_id} if team_id else None),
+        )
 
         event = WebhookEvent(
             event_type=normalized_type,
             source_service="slack",
-            org_id=team_id,
+            org_id=resolved_org_id,
             timestamp=datetime.now(UTC),
             payload=slack_event,
             raw_event_id=event_id,
-            user_id=user_id,
+            user_id=resolved_user_id,
         )
 
         await forward_to_baby_mars(event)

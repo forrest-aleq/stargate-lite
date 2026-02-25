@@ -547,3 +547,73 @@ class CredentialManager:
             return services
         finally:
             db.close()
+
+    @staticmethod
+    def resolve_credential_owner(
+        service: str,
+        *,
+        realm_id: str | None = None,
+        extra_data_matches: dict[str, str] | None = None,
+        credential_type: str | None = None,
+    ) -> dict[str, str] | None:
+        """Resolve internal org/user identity from provider-native credential metadata.
+
+        This is used by inbound webhook routers that only receive provider IDs
+        (for example Stripe account IDs, QuickBooks realm IDs, Slack team IDs).
+
+        Returns:
+            {"org_id": "...", "user_id": "...", "credential_type": "..."} when matched,
+            otherwise None.
+        """
+        realm_id_value = (realm_id or "").strip()
+        extra_matches = {
+            key: value.strip()
+            for key, value in (extra_data_matches or {}).items()
+            if key.strip() and value.strip()
+        }
+
+        if not realm_id_value and not extra_matches:
+            return None
+
+        db = SessionLocal()
+        try:
+            query = db.query(CredentialStore).filter(CredentialStore.service == service)
+            if credential_type:
+                query = query.filter(CredentialStore.credential_type == credential_type)
+
+            candidates = query.order_by(CredentialStore.updated_at.desc()).all()
+
+            for candidate in candidates:
+                if realm_id_value and candidate.realm_id != realm_id_value:
+                    continue
+
+                if extra_matches:
+                    candidate_extra = (
+                        candidate.extra_data if isinstance(candidate.extra_data, dict) else {}
+                    )
+                    has_all_matches = all(
+                        str(candidate_extra.get(key, "")).strip() == expected
+                        for key, expected in extra_matches.items()
+                    )
+                    if not has_all_matches:
+                        continue
+
+                logger.debug(
+                    "Resolved credential owner from provider metadata",
+                    service=service,
+                    realm_id=realm_id_value or None,
+                    extra_data_keys=sorted(extra_matches.keys()) if extra_matches else [],
+                    org_id=candidate.org_id,
+                    user_id=candidate.user_id,
+                    credential_type=candidate.credential_type,
+                    log_event="credential_owner_resolved",
+                )
+                return {
+                    "org_id": candidate.org_id,
+                    "user_id": candidate.user_id,
+                    "credential_type": candidate.credential_type,
+                }
+
+            return None
+        finally:
+            db.close()

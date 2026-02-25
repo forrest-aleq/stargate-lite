@@ -17,6 +17,7 @@ from fastapi import APIRouter, Request, Response
 from app.logging_config import get_logger
 from app.models_webhook import WebhookEvent
 from app.routers.webhooks.base import forward_to_baby_mars
+from app.routers.webhooks.tenant_resolution import resolve_webhook_identity
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -87,8 +88,14 @@ async def stripe_webhook(request: Request) -> Response:
 
     # Resolve org_id from Connect account or default
     # In Connect events, payload.account contains the connected account ID
-    stripe_account = payload.get("account", "")
-    org_id = stripe_account or "default"
+    stripe_account = str(payload.get("account", "")).strip()
+    fallback_org_id = stripe_account or "default"
+    org_id, user_id = await resolve_webhook_identity(
+        "stripe",
+        fallback_org_id=fallback_org_id,
+        realm_id=None,
+        extra_data_matches=({"stripe_user_id": stripe_account} if stripe_account else None),
+    )
 
     event = WebhookEvent(
         event_type=f"stripe.{event_type}",
@@ -97,6 +104,7 @@ async def stripe_webhook(request: Request) -> Response:
         timestamp=datetime.now(UTC),
         payload=payload,
         raw_event_id=event_id,
+        user_id=user_id,
     )
 
     await forward_to_baby_mars(event)

@@ -25,6 +25,7 @@ from app.logging_config import get_logger
 from app.models_webhook import WebhookEvent
 from app.redis_client import redis_client
 from app.routers.webhooks.base import forward_to_baby_mars
+from app.routers.webhooks.tenant_resolution import resolve_webhook_identity
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -160,11 +161,19 @@ async def gmail_push_notification(request: Request) -> Response:
         )
         return Response(status_code=200, content="ok")
 
+    # Resolve internal org/user from stored Google credential metadata when available.
+    org_id, user_id = await resolve_webhook_identity(
+        "google",
+        fallback_org_id=email_address,
+        fallback_user_id=email_address,
+        extra_data_matches={"google_email": email_address},
+    )
+
     # Build normalized event
     event = WebhookEvent(
         event_type="gmail.message.received",
         source_service="gmail",
-        org_id=email_address,
+        org_id=org_id,
         timestamp=datetime.now(UTC),
         payload={
             "emailAddress": email_address,
@@ -172,7 +181,7 @@ async def gmail_push_notification(request: Request) -> Response:
             "previousHistoryId": last_history,
         },
         raw_event_id=message_id or f"gmail:{email_address}:{history_id}",
-        user_id=email_address,
+        user_id=user_id,
     )
 
     await forward_to_baby_mars(event)
