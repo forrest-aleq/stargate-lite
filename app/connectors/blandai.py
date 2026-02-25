@@ -41,6 +41,10 @@ class BlandAIConnector:
 
     def send_call(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Send an AI phone call"""
+        metadata = dict(args.get("metadata", {}))
+        metadata.setdefault("org_id", org_id)
+        metadata.setdefault("user_id", user_id)
+
         call_data = {
             "phone_number": args.get("phone_number"),
             "task": args.get("task"),  # AI prompt/instructions
@@ -50,6 +54,8 @@ class BlandAIConnector:
             "record": args.get("record", True),
             "model": args.get("model", "enhanced"),  # base or enhanced
             "language": args.get("language", "en"),
+            # Echo tenant identity in webhook payload for deterministic routing.
+            "metadata": metadata,
         }
 
         # Optional webhook for call events
@@ -70,15 +76,21 @@ class BlandAIConnector:
             "call_id": result.get("call_id"),
             "status": result.get("status"),
             "batch_id": result.get("batch_id"),
+            "phone_number": args.get("phone_number"),
         }
 
     def send_batch_calls(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """Send multiple AI phone calls in batch"""
+        metadata = dict(args.get("metadata", {}))
+        metadata.setdefault("org_id", org_id)
+        metadata.setdefault("user_id", user_id)
+
         batch_data = {
             "base_prompt": args.get("task"),
             "call_data": args.get("calls", []),  # List of {phone_number, task} dicts
             "voice": args.get("voice", "maya"),
             "model": args.get("model", "enhanced"),
+            "metadata": metadata,
         }
 
         result = self._make_request("POST", "/batches", batch_data)

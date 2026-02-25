@@ -43,6 +43,40 @@ def _resolve_event_type(status: str) -> str:
     return "voice.call.completed"
 
 
+def _resolve_org_id(payload: dict[str, Any]) -> str:
+    """Resolve tenant org_id from payload metadata when available."""
+    metadata = payload.get("metadata")
+    if isinstance(metadata, dict):
+        for key in ("org_id", "organization_id"):
+            value = metadata.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+
+    for key in ("org_id", "organization_id"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    return "ALEQ_SYSTEM"
+
+
+def _resolve_user_id(payload: dict[str, Any]) -> str | None:
+    """Resolve user principal from payload metadata when available."""
+    metadata = payload.get("metadata")
+    if isinstance(metadata, dict):
+        for key in ("user_id", "person_id", "actor_user_id"):
+            value = metadata.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+
+    for key in ("user_id", "person_id", "actor_user_id"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    return None
+
+
 @router.post("/webhooks/blandai")
 async def blandai_webhook(request: Request) -> Response:
     """Receive Bland AI call completion webhook.
@@ -92,14 +126,17 @@ async def blandai_webhook(request: Request) -> Response:
 
     status: str = body.get("status", "completed")
     event_type = _resolve_event_type(status)
+    org_id = _resolve_org_id(body)
+    user_id = _resolve_user_id(body)
 
     event = WebhookEvent(
         event_type=event_type,
         source_service="blandai",
-        org_id="ALEQ_SYSTEM",
+        org_id=org_id,
         timestamp=datetime.now(UTC),
         payload=body,
         raw_event_id=call_id,
+        user_id=user_id,
     )
 
     logger.info(
@@ -107,6 +144,8 @@ async def blandai_webhook(request: Request) -> Response:
         call_id=call_id,
         status=status,
         event_type=event_type,
+        org_id=org_id,
+        user_id=user_id,
         answered_by=body.get("answered_by", "unknown"),
         log_event="blandai_webhook_received",
     )
