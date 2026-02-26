@@ -1,5 +1,8 @@
 # Stargate Release Engineering Guide
 
+For the exact staging-to-production execution flow, use
+`docs/operations/PRODUCTION_PROMOTION.md`.
+
 ## The Golden Rules
 
 1. **Never ship on Friday** - If it breaks, you debug on Saturday

@@ -24,4 +24,5 @@
 ### Operations
 - `operations/RELEASE_GUIDE.md` -- release process (read before any release)
 - `operations/DEPLOYMENT_GUIDE.md` -- deployment instructions
+- `operations/PRODUCTION_PROMOTION.md` -- staging to production promotion runbook
 - `operations/LOG_SCHEMA.md` -- structured logging schema

@@ -1,45 +1,126 @@
 name: Deploy to Production
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
+      git_ref:
+        description: "Git ref to deploy (branch/tag/SHA)"
+        required: false
+        default: "main"
       confirm:
-        description: 'Type "deploy" to confirm production deployment'
+        description: 'Type "deploy-production" to confirm'
         required: true
+      min_capabilities:
+        description: "Minimum capabilities expected after deploy"
+        required: false
+        default: "100"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stargate-production-deploy
+  cancel-in-progress: false
 
 jobs:
-  validate:
+  preflight:
     name: Pre-deploy Validation
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.git_ref }}
+          fetch-depth: 0
 
       - name: Confirm manual deployment
-        if: github.event_name == 'workflow_dispatch'
         run: |
-          if [ "${{ github.event.inputs.confirm }}" != "deploy" ]; then
+          if [ "${{ github.event.inputs.confirm }}" != "deploy-production" ]; then
             echo "Deployment not confirmed"
             exit 1
           fi
 
-      - name: Verify staging is healthy
+      - name: Ensure target ref is on main
         run: |
-          response=$(curl -s ${{ vars.STAGING_URL }}/health)
-          status=$(echo $response | jq -r '.status')
+          git fetch origin main
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "Target ref is not on main; refusing production deploy"
+            exit 1
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install verification dependencies
+        run: pip install requests
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Verify staging Railway readiness
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+          RAILWAY_SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
+          RAILWAY_STAGING_ENVIRONMENT: ${{ vars.RAILWAY_STAGING_ENVIRONMENT }}
+        run: |
+          SERVICE_NAME="${RAILWAY_SERVICE_NAME:-stargate-lite}"
+          STAGING_ENV="${RAILWAY_STAGING_ENVIRONMENT:-staging}"
+          python scripts/check_railway_readiness.py \
+            --environment "$STAGING_ENV" \
+            --service "$SERVICE_NAME" \
+            --expect-env-value staging
+
+      - name: Verify production Railway readiness
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
+          RAILWAY_SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
+          RAILWAY_PRODUCTION_ENVIRONMENT: ${{ vars.RAILWAY_PRODUCTION_ENVIRONMENT }}
+        run: |
+          SERVICE_NAME="${RAILWAY_SERVICE_NAME:-stargate-lite}"
+          PROD_ENV="${RAILWAY_PRODUCTION_ENVIRONMENT:-production}"
+          python scripts/check_railway_readiness.py \
+            --environment "$PROD_ENV" \
+            --service "$SERVICE_NAME" \
+            --expect-env-value production
+
+      - name: Verify staging API health and smoke tests
+        env:
+          STAGING_URL: ${{ vars.STAGING_URL }}
+          STAGING_API_KEY: ${{ secrets.STAGING_API_KEY }}
+        run: |
+          python scripts/verify_remote_api.py \
+            --base-url "$STAGING_URL" \
+            --api-key "$STAGING_API_KEY" \
+            --min-capabilities "${{ github.event.inputs.min_capabilities }}"
+
+      - name: Verify current production health before deploy
+        run: |
+          response=$(curl -s "${{ vars.PRODUCTION_URL }}/health")
+          status=$(python -c 'import json,sys; print(json.loads(sys.argv[1]).get("status",""))' "$response")
           if [ "$status" != "healthy" ]; then
-            echo "Staging not healthy. Deploy to staging first."
+            echo "Production is not healthy before deploy. Aborting."
             exit 1
           fi
 
   deploy:
     name: Deploy to Railway Production
+    needs: preflight
     runs-on: ubuntu-latest
-    needs: validate
     environment: production
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.git_ref }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install verification dependencies
+        run: pip install requests
 
       - name: Install Railway CLI
         run: npm install -g @railway/cli
@@ -47,27 +128,27 @@ jobs:
       - name: Deploy to Production
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
-        run: railway up --service stargate
-
-      - name: Health check (with retries)
+          RAILWAY_SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
+          RAILWAY_PRODUCTION_ENVIRONMENT: ${{ vars.RAILWAY_PRODUCTION_ENVIRONMENT }}
         run: |
-          for i in 1 2 3 4 5; do
-            response=$(curl -s -o /dev/null -w "%{http_code}" ${{ vars.PRODUCTION_URL }}/health)
-            if [ "$response" == "200" ]; then
-              echo "Health check passed"
+          SERVICE_NAME="${RAILWAY_SERVICE_NAME:-stargate-lite}"
+          PROD_ENV="${RAILWAY_PRODUCTION_ENVIRONMENT:-production}"
+          railway up --ci --service "$SERVICE_NAME" --environment "$PROD_ENV"
+
+      - name: Verify production API after deploy (with retries)
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+          PRODUCTION_API_KEY: ${{ secrets.PRODUCTION_API_KEY }}
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if python scripts/verify_remote_api.py \
+              --base-url "$PRODUCTION_URL" \
+              --api-key "$PRODUCTION_API_KEY" \
+              --min-capabilities "${{ github.event.inputs.min_capabilities }}"; then
               exit 0
             fi
-            sleep 10
+            echo "Production verification attempt $attempt failed, retrying..."
+            sleep 15
           done
+          echo "Production verification failed after retries"
           exit 1
-
-      - name: Smoke tests
-        env:
-          API_KEY: ${{ secrets.PRODUCTION_API_KEY }}
-        run: |
-          response=$(curl -s -H "X-API-Key: $API_KEY" ${{ vars.PRODUCTION_URL }}/api/v1/capabilities)
-          count=$(echo $response | jq '.count')
-          if [ "$count" -lt 500 ]; then
-            exit 1
-          fi
-          echo "Smoke tests passed"

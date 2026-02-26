@@ -6,6 +6,13 @@ on:
     types: [completed]
     branches: [staging]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: stargate-staging-deploy
+  cancel-in-progress: true
+
 jobs:
   deploy:
     name: Deploy to Railway Staging
@@ -23,34 +30,56 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install verification dependencies
+        run: pip install requests
+
       - name: Install Railway CLI
         run: npm install -g @railway/cli
 
-      - name: Deploy to Staging
+      - name: Preflight staging environment
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
-        run: railway up --service stargate-staging
-
-      - name: Wait for deployment
-        run: sleep 30
-
-      - name: Health check
+          RAILWAY_SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
+          RAILWAY_STAGING_ENVIRONMENT: ${{ vars.RAILWAY_STAGING_ENVIRONMENT }}
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ vars.STAGING_URL }}/health)
-          if [ "$response" != "200" ]; then
-            echo "Health check failed with status $response"
-            exit 1
-          fi
-          echo "Staging health check passed"
+          SERVICE_NAME="${RAILWAY_SERVICE_NAME:-stargate-lite}"
+          STAGING_ENV="${RAILWAY_STAGING_ENVIRONMENT:-staging}"
+          python scripts/check_railway_readiness.py \
+            --environment "$STAGING_ENV" \
+            --service "$SERVICE_NAME" \
+            --expect-env-value staging
 
-      - name: Smoke test
+      - name: Deploy to staging
         env:
-          API_KEY: ${{ secrets.STAGING_API_KEY }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+          RAILWAY_SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
+          RAILWAY_STAGING_ENVIRONMENT: ${{ vars.RAILWAY_STAGING_ENVIRONMENT }}
         run: |
-          response=$(curl -s -H "X-API-Key: $API_KEY" ${{ vars.STAGING_URL }}/api/v1/capabilities)
-          count=$(echo $response | jq '.count')
-          if [ "$count" -lt 500 ]; then
-            echo "Expected 500+ capabilities, got $count"
-            exit 1
-          fi
-          echo "Smoke test passed: $count capabilities"
+          SERVICE_NAME="${RAILWAY_SERVICE_NAME:-stargate-lite}"
+          STAGING_ENV="${RAILWAY_STAGING_ENVIRONMENT:-staging}"
+          railway up --ci --service "$SERVICE_NAME" --environment "$STAGING_ENV"
+
+      - name: Verify staging API
+        env:
+          STAGING_URL: ${{ vars.STAGING_URL }}
+          STAGING_API_KEY: ${{ secrets.STAGING_API_KEY }}
+          STAGING_MIN_CAPABILITIES: ${{ vars.STAGING_MIN_CAPABILITIES }}
+        run: |
+          MIN_CAPS="${STAGING_MIN_CAPABILITIES:-100}"
+          for attempt in 1 2 3 4 5; do
+            if python scripts/verify_remote_api.py \
+              --base-url "$STAGING_URL" \
+              --api-key "$STAGING_API_KEY" \
+              --min-capabilities "$MIN_CAPS"; then
+              exit 0
+            fi
+            echo "Staging verification attempt $attempt failed, retrying..."
+            sleep 15
+          done
+          echo "Staging verification failed after retries"
+          exit 1

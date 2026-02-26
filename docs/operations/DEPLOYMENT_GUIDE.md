@@ -1,5 +1,8 @@
 # Aleq Production Deployment Guide
 
+For day-2 promotions of Stargate from staging to production, follow
+`docs/operations/PRODUCTION_PROMOTION.md`.
+
 ## Your System Architecture
 
 ```
