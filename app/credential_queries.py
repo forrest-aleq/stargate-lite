@@ -54,10 +54,7 @@ def resolve_credential_owner(
     extra_matches = {
         key.strip(): value.strip()
         for key, value in (extra_data_matches or {}).items()
-        if isinstance(key, str)
-        and isinstance(value, str)
-        and key.strip()
-        and value.strip()
+        if isinstance(key, str) and isinstance(value, str) and key.strip() and value.strip()
     }
 
     if not realm_id_value and not extra_matches:
@@ -77,9 +74,7 @@ def resolve_credential_owner(
 
             if extra_matches:
                 candidate_extra = (
-                    candidate.extra_data
-                    if isinstance(candidate.extra_data, dict)
-                    else {}
+                    candidate.extra_data if isinstance(candidate.extra_data, dict) else {}
                 )
                 has_all_matches = all(
                     str(candidate_extra.get(key, "")).strip() == expected
