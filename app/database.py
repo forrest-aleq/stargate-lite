@@ -13,6 +13,10 @@ from dotenv import load_dotenv
 from sqlalchemy import JSON, Column, DateTime, String, Text, create_engine
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
+from app.credential_queries import (
+    get_services_for_org as _query_services_for_org,
+    resolve_credential_owner as _resolve_credential_owner,
+)
 from app.logging_config import get_logger
 
 # Initialize logger
@@ -518,35 +522,14 @@ class CredentialManager:
         user_id: str,
         credential_type: str = "customer",
     ) -> list[str]:
-        """
-        Return list of services with active credentials for org/user.
-
-        Used by FCI utilities to discover which connectors are available
-        for aggregation without needing to know in advance.
-        """
-        db = SessionLocal()
-        try:
-            credentials = (
-                db.query(CredentialStore.service)
-                .filter(
-                    CredentialStore.org_id == org_id,
-                    CredentialStore.user_id == user_id,
-                    CredentialStore.credential_type == credential_type,
-                )
-                .distinct()
-                .all()
-            )
-            services = [cred.service for cred in credentials]
-            logger.debug(
-                "Retrieved services for org",
-                org_id=org_id,
-                user_id=user_id,
-                services=services,
-                log_event="get_services_for_org",
-            )
-            return services
-        finally:
-            db.close()
+        """Return list of services with active credentials for org/user."""
+        return _query_services_for_org(
+            SessionLocal,
+            CredentialStore,
+            org_id=org_id,
+            user_id=user_id,
+            credential_type=credential_type,
+        )
 
     @staticmethod
     def resolve_credential_owner(
@@ -556,64 +539,12 @@ class CredentialManager:
         extra_data_matches: dict[str, str] | None = None,
         credential_type: str | None = None,
     ) -> dict[str, str] | None:
-        """Resolve internal org/user identity from provider-native credential metadata.
-
-        This is used by inbound webhook routers that only receive provider IDs
-        (for example Stripe account IDs, QuickBooks realm IDs, Slack team IDs).
-
-        Returns:
-            {"org_id": "...", "user_id": "...", "credential_type": "..."} when matched,
-            otherwise None.
-        """
-        realm_id_value = (realm_id or "").strip()
-        extra_matches = {
-            key: value.strip()
-            for key, value in (extra_data_matches or {}).items()
-            if key.strip() and value.strip()
-        }
-
-        if not realm_id_value and not extra_matches:
-            return None
-
-        db = SessionLocal()
-        try:
-            query = db.query(CredentialStore).filter(CredentialStore.service == service)
-            if credential_type:
-                query = query.filter(CredentialStore.credential_type == credential_type)
-
-            candidates = query.order_by(CredentialStore.updated_at.desc()).all()
-
-            for candidate in candidates:
-                if realm_id_value and candidate.realm_id != realm_id_value:
-                    continue
-
-                if extra_matches:
-                    candidate_extra = (
-                        candidate.extra_data if isinstance(candidate.extra_data, dict) else {}
-                    )
-                    has_all_matches = all(
-                        str(candidate_extra.get(key, "")).strip() == expected
-                        for key, expected in extra_matches.items()
-                    )
-                    if not has_all_matches:
-                        continue
-
-                logger.debug(
-                    "Resolved credential owner from provider metadata",
-                    service=service,
-                    realm_id=realm_id_value or None,
-                    extra_data_keys=sorted(extra_matches.keys()) if extra_matches else [],
-                    org_id=candidate.org_id,
-                    user_id=candidate.user_id,
-                    credential_type=candidate.credential_type,
-                    log_event="credential_owner_resolved",
-                )
-                return {
-                    "org_id": candidate.org_id,
-                    "user_id": candidate.user_id,
-                    "credential_type": candidate.credential_type,
-                }
-
-            return None
-        finally:
-            db.close()
+        """Resolve internal org/user identity from provider metadata."""
+        return _resolve_credential_owner(
+            SessionLocal,
+            CredentialStore,
+            service,
+            realm_id=realm_id,
+            extra_data_matches=extra_data_matches,
+            credential_type=credential_type,
+        )
