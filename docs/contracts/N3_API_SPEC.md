@@ -453,7 +453,7 @@ X-RateLimit-Reset: 1706097600
 STARGATE_URL=https://stargate.up.railway.app
 STARGATE_API_KEY=<get from Stargate team>
 
-# Client-side (for OAuth redirects)
+# Optional legacy direct-browser fallback
 NEXT_PUBLIC_STARGATE_URL=https://stargate.up.railway.app
 ```
 
@@ -492,15 +492,14 @@ const res = await fetch(`${process.env.STARGATE_URL}/api/v1/connectors/status`, 
 
 2. **Connect Button**
 ```typescript
-// components/IntegrationCard.tsx
-const handleConnect = (provider: string) => {
-  const url = `${process.env.NEXT_PUBLIC_STARGATE_URL}/oauth/${provider}/authorize`;
-  const params = new URLSearchParams({
-    org_id: session.orgId,
-    user_id: session.userId,
-  });
-  window.location.href = `${url}?${params}`;
-};
+// app/(dashboard)/settings/integrations/page.tsx
+const r = await fetch('/api/integrations', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
+  body: JSON.stringify({ provider, source: 'settings' }),
+});
+const data = await r.json();
+window.location.href = data.oauth_url;
 ```
 
 3. **Success Handler**

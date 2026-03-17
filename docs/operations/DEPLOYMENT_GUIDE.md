@@ -206,9 +206,7 @@ STARGATE_API_KEY=<same-API_SECRET_KEY-from-Stargate>
 # DATABASE
 # ===========================================
 DATABASE_URL=postgresql://user:pass@host:5432/dbname
-# OR if using Supabase:
-SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_SERVICE_KEY=eyJ...
+# If using Supabase, set DATABASE_URL to the project's Postgres connection string.
 
 # ===========================================
 # AI PROVIDER
@@ -389,7 +387,7 @@ Aleq Prod:      https://app.aleq.ai (your domain)
 
 **Vercel:**
 - Use Preview deployments for staging (every PR gets a preview URL)
-- Production deployment is your main branch
+- Production deployment is whichever branch Vercel is configured to treat as Production
 - Set different env vars per environment (Settings → Environment Variables → select "Production" or "Preview")
 
 ---
@@ -548,7 +546,7 @@ SENTRY_DSN=...
 ```
 STARGATE_URL=https://stargate-xxx.up.railway.app
 STARGATE_API_KEY=<same-as-Stargate-API_SECRET_KEY>  # CRITICAL
-DATABASE_URL=... or SUPABASE_URL + SUPABASE_SERVICE_KEY
+DATABASE_URL=<postgres connection string>  # Use the Supabase Postgres URL if Supabase backs this service
 ANTHROPIC_API_KEY=... or AZURE_* keys
 POSTHOG_API_KEY=...
 ENVIRONMENT=staging|production
