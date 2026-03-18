@@ -59,6 +59,58 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 _utcnow = lambda: datetime.now(UTC)  # noqa: E731
 
+_CREDENTIAL_HEALTH_KEY = "_aleq_credential_health"
+_INVALID_AUTH_STATUSES = frozenset({"expired", "invalid", "revoked", "reauthorization_required"})
+
+
+def _coerce_extra_data(value: dict[str, Any] | None) -> dict[str, Any]:
+    """Normalize stored extra_data to a mutable dictionary."""
+    return dict(value) if isinstance(value, dict) else {}
+
+
+def extract_credential_auth_status(extra_data: dict[str, Any] | None) -> str | None:
+    """Read Aleq's auth-health status from connector metadata."""
+    health = _coerce_extra_data(_coerce_extra_data(extra_data).get(_CREDENTIAL_HEALTH_KEY))
+    raw_status = str(health.get("auth_status") or "").strip().lower()
+    return raw_status or None
+
+
+def credential_auth_status_is_invalid(extra_data: dict[str, Any] | None) -> bool:
+    """Whether the credential metadata says auth is no longer usable."""
+    status = extract_credential_auth_status(extra_data)
+    return status in _INVALID_AUTH_STATUSES
+
+
+def _merge_credential_extra_data(
+    existing: dict[str, Any] | None,
+    incoming: dict[str, Any] | None,
+    *,
+    auth_status: str,
+    error_code: str | None = None,
+    failure_reason: str | None = None,
+) -> dict[str, Any]:
+    """Merge service metadata while maintaining credential auth-health state."""
+    merged = _coerce_extra_data(existing)
+    merged.update(_coerce_extra_data(incoming))
+
+    health = _coerce_extra_data(merged.get(_CREDENTIAL_HEALTH_KEY))
+    health["auth_status"] = auth_status
+    health["auth_checked_at"] = datetime.now(UTC).isoformat()
+
+    if auth_status == "connected":
+        health.pop("last_error_code", None)
+        health.pop("last_failure_reason", None)
+        health.pop("last_invalidated_at", None)
+    else:
+        if error_code:
+            health["last_error_code"] = error_code
+        if failure_reason:
+            health["last_failure_reason"] = failure_reason
+        health["last_invalidated_at"] = datetime.now(UTC).isoformat()
+
+    merged[_CREDENTIAL_HEALTH_KEY] = health
+    return merged
+
 
 class CredentialStore(Base):
     """Table for storing encrypted OAuth credentials with dual credential system"""
@@ -169,7 +221,11 @@ class CredentialManager:
         existing.token_expiry = token_expiry
         existing.realm_id = realm_id
         existing.access_pattern = access_pattern
-        existing.extra_data = extra_data or {}
+        existing.extra_data = _merge_credential_extra_data(
+            existing.extra_data,
+            extra_data,
+            auth_status="connected",
+        )
         existing.updated_at = datetime.now(UTC)
 
     @staticmethod
@@ -208,7 +264,11 @@ class CredentialManager:
             ),
             token_expiry=token_expiry,
             realm_id=realm_id,
-            extra_data=extra_data or {},
+            extra_data=_merge_credential_extra_data(
+                None,
+                extra_data,
+                auth_status="connected",
+            ),
             created_by=created_by,
         )
 
@@ -510,6 +570,7 @@ class CredentialManager:
                     "access_pattern": cred.access_pattern,
                     "token_expiry": cred.token_expiry,
                     "updated_at": cred.updated_at,
+                    "extra_data": cred.extra_data or {},
                 }
                 for cred in credentials
             ]
@@ -545,6 +606,7 @@ class CredentialManager:
                     CredentialStore.credential_type,
                     CredentialStore.token_expiry,
                     CredentialStore.updated_at,
+                    CredentialStore.extra_data,
                 )
                 .filter(
                     CredentialStore.org_id == org_id,
@@ -558,9 +620,72 @@ class CredentialManager:
                     "credential_type": credential_type,
                     "token_expiry": token_expiry,
                     "updated_at": updated_at,
+                    "extra_data": extra_data or {},
                 }
-                for service, credential_type, token_expiry, updated_at in rows
+                for service, credential_type, token_expiry, updated_at, extra_data in rows
             ]
+        finally:
+            db.close()
+
+    @staticmethod
+    def update_credential_auth_state(
+        org_id: str,
+        user_id: str,
+        service: str,
+        credential_type: str = "customer",
+        *,
+        auth_status: str,
+        error_code: str | None = None,
+        failure_reason: str | None = None,
+    ) -> bool:
+        """Update credential auth-health metadata without rotating the tokens."""
+        credential_id = f"{org_id}:{user_id}:{service}:{credential_type}"
+        db = SessionLocal()
+        try:
+            cred = db.query(CredentialStore).filter_by(id=credential_id).first()
+            if not cred:
+                logger.warning(
+                    "Credential not found for auth-state update",
+                    service=service,
+                    org_id=org_id,
+                    user_id=user_id,
+                    credential_type=credential_type,
+                    log_event="credential_auth_state_missing",
+                )
+                return False
+
+            cred.extra_data = _merge_credential_extra_data(
+                cred.extra_data,
+                None,
+                auth_status=auth_status,
+                error_code=error_code,
+                failure_reason=failure_reason,
+            )
+            cred.updated_at = datetime.now(UTC)
+            db.commit()
+            logger.info(
+                "Credential auth state updated",
+                service=service,
+                org_id=org_id,
+                user_id=user_id,
+                credential_type=credential_type,
+                auth_status=auth_status,
+                log_event="credential_auth_state_updated",
+            )
+            return True
+        except Exception:
+            db.rollback()
+            logger.error(
+                "Failed to update credential auth state",
+                service=service,
+                org_id=org_id,
+                user_id=user_id,
+                credential_type=credential_type,
+                auth_status=auth_status,
+                log_event="credential_auth_state_error",
+                exc_info=True,
+            )
+            raise
         finally:
             db.close()
 

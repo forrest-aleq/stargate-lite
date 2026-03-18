@@ -224,6 +224,31 @@ def test_build_workflow_connector_statuses_prefers_customer_and_latest_record() 
     assert statuses[0].credential_type == "customer"
 
 
+def test_build_workflow_connector_status_marks_auth_invalid_even_before_token_expiry() -> None:
+    now = datetime.now(UTC)
+    statuses = connector_health.build_workflow_connector_statuses(
+        ["quickbooks"],
+        [
+            {
+                "service": "quickbooks",
+                "credential_type": "customer",
+                "token_expiry": now.replace(year=now.year + 1),
+                "updated_at": now,
+                "extra_data": {
+                    "_aleq_credential_health": {
+                        "auth_status": "expired",
+                    }
+                },
+            }
+        ],
+        now,
+    )
+
+    assert len(statuses) == 1
+    assert statuses[0].status == "expired"
+    assert statuses[0].credential_type == "customer"
+
+
 @pytest.mark.asyncio
 async def test_connected_services_route_returns_connected_and_expired(monkeypatch) -> None:
     now = datetime.now(UTC)
@@ -236,12 +261,18 @@ async def test_connected_services_route_returns_connected_and_expired(monkeypatc
                 "credential_type": "customer",
                 "token_expiry": None,
                 "updated_at": now,
+                "extra_data": {},
             },
             {
                 "service": "xero",
                 "credential_type": "customer",
-                "token_expiry": now.replace(year=now.year - 1),
+                "token_expiry": now.replace(year=now.year + 1),
                 "updated_at": now,
+                "extra_data": {
+                    "_aleq_credential_health": {
+                        "auth_status": "expired",
+                    }
+                },
             },
         ],
     )

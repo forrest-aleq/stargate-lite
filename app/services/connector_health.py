@@ -11,7 +11,7 @@ from app.constants.services import (
     SERVICE_DISPLAY_NAMES,
     WORKFLOW_OAUTH_REQUIREMENTS,
 )
-from app.database import CredentialManager
+from app.database import CredentialManager, credential_auth_status_is_invalid
 from app.models import ConnectorStatus, WorkflowConnectorStatus
 
 
@@ -159,11 +159,12 @@ def build_workflow_connector_status_from_credential(
     if token_expiry and token_expiry.tzinfo is None:
         token_expiry = token_expiry.replace(tzinfo=UTC)
     is_expired = token_expiry and token_expiry < now
+    auth_invalid = credential_auth_status_is_invalid(credential.get("extra_data"))
 
     return WorkflowConnectorStatus(
         kind=service,
         display_name=display_name,
-        status="expired" if is_expired else "connected",
+        status="expired" if is_expired or auth_invalid else "connected",
         requires_oauth=requires_oauth,
         credential_type=credential_type,
         token_expiry=token_expiry,

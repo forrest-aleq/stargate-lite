@@ -8,12 +8,14 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 from app.database import CredentialManager
-from app.errors import CredentialMissingError, NetworkError
+from app.errors import CredentialInvalidError, CredentialMissingError, NetworkError
 from app.http_client import http_client
 from app.logging_config import get_logger
 from app.posthog_client import track_token_refreshed
 
 logger = get_logger(__name__)
+
+_INVALID_QBO_AUTH_STATUSES = {"expired", "invalid", "revoked", "reauthorization_required"}
 
 
 class QuickBooksBase:
@@ -51,16 +53,25 @@ class QuickBooksBase:
         if not cred:
             raise CredentialMissingError("quickbooks", org_id, user_id)
 
-        # Check if token is expired or about to expire
-        if cred["token_expiry"] and cred["token_expiry"] < datetime.now(UTC) + timedelta(minutes=5):
+        extra_data = cred.get("extra_data") or {}
+        health = extra_data.get("_aleq_credential_health") or {}
+        auth_status = str(health.get("auth_status") or "").strip().lower()
+        should_refresh = bool(
+            cred["token_expiry"] and cred["token_expiry"] < datetime.now(UTC) + timedelta(minutes=5)
+        ) or auth_status in _INVALID_QBO_AUTH_STATUSES
+
+        if should_refresh:
+            refresh_token = cred.get("refresh_token")
+            if not refresh_token:
+                raise CredentialInvalidError("quickbooks", "Reauthorization required")
             logger.info(
-                "Token expired or expiring soon, refreshing",
+                "Token expired, invalid, or expiring soon; refreshing",
                 service="quickbooks",
                 org_id=org_id,
                 user_id=user_id,
                 log_event="token_refresh_needed",
             )
-            return self._refresh_token(org_id, user_id, cred["refresh_token"])
+            return self._refresh_token(org_id, user_id, refresh_token)
 
         return cred
 

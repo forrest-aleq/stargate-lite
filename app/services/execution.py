@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.circuit_breaker import is_open, record_failure, record_success
+from app.connectors.quickbooks.base import QuickBooksBase
 from app.constants.services import build_connect_url
 from app.errors import (
     CapabilityNotFoundError,
@@ -17,6 +18,7 @@ from app.errors import (
     StargateError,
     classify_exception,
 )
+from app.database import CredentialManager
 from app.logging_config import get_logger
 from app.models import ToolExecutionRequest
 from app.models_webhook import WebhookEvent
@@ -29,6 +31,10 @@ from app.sentry_config import (
     capture_connector_error as sentry_capture_connector_error,
     set_capability_context,
     set_user_context,
+)
+from app.services.connector_events import (
+    build_connector_event_source,
+    emit_connector_lifecycle_event,
 )
 
 logger = get_logger(__name__)
@@ -161,27 +167,46 @@ async def execute_handler(
         exec_user_id = request.user_id
 
     handler_start = time.time()
-    try:
-        outputs = await asyncio.wait_for(
-            asyncio.to_thread(handler, org_id=exec_org_id, user_id=exec_user_id, args=request.args),
-            timeout=HANDLER_TIMEOUT_SECONDS,
-        )
-    except TimeoutError:
-        handler_duration_ms = (time.time() - handler_start) * 1000
-        logger.error(
-            "Handler execution timed out",
-            tool_name=tool_name,
-            service=service,
-            handler_duration_ms=round(handler_duration_ms, 2),
-            timeout_seconds=HANDLER_TIMEOUT_SECONDS,
-            log_event="handler_timeout",
-        )
-        await asyncio.to_thread(record_failure, service)
-        raise NetworkError(service=service) from None
-    except StargateError as e:
-        if e.error_code in (ErrorCode.NETWORK_ERROR, ErrorCode.RATE_LIMIT):
+    refreshed_once = False
+    while True:
+        try:
+            outputs = await asyncio.wait_for(
+                asyncio.to_thread(
+                    handler,
+                    org_id=exec_org_id,
+                    user_id=exec_user_id,
+                    args=request.args,
+                ),
+                timeout=HANDLER_TIMEOUT_SECONDS,
+            )
+            break
+        except TimeoutError:
+            handler_duration_ms = (time.time() - handler_start) * 1000
+            logger.error(
+                "Handler execution timed out",
+                tool_name=tool_name,
+                service=service,
+                handler_duration_ms=round(handler_duration_ms, 2),
+                timeout_seconds=HANDLER_TIMEOUT_SECONDS,
+                log_event="handler_timeout",
+            )
             await asyncio.to_thread(record_failure, service)
-        raise
+            raise NetworkError(service=service) from None
+        except StargateError as e:
+            can_retry = not refreshed_once and await _maybe_refresh_invalid_quickbooks_credentials(
+                error=e,
+                service=service,
+                credential_type=cred_type,
+                exec_org_id=exec_org_id,
+                exec_user_id=exec_user_id,
+                logs=logs,
+            )
+            if can_retry:
+                refreshed_once = True
+                continue
+            if e.error_code in (ErrorCode.NETWORK_ERROR, ErrorCode.RATE_LIMIT):
+                await asyncio.to_thread(record_failure, service)
+            raise
     handler_duration_ms = (time.time() - handler_start) * 1000
 
     # Record success to reset circuit breaker
@@ -211,6 +236,72 @@ async def execute_handler(
     )
 
     return outputs, handler_duration_ms
+
+
+def _refresh_quickbooks_credentials(
+    org_id: str,
+    user_id: str,
+    credential_type: str | None,
+) -> bool:
+    """Refresh a QuickBooks credential in-place so the original handler can be retried."""
+    credential = CredentialManager.get_credential(
+        org_id=org_id,
+        user_id=user_id,
+        service="quickbooks",
+        credential_type=credential_type or "customer",
+    )
+    if not credential:
+        return False
+
+    refresh_token = credential.get("refresh_token")
+    if not isinstance(refresh_token, str) or not refresh_token.strip():
+        return False
+
+    QuickBooksBase()._refresh_token(org_id, user_id, refresh_token)
+    return True
+
+
+async def _maybe_refresh_invalid_quickbooks_credentials(
+    *,
+    error: StargateError,
+    service: str,
+    credential_type: str | None,
+    exec_org_id: str,
+    exec_user_id: str,
+    logs: list[str],
+) -> bool:
+    """One-shot recovery for stale QuickBooks tokens that fail before expiry metadata flips."""
+    if service != "quickbooks" or error.error_code != ErrorCode.CREDENTIALS_INVALID:
+        return False
+
+    try:
+        refreshed = await asyncio.to_thread(
+            _refresh_quickbooks_credentials,
+            exec_org_id,
+            exec_user_id,
+            credential_type,
+        )
+    except Exception:
+        logger.warning(
+            "QuickBooks credential refresh retry failed",
+            org_id=exec_org_id,
+            user_id=exec_user_id,
+            credential_type=credential_type,
+            log_event="quickbooks_refresh_retry_failed",
+            exc_info=True,
+        )
+        return False
+
+    if refreshed:
+        logs.append("QuickBooks credential refreshed after authentication failure; retrying once")
+        logger.info(
+            "QuickBooks credential refreshed after auth failure; retrying handler once",
+            org_id=exec_org_id,
+            user_id=exec_user_id,
+            credential_type=credential_type,
+            log_event="quickbooks_refresh_retry_success",
+        )
+    return refreshed
 
 
 def build_success_response(
@@ -248,17 +339,17 @@ async def handle_stargate_error(
     error_dict["credential_type"] = capability.get("credential_type") if capability else None
     error_dict["timestamp"] = datetime.now(UTC).isoformat()
 
-    # Enrich CREDENTIALS_MISSING with connect_url so Aleq can send the user to OAuth
-    if e.error_code == ErrorCode.CREDENTIALS_MISSING:
+    # Enrich credential errors with connect_url so Aleq can send the user to OAuth
+    if e.error_code in (ErrorCode.CREDENTIALS_MISSING, ErrorCode.CREDENTIALS_INVALID):
         service = capability["service"] if capability else e.details.get("service", "")
         connect_url = build_connect_url(service, request.org_id, request.user_id)
         if connect_url:
             error_dict["connect_url"] = connect_url
 
     total_duration_ms = (time.time() - start_time) * 1000
+    service = capability["service"] if capability else "unknown"
 
     # Capture to Sentry with full context
-    service = capability["service"] if capability else "unknown"
     await asyncio.to_thread(
         sentry_capture_connector_error,
         error=e,
@@ -292,6 +383,37 @@ async def handle_stargate_error(
         session_id=session_id,
         capability_key=request.capability_key,
     )
+
+    if (
+        e.error_code == ErrorCode.CREDENTIALS_INVALID
+        and capability
+        and capability.get("credential_type") == "customer"
+    ):
+        failure_reason = (
+            str(e.details.get("reason"))
+            if isinstance(e.details, dict) and e.details.get("reason")
+            else e.message
+        )
+        await asyncio.to_thread(
+            CredentialManager.update_credential_auth_state,
+            request.org_id,
+            request.user_id,
+            service,
+            "customer",
+            auth_status="expired",
+            error_code=error_code_str,
+            failure_reason=failure_reason,
+        )
+        await emit_connector_lifecycle_event(
+            service=service,
+            org_id=request.org_id,
+            user_id=request.user_id,
+            status="expired",
+            origin="execution_error",
+            source=build_connector_event_source(session_id),
+            error_code=error_code_str,
+            reason=failure_reason,
+        )
 
     logger.error(
         "Execute request failed with StargateError",
