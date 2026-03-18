@@ -82,6 +82,63 @@
         "title": "CapabilityInfo",
         "type": "object"
       },
+      "ConnectedServicesRequest": {
+        "description": "Request to resolve live connected services for an org/user principal.",
+        "example": {
+          "org_id": "org_12345",
+          "user_id": "user_67890"
+        },
+        "properties": {
+          "org_id": {
+            "description": "Organization ID",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User ID",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id",
+          "user_id"
+        ],
+        "title": "ConnectedServicesRequest",
+        "type": "object"
+      },
+      "ConnectedServicesResponse": {
+        "description": "Lightweight connector-truth response for live connected/expired services.",
+        "example": {
+          "connected_services": [
+            "quickbooks",
+            "stripe"
+          ],
+          "expired_services": [
+            "xero"
+          ]
+        },
+        "properties": {
+          "connected_services": {
+            "description": "Services with currently usable credentials",
+            "items": {
+              "type": "string"
+            },
+            "title": "Connected Services",
+            "type": "array"
+          },
+          "expired_services": {
+            "description": "Services present but currently expired",
+            "items": {
+              "type": "string"
+            },
+            "title": "Expired Services",
+            "type": "array"
+          }
+        },
+        "title": "ConnectedServicesResponse",
+        "type": "object"
+      },
       "ConnectorHealthResponse": {
         "description": "Detailed health check for all connectors (admin endpoint)",
         "example": {
@@ -967,6 +1024,98 @@
         "summary": "List Capabilities Enhanced",
         "tags": [
           "schemas"
+        ]
+      }
+    },
+    "/api/v1/connectors/connected": {
+      "post": {
+        "description": "Return the lightweight live connector-truth surface for an org/user principal.",
+        "operationId": "get_connected_services_api_v1_connectors_connected_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Timestamp",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Timestamp"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Signature-256",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Signature-256"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectedServicesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectedServicesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Connected Services",
+        "tags": [
+          "connectors"
         ]
       }
     },

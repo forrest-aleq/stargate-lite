@@ -108,17 +108,43 @@ def get_credential_with_fallback(
     return None, None
 
 
-def build_workflow_connector_status(
-    service: str, org_id: str, user_id: str, now: datetime
+def _select_preferred_workflow_credential(
+    credentials: list[dict[str, Any]],
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Pick the credential record that workflow status should reflect.
+
+    Preserve existing behavior: prefer customer credentials over agent credentials,
+    then prefer the freshest record within that type.
+    """
+    if not credentials:
+        return None, None
+
+    def _sort_key(item: dict[str, Any]) -> tuple[int, float]:
+        cred_type = str(item.get("credential_type") or "")
+        updated_at = item.get("updated_at")
+        if not isinstance(updated_at, datetime):
+            updated_at = datetime.min.replace(tzinfo=UTC)
+        elif updated_at.tzinfo is None:
+            updated_at = updated_at.replace(tzinfo=UTC)
+        type_rank = 0 if cred_type == "customer" else 1
+        return (-type_rank, updated_at.timestamp())
+
+    preferred = max(credentials, key=_sort_key)
+    cred_type = str(preferred.get("credential_type") or "") or None
+    return preferred, cred_type
+
+
+def build_workflow_connector_status_from_credential(
+    service: str,
+    credential: dict[str, Any] | None,
+    credential_type: str | None,
+    now: datetime,
 ) -> WorkflowConnectorStatus:
-    """Build WorkflowConnectorStatus for a single service."""
-    # Fail closed for unknown services to avoid false "connected" states.
+    """Build workflow connector status from a pre-fetched credential record."""
     requires_oauth = WORKFLOW_OAUTH_REQUIREMENTS.get(service, True)
     display_name = SERVICE_DISPLAY_NAMES.get(service, service.title())
 
-    cred, credential_type = get_credential_with_fallback(org_id, user_id, service)
-
-    if not cred:
+    if not credential:
         return WorkflowConnectorStatus(
             kind=service,
             display_name=display_name,
@@ -129,7 +155,7 @@ def build_workflow_connector_status(
             last_updated=None,
         )
 
-    token_expiry = cred.get("token_expiry")
+    token_expiry = credential.get("token_expiry")
     if token_expiry and token_expiry.tzinfo is None:
         token_expiry = token_expiry.replace(tzinfo=UTC)
     is_expired = token_expiry and token_expiry < now
@@ -141,7 +167,49 @@ def build_workflow_connector_status(
         requires_oauth=requires_oauth,
         credential_type=credential_type,
         token_expiry=token_expiry,
-        last_updated=cred.get("updated_at"),
+        last_updated=credential.get("updated_at"),
+    )
+
+
+def build_workflow_connector_statuses(
+    services: list[str],
+    credentials: list[dict[str, Any]],
+    now: datetime,
+) -> list[WorkflowConnectorStatus]:
+    """Build workflow connector statuses from one bulk credential query."""
+    credentials_by_service: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for credential in credentials:
+        service = str(credential.get("service") or "").strip().lower()
+        if not service:
+            continue
+        credentials_by_service[service].append(credential)
+
+    statuses: list[WorkflowConnectorStatus] = []
+    for service in services:
+        credential, credential_type = _select_preferred_workflow_credential(
+            credentials_by_service.get(service, [])
+        )
+        statuses.append(
+            build_workflow_connector_status_from_credential(
+                service,
+                credential,
+                credential_type,
+                now,
+            )
+        )
+    return statuses
+
+
+def build_workflow_connector_status(
+    service: str, org_id: str, user_id: str, now: datetime
+) -> WorkflowConnectorStatus:
+    """Build WorkflowConnectorStatus for a single service."""
+    cred, credential_type = get_credential_with_fallback(org_id, user_id, service)
+    return build_workflow_connector_status_from_credential(
+        service,
+        cred,
+        credential_type,
+        now,
     )
 
 

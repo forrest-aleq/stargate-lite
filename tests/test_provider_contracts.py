@@ -78,7 +78,7 @@ class TestN3ContractEndpoints:
     """Every endpoint in N3_CONTRACT must exist on the FastAPI app."""
 
     def test_n3_contract_version(self) -> None:
-        assert N3_CONTRACT["version"] == "1.0.0"
+        assert N3_CONTRACT["version"] == "1.1.0"
 
     def test_n3_health_endpoint_exists(self, client: TestClient) -> None:
         resp = client.get("/health")

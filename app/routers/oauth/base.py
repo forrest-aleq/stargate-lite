@@ -72,7 +72,12 @@ def get_n3_base_url() -> str:
     return os.getenv("N3_FRONTEND_URL", "http://localhost:3000")
 
 
-def _emit_connector_connected_event(service: str, org_id: str | None, user_id: str | None) -> None:
+def _emit_connector_connected_event(
+    service: str,
+    org_id: str | None,
+    user_id: str | None,
+    source: str | None = None,
+) -> None:
     """Best-effort connector lifecycle event for Baby MARS after OAuth success."""
     if not org_id:
         return
@@ -99,6 +104,8 @@ def _emit_connector_connected_event(service: str, org_id: str | None, user_id: s
     }
     if user_id:
         payload["user_id"] = user_id
+    if source:
+        payload["source"] = source
 
     event_body = {
         "event_type": "connector.connected",
@@ -152,7 +159,13 @@ def build_oauth_success_redirect(
     user_id: str | None = None,
 ) -> RedirectResponse:
     """Build redirect to N3 success page after OAuth completion."""
-    _emit_connector_connected_event(service=service, org_id=org_id, user_id=user_id)
+    source = extra_params.get("source") if isinstance(extra_params, dict) else None
+    _emit_connector_connected_event(
+        service=service,
+        org_id=org_id,
+        user_id=user_id,
+        source=source,
+    )
 
     base_url = get_n3_base_url()
     params: dict[str, str] = {"connected": service}

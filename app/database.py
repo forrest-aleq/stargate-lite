@@ -532,6 +532,39 @@ class CredentialManager:
         )
 
     @staticmethod
+    def get_credentials_for_org_user(
+        org_id: str,
+        user_id: str,
+    ) -> list[dict[str, Any]]:
+        """Return undecrypted credential metadata for a specific org/user principal."""
+        db = SessionLocal()
+        try:
+            rows = (
+                db.query(
+                    CredentialStore.service,
+                    CredentialStore.credential_type,
+                    CredentialStore.token_expiry,
+                    CredentialStore.updated_at,
+                )
+                .filter(
+                    CredentialStore.org_id == org_id,
+                    CredentialStore.user_id == user_id,
+                )
+                .all()
+            )
+            return [
+                {
+                    "service": service,
+                    "credential_type": credential_type,
+                    "token_expiry": token_expiry,
+                    "updated_at": updated_at,
+                }
+                for service, credential_type, token_expiry, updated_at in rows
+            ]
+        finally:
+            db.close()
+
+    @staticmethod
     def resolve_credential_owner(
         service: str,
         *,

@@ -272,6 +272,40 @@ class ConnectorStatusRequest(BaseModel):
         }
 
 
+class ConnectedServicesRequest(BaseModel):
+    """Request to resolve live connected services for an org/user principal."""
+
+    org_id: str = Field(..., description="Organization ID")
+    user_id: str = Field(..., description="User ID")
+
+    class Config:
+        json_schema_extra: ClassVar[dict[str, Any]] = {
+            "example": {
+                "org_id": "org_12345",
+                "user_id": "user_67890",
+            }
+        }
+
+
+class ConnectedServicesResponse(BaseModel):
+    """Lightweight connector-truth response for live connected/expired services."""
+
+    connected_services: list[str] = Field(
+        default_factory=list, description="Services with currently usable credentials"
+    )
+    expired_services: list[str] = Field(
+        default_factory=list, description="Services present but currently expired"
+    )
+
+    class Config:
+        json_schema_extra: ClassVar[dict[str, Any]] = {
+            "example": {
+                "connected_services": ["quickbooks", "stripe"],
+                "expired_services": ["xero"],
+            }
+        }
+
+
 class WorkflowConnectorStatus(BaseModel):
     """Status for a single connector in workflow context"""
 

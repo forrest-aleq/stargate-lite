@@ -1,10 +1,12 @@
 from datetime import UTC, datetime
+from types import SimpleNamespace
 
 import pytest
 
 from app.constants.services import WORKFLOW_OAUTH_REQUIREMENTS
-from app.models import ConnectorStatusRequest, WorkflowConnectorStatus
+from app.models import ConnectedServicesRequest, ConnectorStatusRequest, WorkflowConnectorStatus
 from app.routers import connectors as connectors_router
+from app.routers.oauth.base import build_oauth_success_redirect
 from app.services import connector_health
 
 
@@ -145,23 +147,27 @@ def test_normalize_services_dedupes_and_lowers() -> None:
 
 @pytest.mark.asyncio
 async def test_connectors_status_route_uses_normalized_services(monkeypatch) -> None:
-    calls: list[str] = []
+    calls: list[list[str]] = []
 
-    def _fake_build(
-        service: str, org_id: str, user_id: str, now: datetime
-    ) -> WorkflowConnectorStatus:
-        calls.append(service)
-        return WorkflowConnectorStatus(
-            kind=service,
-            display_name=service.title(),
-            status="connected",
-            requires_oauth=True,
-            credential_type="customer",
-            token_expiry=None,
-            last_updated=None,
-        )
+    def _fake_build_many(
+        services: list[str], credentials: list[dict[str, object]], now: datetime
+    ) -> list[WorkflowConnectorStatus]:
+        calls.append(services)
+        return [
+            WorkflowConnectorStatus(
+                kind=service,
+                display_name=service.title(),
+                status="connected",
+                requires_oauth=True,
+                credential_type="customer",
+                token_expiry=None,
+                last_updated=None,
+            )
+            for service in services
+        ]
 
-    monkeypatch.setattr(connectors_router, "build_workflow_connector_status", _fake_build)
+    monkeypatch.setattr(connectors_router.CredentialManager, "get_credentials_for_org_user", lambda org_id, user_id: [])
+    monkeypatch.setattr(connectors_router, "build_workflow_connector_statuses", _fake_build_many)
     monkeypatch.setattr(
         connectors_router,
         "aggregate_connector_status",
@@ -175,7 +181,7 @@ async def test_connectors_status_route_uses_normalized_services(monkeypatch) -> 
     )
 
     result = await connectors_router.check_workflow_connector_status(request, True)
-    assert calls == ["quickbooks", "plaid"]
+    assert calls == [["quickbooks", "plaid"]]
     assert [c.kind for c in result.connectors] == ["quickbooks", "plaid"]
 
 
@@ -190,3 +196,92 @@ async def test_connectors_status_route_fails_closed_after_normalization() -> Non
     assert result.connectors == []
     assert result.all_connected is False
     assert result.missing_count == 1
+
+
+def test_build_workflow_connector_statuses_prefers_customer_and_latest_record() -> None:
+    now = datetime.now(UTC)
+    statuses = connector_health.build_workflow_connector_statuses(
+        ["quickbooks"],
+        [
+            {
+                "service": "quickbooks",
+                "credential_type": "agent",
+                "token_expiry": None,
+                "updated_at": now.replace(hour=1),
+            },
+            {
+                "service": "quickbooks",
+                "credential_type": "customer",
+                "token_expiry": None,
+                "updated_at": now.replace(hour=2),
+            },
+        ],
+        now,
+    )
+
+    assert len(statuses) == 1
+    assert statuses[0].status == "connected"
+    assert statuses[0].credential_type == "customer"
+
+
+@pytest.mark.asyncio
+async def test_connected_services_route_returns_connected_and_expired(monkeypatch) -> None:
+    now = datetime.now(UTC)
+    monkeypatch.setattr(
+        connectors_router.CredentialManager,
+        "get_credentials_for_org_user",
+        lambda org_id, user_id: [
+            {
+                "service": "quickbooks",
+                "credential_type": "customer",
+                "token_expiry": None,
+                "updated_at": now,
+            },
+            {
+                "service": "xero",
+                "credential_type": "customer",
+                "token_expiry": now.replace(year=now.year - 1),
+                "updated_at": now,
+            },
+        ],
+    )
+
+    result = await connectors_router.get_connected_services(
+        ConnectedServicesRequest(org_id="org_123", user_id="user_456"),
+        True,
+    )
+
+    assert result.connected_services == ["quickbooks"]
+    assert result.expired_services == ["xero"]
+
+
+def test_oauth_success_redirect_emits_source_in_connector_event(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_post(url: str, json: dict[str, object], headers: dict[str, str], timeout: int):
+        captured["url"] = url
+        captured["json"] = json
+        captured["headers"] = headers
+        captured["timeout"] = timeout
+        return SimpleNamespace(status_code=200)
+
+    monkeypatch.setenv("BABY_MARS_WEBHOOK_URL", "https://baby-mars.example/webhooks/stargate")
+    monkeypatch.setenv("API_SECRET_KEY", "test-secret")
+    monkeypatch.setenv("N3_FRONTEND_URL", "https://aleq.example")
+    monkeypatch.setattr("app.routers.oauth.base.requests.post", _fake_post)
+
+    response = build_oauth_success_redirect(
+        "quickbooks",
+        org_id="org_1",
+        user_id="user_1",
+        extra_params={"source": "chat__session_abc123def456"},
+    )
+
+    assert response.headers["location"].startswith(
+        "https://aleq.example/settings/integrations?connected=quickbooks"
+    )
+    payload = captured["json"]
+    assert isinstance(payload, dict)
+    event_payload = payload["payload"]
+    assert isinstance(event_payload, dict)
+    assert event_payload["source"] == "chat__session_abc123def456"

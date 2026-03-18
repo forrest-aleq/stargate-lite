@@ -3,7 +3,7 @@ Routers package for Stargate Lite.
 
 Contains all API route modules:
 - health: Health check routes (/, /health, /health/connectors)
-- connectors: Workflow connector status (/api/v1/connectors/status)
+- connectors: Workflow connector truth/status (/api/v1/connectors/status, /api/v1/connectors/connected)
 - credentials: Credential and capability routes (/api/v1/credentials/*, /api/v1/capabilities)
 - execute: Tool execution route (/api/v1/execute)
 - oauth: OAuth callback routes for various services

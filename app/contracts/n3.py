@@ -1,8 +1,8 @@
 """
-N3 Provider Contract (v1.0.0)
+N3 Provider Contract (v1.1.0)
 
 Declares the locked API surface that the N3 frontend can call on Stargate.
-N3 only does: check connector status, start/callback OAuth, check/revoke
+N3 only does: check connector truth/status, start/callback OAuth, check/revoke
 credentials, read credential metadata. No execute. No capabilities.
 
 Any change to this contract must be reflected in CHANGELOG.md.
@@ -10,7 +10,7 @@ Any change to this contract must be reflected in CHANGELOG.md.
 
 N3_CONTRACT: dict[str, object] = {
     "consumer": "n3",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "What the N3 frontend can call on Stargate",
     "endpoints": [
         {
@@ -25,6 +25,13 @@ N3_CONTRACT: dict[str, object] = {
             "auth": True,
             "request_model": "ConnectorStatusRequest",
             "response_model": "ConnectorStatusResponse",
+        },
+        {
+            "method": "POST",
+            "path": "/api/v1/connectors/connected",
+            "auth": True,
+            "request_model": "ConnectedServicesRequest",
+            "response_model": "ConnectedServicesResponse",
         },
         {
             "method": "POST",
