@@ -27,6 +27,51 @@ ENABLED_SERVICES: set[str] = (
     {s.strip() for s in _env_enabled.split(",") if s.strip()} if _env_enabled else _DEFAULT_ENABLED
 )
 
+# Customer-facing connector visibility should reflect actual connectability,
+# not just abstract support in the registry.
+CUSTOMER_CONNECT_ENV_REQUIREMENTS: dict[str, tuple[str, ...]] = {
+    "quickbooks": (
+        "QUICKBOOKS_CLIENT_ID",
+        "QUICKBOOKS_CLIENT_SECRET",
+        "QUICKBOOKS_REDIRECT_URI",
+    ),
+    "xero": (
+        "XERO_CLIENT_ID",
+        "XERO_CLIENT_SECRET",
+        "XERO_REDIRECT_URI",
+    ),
+    "stripe": (
+        "STRIPE_SECRET_KEY",
+        "STRIPE_CLIENT_ID",
+        "STRIPE_REDIRECT_URI",
+    ),
+    "hubspot": (
+        "HUBSPOT_CLIENT_ID",
+        "HUBSPOT_CLIENT_SECRET",
+        "HUBSPOT_REDIRECT_URI",
+    ),
+    "slack": (
+        "SLACK_CLIENT_ID",
+        "SLACK_CLIENT_SECRET",
+        "SLACK_REDIRECT_URI",
+    ),
+    "google": (
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "GOOGLE_REDIRECT_URI",
+    ),
+    "plaid": (
+        "PLAID_CLIENT_ID",
+        "PLAID_SECRET",
+        "PLAID_ENVIRONMENT",
+    ),
+    "ramp": (
+        "RAMP_CLIENT_ID",
+        "RAMP_CLIENT_SECRET",
+        "RAMP_REDIRECT_URI",
+    ),
+}
+
 # All services in the registry with OAuth requirements (internal — not all are customer-facing)
 ALL_SERVICES_OAUTH: dict[str, bool] = {
     "quickbooks": True,  # requires_oauth
@@ -151,3 +196,18 @@ def build_connect_url(service: str, org_id: str, user_id: str) -> str | None:
     if not path:
         return None
     return f"{path}?org_id={org_id}&user_id={user_id}&credential_type=customer"
+
+
+def service_is_customer_connectable(service: str) -> bool:
+    """Return whether a customer-facing service is fully configured for connection."""
+    required = CUSTOMER_CONNECT_ENV_REQUIREMENTS.get(service, ())
+    return all(os.getenv(env_var, "").strip() for env_var in required)
+
+
+def get_customer_facing_enabled_services() -> dict[str, bool]:
+    """Return enabled services that are also fully configured for customer use."""
+    return {
+        service: ALL_SERVICES_OAUTH.get(service, False)
+        for service in ENABLED_SERVICES
+        if service_is_customer_connectable(service)
+    }
