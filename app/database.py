@@ -146,6 +146,11 @@ class CredentialStore(Base):
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
 
+def _ensure_minimum_schema() -> None:
+    """Create the credential table when external migration orchestration is skipped."""
+    Base.metadata.create_all(bind=engine, tables=[CredentialStore.__table__], checkfirst=True)
+
+
 def init_db() -> None:
     """Initialize the database.
 
@@ -153,8 +158,9 @@ def init_db() -> None:
     so we skip Alembic entirely.  For local SQLite dev, Alembic runs as before.
     """
     if os.getenv("SKIP_ALEMBIC", "").lower() == "true":
+        _ensure_minimum_schema()
         logger.info(
-            "Skipping Alembic migrations (SKIP_ALEMBIC=true)",
+            "Skipping Alembic migrations (SKIP_ALEMBIC=true); verified minimum schema",
             database_type="postgresql",
             log_event="database_init",
         )
