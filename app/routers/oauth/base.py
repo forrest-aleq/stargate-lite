@@ -65,11 +65,19 @@ def build_signed_state_4parts(
 # Default redirect URLs (should be overridden by environment variables)
 DEFAULT_SUCCESS_PATH = "/settings/integrations"
 DEFAULT_ERROR_PATH = "/settings/integrations"
+DEDICATED_CALLBACK_PATH = "/auth/integrations/callback"
 
 
 def get_n3_base_url() -> str:
     """Get N3 frontend base URL from environment."""
     return os.getenv("N3_FRONTEND_URL", "http://localhost:3000")
+
+
+def _resolve_success_path(source: str | None) -> str:
+    normalized = (source or "").strip().lower()
+    if normalized.startswith("onboarding") or normalized.startswith("chat"):
+        return DEDICATED_CALLBACK_PATH
+    return DEFAULT_SUCCESS_PATH
 
 
 def _emit_connector_connected_event(
@@ -172,7 +180,8 @@ def build_oauth_success_redirect(
     if extra_params:
         params.update(extra_params)
 
-    redirect_url = f"{base_url}{DEFAULT_SUCCESS_PATH}?{urlencode(params)}"
+    success_path = _resolve_success_path(source)
+    redirect_url = f"{base_url}{success_path}?{urlencode(params)}"
 
     logger.info(
         "OAuth success, redirecting to N3",
