@@ -28,10 +28,8 @@ BABY_MARS_WEBHOOK_URL = os.getenv("BABY_MARS_WEBHOOK_URL", "")
 
 def _get_baby_mars_api_key() -> str:
     """Resolve explicit Baby MARS webhook auth key with safe fallback."""
-    return (
-        os.getenv("BABY_MARS_WEBHOOK_API_KEY", "")
-        or os.getenv("API_SECRET_KEY", "")
-    )
+    return os.getenv("BABY_MARS_WEBHOOK_API_KEY", "") or os.getenv("API_SECRET_KEY", "")
+
 
 # Dedup TTL: 24 hours
 _DEDUP_TTL_SECONDS = 86400

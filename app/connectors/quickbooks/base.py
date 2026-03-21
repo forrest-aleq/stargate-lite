@@ -56,9 +56,13 @@ class QuickBooksBase:
         extra_data = cred.get("extra_data") or {}
         health = extra_data.get("_aleq_credential_health") or {}
         auth_status = str(health.get("auth_status") or "").strip().lower()
-        should_refresh = bool(
-            cred["token_expiry"] and cred["token_expiry"] < datetime.now(UTC) + timedelta(minutes=5)
-        ) or auth_status in _INVALID_QBO_AUTH_STATUSES
+        should_refresh = (
+            bool(
+                cred["token_expiry"]
+                and cred["token_expiry"] < datetime.now(UTC) + timedelta(minutes=5)
+            )
+            or auth_status in _INVALID_QBO_AUTH_STATUSES
+        )
 
         if should_refresh:
             refresh_token = cred.get("refresh_token")
