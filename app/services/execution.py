@@ -10,6 +10,7 @@ from typing import Any
 from app.circuit_breaker import is_open, record_failure, record_success
 from app.connectors.quickbooks.base import QuickBooksBase
 from app.constants.services import build_connect_url
+from app.database import CredentialManager
 from app.errors import (
     CapabilityNotFoundError,
     ErrorCode,
@@ -18,7 +19,6 @@ from app.errors import (
     StargateError,
     classify_exception,
 )
-from app.database import CredentialManager
 from app.logging_config import get_logger
 from app.models import ToolExecutionRequest
 from app.models_webhook import WebhookEvent

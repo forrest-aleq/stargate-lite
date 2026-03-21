@@ -339,7 +339,7 @@ def test_oauth_success_redirect_emits_source_in_connector_event(monkeypatch) -> 
     )
 
     assert response.headers["location"].startswith(
-        "https://aleq.example/settings/integrations?connected=quickbooks"
+        "https://aleq.example/auth/integrations/callback?connected=quickbooks"
     )
     payload = captured["json"]
     assert isinstance(payload, dict)
