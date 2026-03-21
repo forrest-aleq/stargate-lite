@@ -187,13 +187,13 @@ def build_workflow_connector_statuses(
 
     statuses: list[WorkflowConnectorStatus] = []
     for service in services:
-        credential, credential_type = _select_preferred_workflow_credential(
+        selected_credential, credential_type = _select_preferred_workflow_credential(
             credentials_by_service.get(service, [])
         )
         statuses.append(
             build_workflow_connector_status_from_credential(
                 service,
-                credential,
+                selected_credential,
                 credential_type,
                 now,
             )
