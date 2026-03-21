@@ -80,6 +80,14 @@ def _resolve_success_path(source: str | None) -> str:
     return DEFAULT_SUCCESS_PATH
 
 
+def _get_baby_mars_webhook_key() -> str:
+    """Resolve the explicit Baby MARS webhook auth key with safe fallback."""
+    return (
+        os.getenv("BABY_MARS_WEBHOOK_API_KEY", "").strip()
+        or os.getenv("API_SECRET_KEY", "").strip()
+    )
+
+
 def _emit_connector_connected_event(
     service: str,
     org_id: str | None,
@@ -91,7 +99,7 @@ def _emit_connector_connected_event(
         return
 
     webhook_url = os.getenv("BABY_MARS_WEBHOOK_URL", "").strip()
-    api_key = os.getenv("API_SECRET_KEY", "").strip()
+    api_key = _get_baby_mars_webhook_key()
     if not webhook_url or not api_key:
         logger.debug(
             "Skipping connector event emit; webhook target not configured",

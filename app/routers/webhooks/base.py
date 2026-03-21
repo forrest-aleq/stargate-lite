@@ -24,7 +24,14 @@ router = APIRouter()
 
 # Baby MARS target — points to /webhooks/stargate on the Baby MARS instance
 BABY_MARS_WEBHOOK_URL = os.getenv("BABY_MARS_WEBHOOK_URL", "")
-BABY_MARS_API_KEY = os.getenv("API_SECRET_KEY", "")
+
+
+def _get_baby_mars_api_key() -> str:
+    """Resolve explicit Baby MARS webhook auth key with safe fallback."""
+    return (
+        os.getenv("BABY_MARS_WEBHOOK_API_KEY", "")
+        or os.getenv("API_SECRET_KEY", "")
+    )
 
 # Dedup TTL: 24 hours
 _DEDUP_TTL_SECONDS = 86400
@@ -96,7 +103,7 @@ async def forward_to_baby_mars(event: WebhookEvent) -> bool:
                 session.post,
                 BABY_MARS_WEBHOOK_URL,
                 json=body,
-                headers={"X-API-Key": BABY_MARS_API_KEY},
+                headers={"X-API-Key": _get_baby_mars_api_key()},
                 timeout=10,
             )
 

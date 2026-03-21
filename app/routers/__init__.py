@@ -1,16 +1,24 @@
-"""
-Routers package for Stargate Lite.
+"""Lazy router exports for Stargate Lite."""
 
-Contains all API route modules:
-- health: Health check routes (/, /health, /health/connectors)
-- connectors: Workflow connector truth/status (/api/v1/connectors/status, /api/v1/connectors/connected)
-- credentials: Credential and capability routes (/api/v1/credentials/*, /api/v1/capabilities)
-- execute: Tool execution route (/api/v1/execute)
-- oauth: OAuth callback routes for various services
-- schemas: Schema discovery routes (/api/v1/schemas/*, /api/v1/services)
-"""
+from importlib import import_module
+from typing import Any
 
-from app.routers import connectors, credentials, execute, health, schemas
-from app.routers.oauth import router as oauth_router
+_ROUTER_MODULES = {
+    "connectors": "app.routers.connectors",
+    "credentials": "app.routers.credentials",
+    "execute": "app.routers.execute",
+    "health": "app.routers.health",
+    "schemas": "app.routers.schemas",
+}
 
-__all__ = ["connectors", "credentials", "execute", "health", "oauth_router", "schemas"]
+__all__ = [*_ROUTER_MODULES, "oauth_router"]
+
+
+def __getattr__(name: str) -> Any:
+    """Load router modules only when a caller actually requests them."""
+    if name == "oauth_router":
+        return import_module("app.routers.oauth").router
+    module_path = _ROUTER_MODULES.get(name)
+    if module_path:
+        return import_module(module_path)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
