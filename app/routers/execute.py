@@ -85,9 +85,16 @@ async def execute_tool(
     )
 
     # Rate limiting check
-    is_allowed, rate_info = await asyncio.to_thread(rate_limiter.check_rate_limit, request.org_id)
+    is_allowed, rate_info = await asyncio.to_thread(
+        rate_limiter.check_rate_limit,
+        request.org_id,
+        request.capability_key,
+        request.metadata,
+    )
 
     # Add rate limit headers to response
+    rate_limit_bucket = str(rate_info.get("bucket", "default"))
+    response.headers["X-RateLimit-Bucket"] = rate_limit_bucket
     response.headers["X-RateLimit-Limit"] = str(rate_info["limit"])
     response.headers["X-RateLimit-Remaining"] = str(rate_info["remaining"])
     response.headers["X-RateLimit-Reset"] = str(rate_info["reset_at"])
@@ -99,6 +106,8 @@ async def execute_tool(
         logger.warning(
             "Rate limit exceeded",
             org_id=request.org_id,
+            capability_key=request.capability_key,
+            bucket=rate_limit_bucket,
             log_event="rate_limit_rejected",
         )
         return {
