@@ -43,6 +43,7 @@ _KEY_GATED_SERVICES: dict[str, str] = {
     "blandai": "BLANDAI_API_KEY",
     "twilio": "TWILIO_ACCOUNT_SID",
     "hyperbrowser": "HYPERBROWSER_API_KEY",
+    "e2b": "E2B_API_KEY",
     "bitwarden": "BWS_ACCESS_TOKEN",
     # OAuth services — need app credentials to even start the flow
     "quickbooks": "QUICKBOOKS_CLIENT_ID",
