@@ -7,9 +7,9 @@ import threading
 from collections.abc import Callable
 from typing import Any
 
-from app.connectors.e2b_sandbox import E2BSandboxConnector
 from app.connectors.hyperbrowser_v2 import HyperbrowserConnectorV2
 from app.connectors.ocr_utility import OCRUtility
+from app.registry.e2b import E2B_CAPABILITIES
 from app.utilities import (
     get_financial_calculator_utility,
     get_summarizer_utility,
@@ -19,7 +19,6 @@ from app.utilities import (
 # Initialize connectors
 ocr_utility = OCRUtility()
 hyperbrowser_connector = HyperbrowserConnectorV2()
-e2b_connector = E2BSandboxConnector()
 
 # Thread-safe lazy initialization for cognitive utilities
 _utilities_lock = threading.Lock()
@@ -247,124 +246,7 @@ UTILITIES_CAPABILITIES = {
         "credential_type": None,
         "supports_delegation": False,
     },
-    # ========== E2B SANDBOX / CODE-ARTIFACT RUNTIME ==========
-    "sandbox.ensure": {
-        "handler": e2b_connector.ensure,
-        "tool_name": "e2b.ensure",
-        "description": "Create or reconnect to a long-lived sandbox for code and file work",
-        "requires_oauth": False,
-        "service": "e2b",
-        "credential_type": None,
-        "supports_delegation": False,
-    },
-    "sandbox.python.run": {
-        "handler": e2b_connector.run_python,
-        "tool_name": "e2b.python.run",
-        "description": "Run Python inside an isolated sandbox and return stdout/stderr",
-        "requires_oauth": False,
-        "service": "e2b",
-        "credential_type": None,
-        "supports_delegation": False,
-    },
-    "sandbox.python.run_background": {
-        "handler": e2b_connector.run_python_background,
-        "tool_name": "e2b.python.run_background",
-        "description": "Start Python in the sandbox and keep it running in the background",
-        "requires_oauth": False,
-        "service": "e2b",
-        "credential_type": None,
-        "supports_delegation": False,
-    },
-    "sandbox.bash.run": {
-        "handler": e2b_connector.run_bash,
-        "tool_name": "e2b.bash.run",
-        "description": "Run a shell command inside an isolated sandbox",
-        "requires_oauth": False,
-        "service": "e2b",
-        "credential_type": None,
-        "supports_delegation": False,
-    },
-    "sandbox.bash.run_background": {
-        "handler": e2b_connector.run_bash_background,
-        "tool_name": "e2b.bash.run_background",
-        "description": "Start a shell command in the sandbox and keep it running in the background",
-        "requires_oauth": False,
-        "service": "e2b",
-        "credential_type": None,
-        "supports_delegation": False,
-    },
-    "sandbox.file.write": {
-        "handler": e2b_connector.write_file,
-        "tool_name": "e2b.file.write",
-        "description": "Write text or base64-decoded bytes into a sandbox file",
-        "requires_oauth": False,
-        "service": "e2b",
-        "credential_type": None,
-        "supports_delegation": False,
-    },
-    "sandbox.file.read": {
-        "handler": e2b_connector.read_file,
-        "tool_name": "e2b.file.read",
-        "description": "Read a sandbox file as text or base64",
-        "requires_oauth": False,
-        "service": "e2b",
-        "credential_type": None,
-        "supports_delegation": False,
-    },
-    "sandbox.command.list": {
-        "handler": e2b_connector.list_commands,
-        "tool_name": "e2b.command.list",
-        "description": "List active background commands in a sandbox",
-        "requires_oauth": False,
-        "service": "e2b",
-        "credential_type": None,
-        "supports_delegation": False,
-    },
-    "sandbox.command.kill": {
-        "handler": e2b_connector.kill_command,
-        "tool_name": "e2b.command.kill",
-        "description": "Terminate a running sandbox command by process ID",
-        "requires_oauth": False,
-        "service": "e2b",
-        "credential_type": None,
-        "supports_delegation": False,
-    },
-    "sandbox.pause": {
-        "handler": e2b_connector.pause,
-        "tool_name": "e2b.pause",
-        "description": "Pause a sandbox so it can be resumed later",
-        "requires_oauth": False,
-        "service": "e2b",
-        "credential_type": None,
-        "supports_delegation": False,
-    },
-    "sandbox.timeout.set": {
-        "handler": e2b_connector.set_timeout,
-        "tool_name": "e2b.timeout.set",
-        "description": "Extend or update the timeout on an existing sandbox",
-        "requires_oauth": False,
-        "service": "e2b",
-        "credential_type": None,
-        "supports_delegation": False,
-    },
-    "sandbox.snapshot.create": {
-        "handler": e2b_connector.create_snapshot,
-        "tool_name": "e2b.snapshot.create",
-        "description": "Create a reusable snapshot of the current sandbox state",
-        "requires_oauth": False,
-        "service": "e2b",
-        "credential_type": None,
-        "supports_delegation": False,
-    },
-    "sandbox.get_info": {
-        "handler": e2b_connector.get_info,
-        "tool_name": "e2b.get_info",
-        "description": "Inspect sandbox lifecycle and runtime metrics",
-        "requires_oauth": False,
-        "service": "e2b",
-        "credential_type": None,
-        "supports_delegation": False,
-    },
+    **E2B_CAPABILITIES,
     # ========== WEB SEARCH ==========
     "search.web": {
         "handler": _lazy_web_search("search"),

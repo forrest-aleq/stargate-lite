@@ -520,6 +520,7 @@ SANDBOX_COMMAND_LIST = CapabilitySchema(
     },
     returns={
         "sandbox_id": ReturnFieldSchema(type="string", description="Sandbox identifier"),
+        "commands": ReturnFieldSchema(type="array", description="Running process metadata"),
         "processes": ReturnFieldSchema(type="array", description="Running process metadata"),
         "count": ReturnFieldSchema(type="integer", description="Number of active processes"),
     },
@@ -577,6 +578,8 @@ SANDBOX_GET_INFO = CapabilitySchema(
         "sandbox_id": ReturnFieldSchema(type="string", description="Sandbox identifier"),
         "info": ReturnFieldSchema(type="object", description="Raw sandbox info payload"),
         "metrics": ReturnFieldSchema(type="object", description="Runtime metrics payload"),
+        "state": ReturnFieldSchema(type="string", description="Lifecycle state"),
+        "paused": ReturnFieldSchema(type="boolean", description="Whether the sandbox is paused"),
         "timeout_seconds": ReturnFieldSchema(type="integer", description="Requested timeout"),
         "running": ReturnFieldSchema(type="boolean", description="Whether the sandbox is running"),
     },

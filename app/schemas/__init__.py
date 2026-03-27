@@ -17,6 +17,7 @@ from app.schemas.clickup import CLICKUP_SCHEMAS
 from app.schemas.docusign import DOCUSIGN_SCHEMAS
 from app.schemas.dropbox import DROPBOX_SCHEMAS
 from app.schemas.e2b import E2B_SCHEMAS
+from app.schemas.e2b_artifacts import E2B_ARTIFACT_SCHEMAS
 from app.schemas.excel import EXCEL_SCHEMAS
 from app.schemas.fci import FCI_SCHEMAS
 from app.schemas.gmail import GMAIL_SCHEMAS
@@ -67,6 +68,7 @@ SCHEMA_REGISTRY: dict[str, CapabilitySchema] = {
     **DROPBOX_SCHEMAS,
     **EXCEL_SCHEMAS,
     **E2B_SCHEMAS,
+    **E2B_ARTIFACT_SCHEMAS,
     # Productivity
     **MONDAY_SCHEMAS,
     **CLICKUP_SCHEMAS,
