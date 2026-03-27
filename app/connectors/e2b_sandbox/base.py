@@ -7,6 +7,12 @@ import os
 import shlex
 from typing import Any, cast
 
+from app.connectors.e2b_sandbox.serialization import (
+    extract_state,
+    extract_timeout_seconds,
+    is_paused,
+    to_jsonable,
+)
 from app.errors import ExecutionError, ValidationError
 from app.logging_config import get_logger
 
@@ -137,17 +143,6 @@ def _normalize_text_output(value: Any) -> str:
     return str(value)
 
 
-def _extract_timeout_seconds(info: Any) -> int | None:
-    if isinstance(info, dict):
-        raw = info.get("timeout") or info.get("timeout_seconds")
-    else:
-        raw = getattr(info, "timeout", None) or getattr(info, "timeout_seconds", None)
-    try:
-        return int(raw) if raw is not None else None
-    except (TypeError, ValueError):
-        return None
-
-
 class E2BSandboxConnector:
     """Small typed wrapper over E2B sandboxes for Stargate capabilities."""
 
@@ -239,7 +234,7 @@ class E2BSandboxConnector:
             "template": _optional_str(args, "template"),
             "connected": bool(_optional_str(args, "sandbox_id")),
             "lifecycle": _lifecycle_config(args),
-            "info": info,
+            "info": to_jsonable(info),
         }
 
     def _run_command(
@@ -432,7 +427,7 @@ class E2BSandboxConnector:
         return {
             "sandbox_id": self._sandbox_id(sandbox),
             "snapshot_id": str(snapshot_id) if snapshot_id else None,
-            "snapshot": snapshot,
+            "snapshot": to_jsonable(snapshot),
         }
 
     def list_commands(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -445,10 +440,12 @@ class E2BSandboxConnector:
                 details={"service": "e2b", "sandbox_id": self._sandbox_id(sandbox)},
             )
         processes = list_method()
+        process_rows = to_jsonable(processes)
         return {
             "sandbox_id": self._sandbox_id(sandbox),
-            "processes": processes,
-            "count": len(processes) if isinstance(processes, list) else None,
+            "commands": process_rows,
+            "processes": process_rows,
+            "count": len(process_rows) if isinstance(process_rows, list) else None,
         }
 
     def kill_command(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -481,11 +478,24 @@ class E2BSandboxConnector:
         metrics_method = getattr(sandbox, "get_metrics", None)
         running_method = getattr(sandbox, "is_running", None)
         info = info_method() if callable(info_method) else None
+        info_json = to_jsonable(info)
+        paused = is_paused(info)
+        running = running_method() if callable(running_method) else None
+        if running is None and paused is not None:
+            running = not paused
+        state = extract_state(info)
+        if state is None:
+            if paused is True:
+                state = "paused"
+            elif running is True:
+                state = "running"
 
         return {
             "sandbox_id": self._sandbox_id(sandbox),
-            "info": info,
-            "metrics": metrics_method() if callable(metrics_method) else None,
-            "timeout_seconds": _extract_timeout_seconds(info) or _timeout_seconds(args),
-            "running": running_method() if callable(running_method) else None,
+            "info": info_json,
+            "metrics": to_jsonable(metrics_method()) if callable(metrics_method) else None,
+            "state": state,
+            "paused": paused,
+            "timeout_seconds": extract_timeout_seconds(info) or _timeout_seconds(args),
+            "running": running,
         }

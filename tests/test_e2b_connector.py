@@ -243,6 +243,7 @@ def test_background_commands_list_kill_snapshot_and_timeout(monkeypatch: Any) ->
 
     processes = connector.list_commands("org_1", "user_1", {"sandbox_id": "sbx_existing"})
     assert processes["count"] == 1
+    assert processes["commands"][0]["pid"] == 1001
 
     timeout = connector.set_timeout(
         "org_1",
@@ -253,6 +254,8 @@ def test_background_commands_list_kill_snapshot_and_timeout(monkeypatch: Any) ->
 
     info = connector.get_info("org_1", "user_1", {"sandbox_id": "sbx_existing"})
     assert info["timeout_seconds"] == 7200
+    assert info["state"] == "running"
+    assert info["paused"] is False
 
     snapshot = connector.create_snapshot("org_1", "user_1", {"sandbox_id": "sbx_existing"})
     assert snapshot["snapshot_id"] == "snap_1"
@@ -305,5 +308,7 @@ def test_pause_and_get_info(monkeypatch: Any) -> None:
     info_result = connector.get_info("org_1", "user_1", {"sandbox_id": "sbx_existing"})
     assert info_result["sandbox_id"] == "sbx_existing"
     assert info_result["info"]["paused"] is True
+    assert info_result["state"] == "paused"
+    assert info_result["paused"] is True
     assert info_result["metrics"]["memory_mb"] == 64
     assert info_result["running"] is False
