@@ -7,6 +7,8 @@ import shlex
 from typing import Any, Protocol
 
 from app.connectors.e2b_sandbox.artifact_scripts import build_chart_script, build_xlsx_script
+from app.connectors.e2b_sandbox.document_artifact_scripts import build_docx_script
+from app.connectors.e2b_sandbox.presentation_artifact_scripts import build_pptx_script
 from app.errors import ExecutionError, ValidationError
 
 
@@ -146,4 +148,51 @@ class E2BArtifactMixin:
             script_path="/workspace/aleq_render_chart.py",
         )
         payload["artifact_kind"] = "report"
+        return payload
+
+    def build_docx_artifact(
+        self: _ArtifactRuntime,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+    ) -> dict[str, Any]:
+        del org_id, user_id
+        spec = {
+            "file_name": _optional_str(args, "file_name") or "aleq-document.docx",
+            "path": _optional_str(args, "path"),
+            "title": _optional_str(args, "title") or "Aleq document",
+            "subtitle": _optional_str(args, "subtitle") or "",
+            "author": _optional_str(args, "author") or "Aleq",
+            "sections": _require_list(args, "sections"),
+        }
+        payload = _run_script(
+            self,
+            args,
+            script_source=build_docx_script(spec),
+            script_path="/workspace/aleq_build_docx.py",
+        )
+        payload["artifact_kind"] = "document"
+        return payload
+
+    def build_pptx_artifact(
+        self: _ArtifactRuntime,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+    ) -> dict[str, Any]:
+        del org_id, user_id
+        spec = {
+            "file_name": _optional_str(args, "file_name") or "aleq-deck.pptx",
+            "path": _optional_str(args, "path"),
+            "title": _optional_str(args, "title") or "Aleq presentation",
+            "author": _optional_str(args, "author") or "Aleq",
+            "slides": _require_list(args, "slides"),
+        }
+        payload = _run_script(
+            self,
+            args,
+            script_source=build_pptx_script(spec),
+            script_path="/workspace/aleq_build_pptx.py",
+        )
+        payload["artifact_kind"] = "presentation"
         return payload

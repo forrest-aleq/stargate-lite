@@ -241,6 +241,239 @@ CHART_RENDER = CapabilitySchema(
 E2B_ARTIFACT_SCHEMAS = {
     "artifact.xlsx.build": ARTIFACT_XLSX_BUILD,
     "chart.render": CHART_RENDER,
+    "artifact.docx.build": CapabilitySchema(
+        capability_key="artifact.docx.build",
+        service="e2b",
+        category="artifact",
+        description="Build a DOCX document inside a reusable sandbox",
+        description_detailed=(
+            "Creates a finance-friendly Word document from structured sections, paragraphs, "
+            "bullets, and tables so Aleq can return editable document work product."
+        ),
+        parameters={
+            "sandbox_id": ParameterSchema(
+                type="string",
+                required=False,
+                description="Existing sandbox to reuse for artifact generation",
+            ),
+            "file_name": ParameterSchema(
+                type="string",
+                required=False,
+                description="Filename for the DOCX document",
+                default="aleq-document.docx",
+            ),
+            "path": ParameterSchema(
+                type="string",
+                required=False,
+                description="Explicit output path inside the sandbox",
+            ),
+            "title": ParameterSchema(type="string", required=False, description="Document title"),
+            "subtitle": ParameterSchema(
+                type="string",
+                required=False,
+                description="Optional subtitle shown beneath the title",
+            ),
+            "author": ParameterSchema(type="string", required=False, description="Document author"),
+            "sections": ParameterSchema(
+                type="array",
+                required=True,
+                description=(
+                    "Ordered section objects with heading, optional level, paragraphs, bullets, "
+                    "and optional table payloads."
+                ),
+                items_type="object",
+            ),
+            "command_timeout_seconds": ParameterSchema(
+                type="number",
+                required=False,
+                description="How long to wait for generation before disconnecting",
+                default=0,
+            ),
+        },
+        returns={
+            "sandbox_id": ReturnFieldSchema(type="string", description="Sandbox identifier"),
+            "artifact_kind": ReturnFieldSchema(
+                type="string",
+                description="Artifact family",
+                example="document",
+            ),
+            "file_name": ReturnFieldSchema(type="string", description="Document filename"),
+            "path": ReturnFieldSchema(type="string", description="Document path inside sandbox"),
+            "mime_type": ReturnFieldSchema(
+                type="string",
+                description="DOCX MIME type",
+                example="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ),
+            "size_bytes": ReturnFieldSchema(type="integer", description="Document size in bytes"),
+            "section_count": ReturnFieldSchema(
+                type="integer",
+                description="Number of sections rendered",
+            ),
+            "paragraph_count": ReturnFieldSchema(
+                type="integer",
+                description="Number of paragraph blocks rendered",
+            ),
+            "file_content": ReturnFieldSchema(
+                type="string",
+                description="Base64-encoded DOCX payload",
+            ),
+        },
+        errors=[
+            ErrorHint(
+                error_code=ErrorCode.VALIDATION_ERROR,
+                description="Document sections are missing or malformed",
+                recovery_hint="Provide at least one section object with valid text fields",
+            ),
+            ErrorHint(
+                error_code=ErrorCode.EXECUTION_ERROR,
+                description="Document generation failed inside the sandbox",
+                recovery_hint="Inspect the generation payload and sandbox execution details",
+            ),
+        ],
+        workflow=WorkflowHints(
+            typically_preceded_by=["sandbox.ensure"],
+            typically_followed_by=["sandbox.snapshot.create", "sandbox.pause"],
+            related_capabilities=["artifact.pptx.build", "artifact.xlsx.build"],
+        ),
+        examples=[
+            UsageExample(
+                description="Build a board update memo",
+                args={
+                    "file_name": "board-update.docx",
+                    "title": "Q1 board update",
+                    "subtitle": "Collections and burn review",
+                    "sections": [
+                        {
+                            "heading": "Executive summary",
+                            "paragraphs": [
+                                (
+                                    "Revenue outperformed plan while collections "
+                                    "slowed late in the quarter."
+                                )
+                            ],
+                            "bullets": [
+                                "Net burn improved 11% month over month.",
+                                "AR aging above 60 days remains the main working-capital risk.",
+                            ],
+                        }
+                    ],
+                },
+            )
+        ],
+        idempotent=False,
+        has_side_effects=True,
+    ),
+    "artifact.pptx.build": CapabilitySchema(
+        capability_key="artifact.pptx.build",
+        service="e2b",
+        category="artifact",
+        description="Build a PPTX presentation inside a reusable sandbox",
+        description_detailed=(
+            "Creates a presentation artifact from structured slides, bullets, and key metrics "
+            "so Aleq can return finance decks as first-class work product."
+        ),
+        parameters={
+            "sandbox_id": ParameterSchema(
+                type="string",
+                required=False,
+                description="Existing sandbox to reuse for artifact generation",
+            ),
+            "file_name": ParameterSchema(
+                type="string",
+                required=False,
+                description="Filename for the PPTX deck",
+                default="aleq-deck.pptx",
+            ),
+            "path": ParameterSchema(
+                type="string",
+                required=False,
+                description="Explicit output path inside the sandbox",
+            ),
+            "title": ParameterSchema(type="string", required=False, description="Deck title"),
+            "author": ParameterSchema(type="string", required=False, description="Deck author"),
+            "slides": ParameterSchema(
+                type="array",
+                required=True,
+                description=(
+                    "Ordered slide objects with title plus optional subtitle, paragraphs, "
+                    "bullets, and metric cards."
+                ),
+                items_type="object",
+            ),
+            "command_timeout_seconds": ParameterSchema(
+                type="number",
+                required=False,
+                description="How long to wait for generation before disconnecting",
+                default=0,
+            ),
+        },
+        returns={
+            "sandbox_id": ReturnFieldSchema(type="string", description="Sandbox identifier"),
+            "artifact_kind": ReturnFieldSchema(
+                type="string",
+                description="Artifact family",
+                example="presentation",
+            ),
+            "file_name": ReturnFieldSchema(type="string", description="Deck filename"),
+            "path": ReturnFieldSchema(type="string", description="Deck path inside sandbox"),
+            "mime_type": ReturnFieldSchema(
+                type="string",
+                description="PPTX MIME type",
+                example="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            ),
+            "size_bytes": ReturnFieldSchema(type="integer", description="Deck size in bytes"),
+            "slide_count": ReturnFieldSchema(
+                type="integer",
+                description="Number of slides rendered",
+            ),
+            "file_content": ReturnFieldSchema(
+                type="string",
+                description="Base64-encoded PPTX payload",
+            ),
+        },
+        errors=[
+            ErrorHint(
+                error_code=ErrorCode.VALIDATION_ERROR,
+                description="Slide definitions are missing or malformed",
+                recovery_hint="Provide at least one slide with a title and optional body content",
+            ),
+            ErrorHint(
+                error_code=ErrorCode.EXECUTION_ERROR,
+                description="Deck generation failed inside the sandbox",
+                recovery_hint="Inspect the generation payload and sandbox execution details",
+            ),
+        ],
+        workflow=WorkflowHints(
+            typically_preceded_by=["sandbox.ensure"],
+            typically_followed_by=["sandbox.snapshot.create", "sandbox.pause"],
+            related_capabilities=["artifact.docx.build", "chart.render"],
+        ),
+        examples=[
+            UsageExample(
+                description="Build a collections review deck",
+                args={
+                    "file_name": "collections-review.pptx",
+                    "title": "Collections review",
+                    "slides": [
+                        {
+                            "title": "Collections posture",
+                            "subtitle": "AR risk concentration",
+                            "bullets": [
+                                "Overdue balance is concentrated in three enterprise accounts.",
+                                "Collections cycle slipped by five days month over month.",
+                            ],
+                            "metrics": [
+                                {"label": "Overdue AR", "value": "$1.8M"},
+                                {"label": "DSO", "value": "54 days"},
+                            ],
+                        }
+                    ],
+                },
+            )
+        ],
+        idempotent=False,
+        has_side_effects=True,
+    ),
 }
 
 __all__ = ["E2B_ARTIFACT_SCHEMAS"]

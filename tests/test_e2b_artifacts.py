@@ -96,8 +96,12 @@ def test_artifact_capabilities_registered(monkeypatch: Any) -> None:
 
     assert "artifact.xlsx.build" in ALL_CAPABILITIES
     assert "chart.render" in ALL_CAPABILITIES
+    assert "artifact.docx.build" in ALL_CAPABILITIES
+    assert "artifact.pptx.build" in ALL_CAPABILITIES
     assert "artifact.xlsx.build" in SCHEMA_REGISTRY
     assert "chart.render" in SCHEMA_REGISTRY
+    assert "artifact.docx.build" in SCHEMA_REGISTRY
+    assert "artifact.pptx.build" in SCHEMA_REGISTRY
 
 
 def test_build_xlsx_artifact_generates_workbook(monkeypatch: Any) -> None:
@@ -154,3 +158,87 @@ def test_render_chart_generates_svg(monkeypatch: Any) -> None:
     assert "<svg" in svg
     assert "Monthly burn" in svg
     assert "Burn" in svg
+
+
+def test_build_docx_artifact_generates_document(monkeypatch: Any) -> None:
+    connector = _connector(monkeypatch)
+    result = connector.build_docx_artifact(
+        "org_1",
+        "user_1",
+        {
+            "file_name": "board-update.docx",
+            "path": "board-update.docx",
+            "title": "Q1 board update",
+            "subtitle": "Collections and burn review",
+            "sections": [
+                {
+                    "heading": "Executive summary",
+                    "paragraphs": [
+                        "Revenue improved while AR aging widened during the quarter.",
+                    ],
+                    "bullets": [
+                        "Net burn improved 11% month over month.",
+                        "Three accounts now drive most of the overdue balance.",
+                    ],
+                    "table": {
+                        "columns": ["Account", "Overdue"],
+                        "rows": [["Apex", "$420K"], ["Northstar", "$310K"]],
+                    },
+                }
+            ],
+        },
+    )
+
+    assert result["artifact_kind"] == "document"
+    assert (
+        result["mime_type"]
+        == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+    payload = base64.b64decode(result["file_content"])
+    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+        document = archive.read("word/document.xml").decode("utf-8")
+        styles = archive.read("word/styles.xml").decode("utf-8")
+    assert "Q1 board update" in document
+    assert "Executive summary" in document
+    assert "Northstar" in document
+    assert "BodyText" in styles
+
+
+def test_build_pptx_artifact_generates_deck(monkeypatch: Any) -> None:
+    connector = _connector(monkeypatch)
+    result = connector.build_pptx_artifact(
+        "org_1",
+        "user_1",
+        {
+            "file_name": "collections-review.pptx",
+            "path": "collections-review.pptx",
+            "title": "Collections review",
+            "slides": [
+                {
+                    "title": "Collections posture",
+                    "subtitle": "AR risk concentration",
+                    "bullets": [
+                        "Three enterprise accounts drive most overdue exposure.",
+                        "Collections cycle slipped by five days month over month.",
+                    ],
+                    "metrics": [
+                        {"label": "Overdue AR", "value": "$1.8M"},
+                        {"label": "DSO", "value": "54 days"},
+                    ],
+                }
+            ],
+        },
+    )
+
+    assert result["artifact_kind"] == "presentation"
+    assert (
+        result["mime_type"]
+        == "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    )
+    payload = base64.b64decode(result["file_content"])
+    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+        presentation = archive.read("ppt/presentation.xml").decode("utf-8")
+        slide = archive.read("ppt/slides/slide1.xml").decode("utf-8")
+    assert "sldMasterIdLst" in presentation
+    assert "Collections posture" in slide
+    assert "Overdue AR" in slide

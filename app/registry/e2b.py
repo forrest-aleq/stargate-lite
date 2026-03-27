@@ -142,6 +142,24 @@ E2B_CAPABILITIES = {
         "credential_type": None,
         "supports_delegation": False,
     },
+    "artifact.docx.build": {
+        "handler": e2b_connector.build_docx_artifact,
+        "tool_name": "e2b.build_docx_artifact",
+        "description": "Build a DOCX document inside an E2B sandbox",
+        "requires_oauth": False,
+        "service": "e2b",
+        "credential_type": None,
+        "supports_delegation": False,
+    },
+    "artifact.pptx.build": {
+        "handler": e2b_connector.build_pptx_artifact,
+        "tool_name": "e2b.build_pptx_artifact",
+        "description": "Build a PPTX presentation inside an E2B sandbox",
+        "requires_oauth": False,
+        "service": "e2b",
+        "credential_type": None,
+        "supports_delegation": False,
+    },
 }
 
 __all__ = ["E2B_CAPABILITIES"]
