@@ -474,6 +474,133 @@ E2B_ARTIFACT_SCHEMAS = {
         idempotent=False,
         has_side_effects=True,
     ),
+    "artifact.pdf.build": CapabilitySchema(
+        capability_key="artifact.pdf.build",
+        service="e2b",
+        category="artifact",
+        description="Build a PDF report inside a reusable sandbox",
+        description_detailed=(
+            "Creates a finance-friendly PDF from structured sections, paragraphs, bullets, "
+            "and tables so Aleq can return portable report artifacts without relying on "
+            "external rendering services."
+        ),
+        parameters={
+            "sandbox_id": ParameterSchema(
+                type="string",
+                required=False,
+                description="Existing sandbox to reuse for artifact generation",
+            ),
+            "file_name": ParameterSchema(
+                type="string",
+                required=False,
+                description="Filename for the PDF document",
+                default="aleq-report.pdf",
+            ),
+            "path": ParameterSchema(
+                type="string",
+                required=False,
+                description="Explicit output path inside the sandbox",
+            ),
+            "title": ParameterSchema(type="string", required=False, description="Report title"),
+            "subtitle": ParameterSchema(
+                type="string",
+                required=False,
+                description="Optional subtitle shown beneath the title",
+            ),
+            "author": ParameterSchema(type="string", required=False, description="Document author"),
+            "sections": ParameterSchema(
+                type="array",
+                required=True,
+                description=(
+                    "Ordered section objects with heading, optional level, paragraphs, bullets, "
+                    "and optional table payloads."
+                ),
+                items_type="object",
+            ),
+            "command_timeout_seconds": ParameterSchema(
+                type="number",
+                required=False,
+                description="How long to wait for generation before disconnecting",
+                default=0,
+            ),
+        },
+        returns={
+            "sandbox_id": ReturnFieldSchema(type="string", description="Sandbox identifier"),
+            "artifact_kind": ReturnFieldSchema(
+                type="string",
+                description="Artifact family",
+                example="document",
+            ),
+            "file_name": ReturnFieldSchema(type="string", description="PDF filename"),
+            "path": ReturnFieldSchema(type="string", description="PDF path inside sandbox"),
+            "mime_type": ReturnFieldSchema(
+                type="string",
+                description="PDF MIME type",
+                example="application/pdf",
+            ),
+            "size_bytes": ReturnFieldSchema(type="integer", description="PDF size in bytes"),
+            "page_count": ReturnFieldSchema(type="integer", description="Number of pages rendered"),
+            "section_count": ReturnFieldSchema(
+                type="integer",
+                description="Number of sections rendered",
+            ),
+            "paragraph_count": ReturnFieldSchema(
+                type="integer",
+                description="Number of paragraph blocks rendered",
+            ),
+            "file_content": ReturnFieldSchema(
+                type="string",
+                description="Base64-encoded PDF payload",
+            ),
+        },
+        errors=[
+            ErrorHint(
+                error_code=ErrorCode.VALIDATION_ERROR,
+                description="PDF sections are missing or malformed",
+                recovery_hint="Provide at least one section object with valid text fields",
+            ),
+            ErrorHint(
+                error_code=ErrorCode.EXECUTION_ERROR,
+                description="PDF generation failed inside the sandbox",
+                recovery_hint="Inspect the generation payload and sandbox execution details",
+            ),
+        ],
+        workflow=WorkflowHints(
+            typically_preceded_by=["sandbox.ensure"],
+            typically_followed_by=["sandbox.snapshot.create", "sandbox.pause"],
+            related_capabilities=["artifact.docx.build", "chart.render"],
+        ),
+        examples=[
+            UsageExample(
+                description="Build a board-ready PDF brief",
+                args={
+                    "file_name": "board-brief.pdf",
+                    "title": "Board brief",
+                    "subtitle": "Collections and runway review",
+                    "sections": [
+                        {
+                            "heading": "Executive summary",
+                            "paragraphs": [
+                                (
+                                    "Collections remained the main drag on working capital "
+                                    "during the month."
+                                )
+                            ],
+                            "bullets": [
+                                "Overdue AR is concentrated in three accounts.",
+                                (
+                                    "Cash remains above the board threshold if collections "
+                                    "land inside 21 days."
+                                ),
+                            ],
+                        }
+                    ],
+                },
+            )
+        ],
+        idempotent=False,
+        has_side_effects=True,
+    ),
 }
 
 __all__ = ["E2B_ARTIFACT_SCHEMAS"]

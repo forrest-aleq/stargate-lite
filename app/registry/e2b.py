@@ -160,6 +160,15 @@ E2B_CAPABILITIES = {
         "credential_type": None,
         "supports_delegation": False,
     },
+    "artifact.pdf.build": {
+        "handler": e2b_connector.build_pdf_artifact,
+        "tool_name": "e2b.build_pdf_artifact",
+        "description": "Build a PDF report inside an E2B sandbox",
+        "requires_oauth": False,
+        "service": "e2b",
+        "credential_type": None,
+        "supports_delegation": False,
+    },
 }
 
 __all__ = ["E2B_CAPABILITIES"]

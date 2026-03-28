@@ -98,10 +98,12 @@ def test_artifact_capabilities_registered(monkeypatch: Any) -> None:
     assert "chart.render" in ALL_CAPABILITIES
     assert "artifact.docx.build" in ALL_CAPABILITIES
     assert "artifact.pptx.build" in ALL_CAPABILITIES
+    assert "artifact.pdf.build" in ALL_CAPABILITIES
     assert "artifact.xlsx.build" in SCHEMA_REGISTRY
     assert "chart.render" in SCHEMA_REGISTRY
     assert "artifact.docx.build" in SCHEMA_REGISTRY
     assert "artifact.pptx.build" in SCHEMA_REGISTRY
+    assert "artifact.pdf.build" in SCHEMA_REGISTRY
 
 
 def test_build_xlsx_artifact_generates_workbook(monkeypatch: Any) -> None:
@@ -242,3 +244,45 @@ def test_build_pptx_artifact_generates_deck(monkeypatch: Any) -> None:
     assert "sldMasterIdLst" in presentation
     assert "Collections posture" in slide
     assert "Overdue AR" in slide
+
+
+def test_build_pdf_artifact_generates_pdf(monkeypatch: Any) -> None:
+    connector = _connector(monkeypatch)
+    result = connector.build_pdf_artifact(
+        "org_1",
+        "user_1",
+        {
+            "file_name": "board-brief.pdf",
+            "path": "board-brief.pdf",
+            "title": "Board brief",
+            "subtitle": "Collections and runway review",
+            "sections": [
+                {
+                    "heading": "Executive summary",
+                    "paragraphs": [
+                        "Collections remained the main drag on working capital during the month.",
+                    ],
+                    "bullets": [
+                        "Overdue AR is concentrated in three accounts.",
+                        (
+                            "Cash remains above the board threshold if collections "
+                            "land inside 21 days."
+                        ),
+                    ],
+                    "table": {
+                        "columns": ["Account", "Overdue"],
+                        "rows": [["Apex", "$420K"], ["Northstar", "$310K"]],
+                    },
+                }
+            ],
+        },
+    )
+
+    assert result["artifact_kind"] == "document"
+    assert result["mime_type"] == "application/pdf"
+    assert result["page_count"] >= 1
+    payload = base64.b64decode(result["file_content"])
+    assert payload.startswith(b"%PDF-1.4")
+    assert b"Board brief" in payload
+    assert b"Executive summary" in payload
+    assert b"Northstar" in payload
