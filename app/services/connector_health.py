@@ -57,7 +57,11 @@ def analyze_connections(
 
 
 def build_connector_status(
-    service: str, requires_oauth: bool, connections: list[dict[str, Any]], now: datetime
+    service: str,
+    requires_oauth: bool,
+    configured: bool,
+    connections: list[dict[str, Any]],
+    now: datetime,
 ) -> ConnectorStatus:
     """Build ConnectorStatus for a single service."""
     connection_count = len(connections)
@@ -66,6 +70,7 @@ def build_connector_status(
         return ConnectorStatus(
             service=service,
             credential_status="missing",
+            configured=configured,
             requires_oauth=requires_oauth,
             connection_count=0,
         )
@@ -82,6 +87,7 @@ def build_connector_status(
     return ConnectorStatus(
         service=service,
         credential_status=status,
+        configured=configured,
         token_expiry=latest_expiry,
         last_updated=latest_updated,
         requires_oauth=requires_oauth,

@@ -201,6 +201,10 @@ class ConnectorStatus(BaseModel):
     credential_status: str = Field(
         ..., description="Credential status: 'connected', 'expired', or 'missing'"
     )
+    configured: bool = Field(
+        ...,
+        description="Whether this service is configured for new customer connections",
+    )
     token_expiry: datetime | None = Field(None, description="When the token expires (if OAuth)")
     last_updated: datetime | None = Field(None, description="When credential was last refreshed")
     requires_oauth: bool = Field(..., description="Whether this service requires OAuth flow")
@@ -213,6 +217,7 @@ class ConnectorStatus(BaseModel):
             "example": {
                 "service": "quickbooks",
                 "credential_status": "connected",
+                "configured": True,
                 "token_expiry": "2025-12-31T23:59:59",
                 "last_updated": "2025-10-18T10:00:00",
                 "requires_oauth": True,

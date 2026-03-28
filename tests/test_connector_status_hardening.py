@@ -5,9 +5,12 @@ import pytest
 
 from app.constants import services as service_constants
 from app.constants.services import WORKFLOW_OAUTH_REQUIREMENTS
-from app.models import ConnectedServicesRequest, ConnectorStatusRequest, WorkflowConnectorStatus
-from app.routers import connectors as connectors_router
-from app.routers import health as health_router
+from app.models import (
+    ConnectedServicesRequest,
+    ConnectorStatusRequest,
+    WorkflowConnectorStatus,
+)
+from app.routers import connectors as connectors_router, health as health_router
 from app.routers.oauth.base import build_oauth_success_redirect
 from app.services import connector_health
 
@@ -161,8 +164,12 @@ def test_customer_connectable_services_require_complete_env(monkeypatch) -> None
     assert service_constants.service_is_customer_connectable("stripe") is True
 
 
+def test_customer_connectable_services_fail_closed_for_unknown_service() -> None:
+    assert service_constants.service_is_customer_connectable("unknown_service") is False
+
+
 @pytest.mark.asyncio
-async def test_connector_health_route_filters_enabled_services_to_connectable_set(monkeypatch) -> None:
+async def test_connector_health_route_surfaces_all_enabled_services(monkeypatch) -> None:
     monkeypatch.setattr(health_router.CredentialManager, "get_all_credentials", lambda: [])
     monkeypatch.setattr(
         health_router,
@@ -173,6 +180,7 @@ async def test_connector_health_route_filters_enabled_services_to_connectable_se
     result = await health_router.connector_health_check()
 
     assert [connector.service for connector in result.connectors] == ["plaid", "quickbooks"]
+    assert [connector.configured for connector in result.connectors] == [False, False]
 
 
 @pytest.mark.asyncio
@@ -196,7 +204,11 @@ async def test_connectors_status_route_uses_normalized_services(monkeypatch) -> 
             for service in services
         ]
 
-    monkeypatch.setattr(connectors_router.CredentialManager, "get_credentials_for_org_user", lambda org_id, user_id: [])
+    monkeypatch.setattr(
+        connectors_router.CredentialManager,
+        "get_credentials_for_org_user",
+        lambda org_id, user_id: [],
+    )
     monkeypatch.setattr(connectors_router, "build_workflow_connector_statuses", _fake_build_many)
     monkeypatch.setattr(
         connectors_router,

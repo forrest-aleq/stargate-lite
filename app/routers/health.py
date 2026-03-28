@@ -9,7 +9,10 @@ from datetime import UTC, datetime
 from fastapi import APIRouter
 from sqlalchemy import text
 
-from app.constants.services import get_customer_facing_enabled_services
+from app.constants.services import (
+    get_customer_facing_enabled_services,
+    service_is_customer_connectable,
+)
 from app.database import CredentialManager, engine
 from app.models import ConnectorHealthResponse, HealthResponse
 from app.observability import increment_metric
@@ -110,7 +113,13 @@ async def connector_health_check() -> ConnectorHealthResponse:
     enabled_services = get_customer_facing_enabled_services()
 
     connectors = [
-        build_connector_status(service, requires_oauth, service_data[service]["connections"], now)
+        build_connector_status(
+            service,
+            requires_oauth,
+            service_is_customer_connectable(service),
+            service_data[service]["connections"],
+            now,
+        )
         for service, requires_oauth in enabled_services.items()
     ]
     connectors.sort(key=lambda x: x.service)

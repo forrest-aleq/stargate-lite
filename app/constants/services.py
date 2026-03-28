@@ -27,8 +27,9 @@ ENABLED_SERVICES: set[str] = (
     {s.strip() for s in _env_enabled.split(",") if s.strip()} if _env_enabled else _DEFAULT_ENABLED
 )
 
-# Customer-facing connector visibility should reflect actual connectability,
-# not just abstract support in the registry.
+# Customer-facing connector visibility is controlled by ENABLED_SERVICES.
+# Provider readiness is evaluated separately so Aleq can surface the full
+# environment roadmap without hiding partially configured systems.
 CUSTOMER_CONNECT_ENV_REQUIREMENTS: dict[str, tuple[str, ...]] = {
     "quickbooks": (
         "QUICKBOOKS_CLIENT_ID",
@@ -39,6 +40,11 @@ CUSTOMER_CONNECT_ENV_REQUIREMENTS: dict[str, tuple[str, ...]] = {
         "XERO_CLIENT_ID",
         "XERO_CLIENT_SECRET",
         "XERO_REDIRECT_URI",
+    ),
+    "zoho_books": (
+        "ZOHO_BOOKS_CLIENT_ID",
+        "ZOHO_BOOKS_CLIENT_SECRET",
+        "ZOHO_BOOKS_REDIRECT_URI",
     ),
     "stripe": (
         "STRIPE_SECRET_KEY",
@@ -60,15 +66,96 @@ CUSTOMER_CONNECT_ENV_REQUIREMENTS: dict[str, tuple[str, ...]] = {
         "GOOGLE_CLIENT_SECRET",
         "GOOGLE_REDIRECT_URI",
     ),
+    "microsoft": (
+        "MICROSOFT_CLIENT_ID",
+        "MICROSOFT_CLIENT_SECRET",
+        "MICROSOFT_REDIRECT_URI",
+    ),
+    "powerbi": (
+        "MICROSOFT_CLIENT_ID",
+        "MICROSOFT_CLIENT_SECRET",
+        "MICROSOFT_REDIRECT_URI",
+    ),
     "plaid": (
         "PLAID_CLIENT_ID",
         "PLAID_SECRET",
         "PLAID_ENVIRONMENT",
     ),
+    "netsuite": (
+        "NETSUITE_ACCOUNT_ID",
+        "NETSUITE_CONSUMER_KEY",
+        "NETSUITE_CONSUMER_SECRET",
+        "NETSUITE_REDIRECT_URI",
+    ),
     "ramp": (
         "RAMP_CLIENT_ID",
         "RAMP_CLIENT_SECRET",
         "RAMP_REDIRECT_URI",
+    ),
+    "brex": (
+        "BREX_CLIENT_ID",
+        "BREX_CLIENT_SECRET",
+        "BREX_REDIRECT_URI",
+    ),
+    "chase": (
+        "CHASE_CLIENT_ID",
+        "CHASE_CLIENT_SECRET",
+        "CHASE_REDIRECT_URI",
+    ),
+    "schwab": (
+        "SCHWAB_CLIENT_ID",
+        "SCHWAB_CLIENT_SECRET",
+        "SCHWAB_REDIRECT_URI",
+    ),
+    "notion": (
+        "NOTION_CLIENT_ID",
+        "NOTION_CLIENT_SECRET",
+        "NOTION_REDIRECT_URI",
+    ),
+    "asana": (
+        "ASANA_CLIENT_ID",
+        "ASANA_CLIENT_SECRET",
+        "ASANA_REDIRECT_URI",
+    ),
+    "clickup": (
+        "CLICKUP_CLIENT_ID",
+        "CLICKUP_CLIENT_SECRET",
+        "CLICKUP_REDIRECT_URI",
+    ),
+    "monday": (
+        "MONDAY_CLIENT_ID",
+        "MONDAY_CLIENT_SECRET",
+        "MONDAY_REDIRECT_URI",
+    ),
+    "linear": (
+        "LINEAR_CLIENT_ID",
+        "LINEAR_CLIENT_SECRET",
+        "LINEAR_REDIRECT_URI",
+    ),
+    "airtable": (
+        "AIRTABLE_CLIENT_ID",
+        "AIRTABLE_CLIENT_SECRET",
+        "AIRTABLE_REDIRECT_URI",
+    ),
+    "gusto": (
+        "GUSTO_CLIENT_ID",
+        "GUSTO_CLIENT_SECRET",
+        "GUSTO_REDIRECT_URI",
+    ),
+    "shopify": (
+        "SHOPIFY_CLIENT_ID",
+        "SHOPIFY_CLIENT_SECRET",
+        "SHOPIFY_REDIRECT_URI",
+    ),
+    "square": (
+        "SQUARE_APPLICATION_ID",
+        "SQUARE_APPLICATION_SECRET",
+        "SQUARE_REDIRECT_URI",
+    ),
+    "docusign": (
+        "DOCUSIGN_INTEGRATION_KEY",
+        "DOCUSIGN_SECRET_KEY",
+        "DOCUSIGN_REDIRECT_URI",
     ),
 }
 
@@ -200,14 +287,20 @@ def build_connect_url(service: str, org_id: str, user_id: str) -> str | None:
 
 def service_is_customer_connectable(service: str) -> bool:
     """Return whether a customer-facing service is fully configured for connection."""
-    required = CUSTOMER_CONNECT_ENV_REQUIREMENTS.get(service, ())
+    required = CUSTOMER_CONNECT_ENV_REQUIREMENTS.get(service)
+    if not required:
+        return False
     return all(os.getenv(env_var, "").strip() for env_var in required)
 
 
 def get_customer_facing_enabled_services() -> dict[str, bool]:
-    """Return enabled services that are also fully configured for customer use."""
+    """Return every explicitly enabled customer-facing service.
+
+    Connectability is evaluated separately at connect time. Hiding enabled services
+    made staging look artificially narrow and prevented Aleq from surfacing the
+    actual integration roadmap of the environment.
+    """
     return {
         service: ALL_SERVICES_OAUTH.get(service, False)
         for service in ENABLED_SERVICES
-        if service_is_customer_connectable(service)
     }
