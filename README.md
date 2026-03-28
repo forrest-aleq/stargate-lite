@@ -21,13 +21,11 @@ Only these human-written docs are maintained:
 
 ## Local Setup
 
-Use Python 3.12.
+Use Python 3.12. The repo now pins that locally with `.python-version`, and the supported bootstrap path is `./setup.sh`.
 
 ```bash
-python3.12 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
+./setup.sh
+source .venv/bin/activate
 ```
 
 Set the minimum required environment variables before starting the app:

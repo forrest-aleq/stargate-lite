@@ -38,7 +38,7 @@ Stargate Lite is the execution layer ("The Hands") for the Aleq MIND ecosystem. 
 # Development mode with auto-reload
 make run
 # Or manually:
-source venv/bin/activate
+source .venv/bin/activate
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
@@ -47,8 +47,8 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 # Run the test suite
 make test
 # Or manually:
-source venv/bin/activate
-python test.py
+source .venv/bin/activate
+python -m pytest tests -v
 ```
 
 ### Deployment (Railway)
@@ -263,8 +263,8 @@ When implementing a plan or feature, ensure ALL surfaces/components/files mentio
 
 - Read the entire plan before starting — understand the dependency chain
 - Implement in the order specified (or dependency order if unspecified)
-- After each logical group of changes, run `source venv/bin/activate && python -m pytest tests/ -x -q` to catch regressions early
-- After ALL changes, run `source venv/bin/activate && pre-commit run --all-files` before reporting done
+- After each logical group of changes, run `source .venv/bin/activate && python -m pytest tests/ -x -q` to catch regressions early
+- After ALL changes, run `source .venv/bin/activate && pre-commit run --all-files` before reporting done
 - Never report "done" with failing tests or lint errors
 
 ## Safety & Defensive Coding
@@ -279,10 +279,10 @@ Never remove, delete, or modify existing working code/config (e.g., triggers, en
 
 ## Project Context
 
-This is a **Python 3.13 / FastAPI** project. The codebase is Python throughout — no TypeScript, no frontend code. Always build real project-integrated code, never isolated prototypes or standalone files unless explicitly asked.
+This is a **Python 3.12 / FastAPI** project. The codebase is Python throughout — no TypeScript, no frontend code. Always build real project-integrated code, never isolated prototypes or standalone files unless explicitly asked.
 
-- Virtual environment: `source venv/bin/activate` before any Python commands
-- Test runner: `python -m pytest tests/ -v` (NOT `make test`, NOT `python test.py`)
+- Virtual environment: `source .venv/bin/activate` before any Python commands
+- Test runner: `python -m pytest tests/ -v` (the `make test` target now shells to this)
 - Pre-commit: `pre-commit run --all-files` (runs ruff, ruff-format, mypy --strict, guardian, release-check)
 - Guardian enforces: max 650 lines per file, max function size limits
 - Pre-push hook runs the full test suite — tests must pass before push

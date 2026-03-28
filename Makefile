@@ -18,11 +18,11 @@ setup:
 
 run:
 	@echo "Starting Stargate Lite..."
-	@. venv/bin/activate && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+	@. .venv/bin/activate && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 
 test:
 	@echo "Running tests..."
-	@. venv/bin/activate && python test.py
+	@. .venv/bin/activate && python -m pytest tests -v
 
 docker-up:
 	@echo "Starting Docker containers..."
