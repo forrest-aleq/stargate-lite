@@ -157,7 +157,12 @@ def test_build_xlsx_artifact_supports_formulas_named_ranges_and_charts(monkeypat
             "sheets": [
                 {
                     "name": "Forecast",
-                    "columns": ["Month", "Revenue", "Growth %", "Ending Cash"],
+                    "columns": [
+                        {"header": "Month", "width": 16},
+                        {"header": "Revenue", "width": 18},
+                        {"header": "Growth %", "width": 14},
+                        {"header": "Ending Cash", "width": 18},
+                    ],
                     "rows": [
                         ["Jan", 100000, 0.10, 150000],
                         [
@@ -201,6 +206,8 @@ def test_build_xlsx_artifact_supports_formulas_named_ranges_and_charts(monkeypat
     worksheet = workbook["Forecast"]
     assert workbook.properties.creator == "Aleq Modeling Engine"
     assert workbook.defined_names["ForecastRevenue"].attr_text == "'Forecast'!$B$2:$B$4"
+    assert worksheet["A1"].value == "Month"
+    assert worksheet["D1"].value == "Ending Cash"
     assert worksheet["B3"].value == "=B2*(1+C3)"
     assert worksheet["D3"].value == "=D2+B3-45000"
     assert worksheet.tables["ForecastTable"].ref == "A1:D4"

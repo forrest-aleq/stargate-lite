@@ -25,6 +25,15 @@ def _require_list(args: dict[str, Any], key: str) -> list[Any]:
     return value
 
 
+def _optional_list(args: dict[str, Any], key: str) -> list[Any] | None:
+    value = args.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, list):
+        raise ValidationError(key, "Must be an array")
+    return value
+
+
 def _optional_str(args: dict[str, Any], key: str) -> str | None:
     value = args.get(key)
     if value is None:
@@ -106,7 +115,9 @@ class E2BArtifactMixin:
         spec = {
             "workbook_name": _optional_str(args, "workbook_name") or "aleq-workbook.xlsx",
             "path": _optional_str(args, "path"),
+            "author": _optional_str(args, "author") or "Aleq",
             "sheets": sheets,
+            "named_ranges": _optional_list(args, "named_ranges") or [],
         }
         payload = _run_script(
             self,

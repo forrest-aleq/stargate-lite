@@ -106,9 +106,26 @@ def build_xlsx_script(spec: dict[str, Any]) -> str:
 
 
     def normalize_columns(rows, explicit):
+        columns = []
         if explicit:
-            return [str(col) for col in explicit]
-        names = []
+            for index, raw_column in enumerate(explicit, start=1):
+                if isinstance(raw_column, dict) and not CELL_SPEC_KEYS.intersection(raw_column.keys()):
+                    header = str(
+                        raw_column.get("header")
+                        or raw_column.get("name")
+                        or raw_column.get("label")
+                        or f"Column {index}"
+                    )
+                    columns.append(
+                        {
+                            "header": header,
+                            "width": raw_column.get("width"),
+                        }
+                    )
+                else:
+                    columns.append({"header": str(raw_column), "width": None})
+            return columns
+
         seen = set()
         for row in rows:
             if isinstance(row, dict) and not CELL_SPEC_KEYS.intersection(row.keys()):
@@ -116,8 +133,8 @@ def build_xlsx_script(spec: dict[str, Any]) -> str:
                     key_text = str(key)
                     if key_text not in seen:
                         seen.add(key_text)
-                        names.append(key_text)
-        return names
+                        columns.append({"header": key_text, "width": None})
+        return columns
 
 
     def normalize_rows(rows, columns):
@@ -304,9 +321,10 @@ def build_xlsx_script(spec: dict[str, Any]) -> str:
         if not isinstance(sheet_spec, dict):
             raise ValueError("Each sheet must be an object")
         rows = list(sheet_spec.get("rows") or [])
-        columns = normalize_columns(rows, sheet_spec.get("columns") or [])
-        if not columns:
-            columns = ["Value"]
+        column_specs = normalize_columns(rows, sheet_spec.get("columns") or [])
+        if not column_specs:
+            column_specs = [{"header": "Value", "width": None}]
+        columns = [str(col.get("header") or "Value") for col in column_specs]
 
         sheet_name = unique_sheet_title(sheet_spec.get("name") or f"Sheet {sheet_index + 1}", existing_sheet_names)
         worksheet = workbook.create_sheet(title=sheet_name)
@@ -319,7 +337,13 @@ def build_xlsx_script(spec: dict[str, Any]) -> str:
         freeze_header = bool_spec(sheet_spec.get("freeze_header"), include_header)
         body_rows = normalize_rows(rows, columns)
 
-        widths = [len(str(col)) for col in columns]
+        widths = []
+        for index, column_spec in enumerate(column_specs):
+            explicit_width = column_spec.get("width")
+            if isinstance(explicit_width, (int, float)) and explicit_width > 0:
+                widths.append(float(explicit_width))
+            else:
+                widths.append(len(columns[index]))
 
         current_row = 1
         if include_header:
