@@ -2,27 +2,31 @@
 
 Last verified against `stargate-lite` Railway `staging` on `2026-03-28`.
 
-This is the actual readiness sheet for making connectors live in Aleq.
+This is the actual readiness sheet for making services live in Aleq.
 
-- Connector envs belong on `stargate-lite`, not `baby-mars`.
-- A connector also needs to be present in `ENABLED_SERVICES` to show up in Aleq.
+- Service envs belong on `stargate-lite`, not `baby-mars`.
+- Customer-connect integrations also need to be present in `ENABLED_SERVICES` to show up in Aleq.
 - Status meanings:
   - `Ready now`: staged and connectable today
   - `Partial`: surfaced, but missing envs or OAuth pieces
   - `Missing`: not ready in staging
 
-## Runtime and Research
+## Runtime Infrastructure
+
+These are Aleq runtime tools. Customers do not connect these through the integrations page.
 
 - `Ready now` `E2B`
   Env: `E2B_API_KEY`
 - `Ready now` `Hyperbrowser`
   Env: `HYPERBROWSER_API_KEY`
+
+## Research and Model Support
 - `Ready now` `Tavily`
   Env: `TAVILY_API_KEY`
 - `Missing` `Google AI`
   Needed: `GOOGLE_AI_API_KEY`
 
-## Ready Now on Staging
+## Customer-Connect Integrations Ready Now on Staging
 
 - `QuickBooks`
   Present: `QUICKBOOKS_CLIENT_ID`, `QUICKBOOKS_CLIENT_SECRET`, `QUICKBOOKS_REDIRECT_URI`
@@ -39,14 +43,14 @@ This is the actual readiness sheet for making connectors live in Aleq.
 - `Ramp`
   Present: `RAMP_CLIENT_ID`, `RAMP_CLIENT_SECRET`, `RAMP_REDIRECT_URI`
 
-## Partial on Staging
+## Customer-Connect Integrations Partial on Staging
 
 - `Stripe`
   Present: `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`
   Missing: `STRIPE_CLIENT_ID`, `STRIPE_REDIRECT_URI`
   Note: backend access works; customer self-serve connect does not.
 
-## Missing on Staging
+## Customer-Connect Integrations Missing on Staging
 
 - `Zoho Books`
   Missing: `ZOHO_BOOKS_CLIENT_ID`, `ZOHO_BOOKS_CLIENT_SECRET`, `ZOHO_BOOKS_REDIRECT_URI`, `ZOHO_BOOKS_ACCOUNTS_SERVER`
@@ -107,3 +111,4 @@ This is the actual readiness sheet for making connectors live in Aleq.
 - `stargate-lite` staging currently exposes the full connector catalog in Aleq because `ENABLED_SERVICES` already includes the broad set.
 - Some connectors are visible but intentionally fail cleanly until the missing envs above are added.
 - Stripe is the most obvious example of a connector that is partly ready today.
+- `E2B` and `Hyperbrowser` are infrastructure. They power runtime execution and browsing, but they should not be presented as customer integrations.
