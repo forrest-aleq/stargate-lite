@@ -255,7 +255,8 @@ def build_xlsx_script(spec: dict[str, Any]) -> str:
 
     def add_charts(workbook, worksheet, chart_specs):
         if not isinstance(chart_specs, list):
-            return
+            return 0
+        created = 0
         for chart_spec in chart_specs:
             if not isinstance(chart_spec, dict):
                 continue
@@ -292,6 +293,8 @@ def build_xlsx_script(spec: dict[str, Any]) -> str:
                 continue
 
             worksheet.add_chart(chart, anchor)
+            created += 1
+        return created
 
 
     sheets = SPEC.get("sheets") or []
@@ -312,7 +315,10 @@ def build_xlsx_script(spec: dict[str, Any]) -> str:
     existing_sheet_names = set()
     existing_table_names = set()
     formula_count = 0
+    table_count = 0
+    chart_count = 0
     sheet_names = []
+    sheet_summaries = []
 
     default_sheet = workbook.active
     workbook.remove(default_sheet)
@@ -336,6 +342,9 @@ def build_xlsx_script(spec: dict[str, Any]) -> str:
         include_header = bool_spec(sheet_spec.get("include_header"), True)
         freeze_header = bool_spec(sheet_spec.get("freeze_header"), include_header)
         body_rows = normalize_rows(rows, columns)
+        sheet_formula_count = 0
+        sheet_table_count = 0
+        sheet_chart_count = 0
 
         widths = []
         for index, column_spec in enumerate(column_specs):
@@ -368,6 +377,7 @@ def build_xlsx_script(spec: dict[str, Any]) -> str:
                     inferred_style = "integer"
                 if set_cell(worksheet.cell(row=row_index, column=col_index), value, inferred_style):
                     formula_count += 1
+                    sheet_formula_count += 1
                 spec = cell_spec(value)
                 if spec is not None and "formula" in spec and spec.get("formula") is not None:
                     cell_text = str(spec["formula"])
@@ -390,6 +400,7 @@ def build_xlsx_script(spec: dict[str, Any]) -> str:
             if formula_spec.get("hyperlink"):
                 target_cell.hyperlink = str(formula_spec["hyperlink"])
             formula_count += 1
+            sheet_formula_count += 1
             widths[target_cell.column - 1] = min(max(widths[target_cell.column - 1], len(str(formula_spec["formula"]))), 42)
 
         for index, width in enumerate(widths, start=1):
@@ -416,8 +427,21 @@ def build_xlsx_script(spec: dict[str, Any]) -> str:
                 showColumnStripes=False,
             )
             worksheet.add_table(table)
+            table_count += 1
+            sheet_table_count += 1
 
-        add_charts(workbook, worksheet, sheet_spec.get("charts"))
+        sheet_chart_count = add_charts(workbook, worksheet, sheet_spec.get("charts"))
+        chart_count += sheet_chart_count
+        sheet_summaries.append(
+            {
+                "name": sheet_name,
+                "row_count": len(body_rows),
+                "column_count": len(columns),
+                "formula_count": sheet_formula_count,
+                "table_count": sheet_table_count,
+                "chart_count": sheet_chart_count,
+            }
+        )
 
     for named_range in SPEC.get("named_ranges", []) or []:
         if not isinstance(named_range, dict):
@@ -442,7 +466,10 @@ def build_xlsx_script(spec: dict[str, Any]) -> str:
                 "sheet_count": len(sheet_names),
                 "sheet_names": sheet_names,
                 "formula_count": formula_count,
+                "table_count": table_count,
+                "chart_count": chart_count,
                 "named_range_count": len(workbook.defined_names),
+                "sheet_summaries": sheet_summaries,
                 "file_content": base64.b64encode(payload).decode("ascii"),
             }
         )

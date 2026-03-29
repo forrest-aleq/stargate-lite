@@ -131,7 +131,19 @@ def test_build_xlsx_artifact_generates_workbook(monkeypatch: Any) -> None:
     assert result["file_name"] == "waterfall.xlsx"
     assert result["sheet_count"] == 1
     assert result["formula_count"] == 0
+    assert result["table_count"] == 0
+    assert result["chart_count"] == 0
     assert result["named_range_count"] == 0
+    assert result["sheet_summaries"] == [
+        {
+            "name": "Waterfall",
+            "row_count": 2,
+            "column_count": 3,
+            "formula_count": 0,
+            "table_count": 0,
+            "chart_count": 0,
+        }
+    ]
     payload = base64.b64decode(result["file_content"])
     workbook = load_workbook(io.BytesIO(payload))
     worksheet = workbook["Waterfall"]
@@ -200,7 +212,19 @@ def test_build_xlsx_artifact_supports_formulas_named_ranges_and_charts(monkeypat
 
     assert result["sheet_count"] == 1
     assert result["formula_count"] == 4
+    assert result["table_count"] == 1
+    assert result["chart_count"] == 1
     assert result["named_range_count"] == 1
+    assert result["sheet_summaries"] == [
+        {
+            "name": "Forecast",
+            "row_count": 3,
+            "column_count": 4,
+            "formula_count": 4,
+            "table_count": 1,
+            "chart_count": 1,
+        }
+    ]
     payload = base64.b64decode(result["file_content"])
     workbook = load_workbook(io.BytesIO(payload), data_only=False)
     worksheet = workbook["Forecast"]

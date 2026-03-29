@@ -94,9 +94,25 @@ ARTIFACT_XLSX_BUILD = CapabilitySchema(
             type="integer",
             description="Number of formula cells written into the workbook",
         ),
+        "table_count": ReturnFieldSchema(
+            type="integer",
+            description="Number of Excel tables created across all sheets",
+        ),
+        "chart_count": ReturnFieldSchema(
+            type="integer",
+            description="Number of embedded charts created across all sheets",
+        ),
         "named_range_count": ReturnFieldSchema(
             type="integer",
             description="Number of workbook named ranges created",
+        ),
+        "sheet_summaries": ReturnFieldSchema(
+            type="array",
+            description=(
+                "Per-sheet workbook summary objects with name, row_count, column_count, "
+                "formula_count, table_count, and chart_count."
+            ),
+            items_type="object",
         ),
         "file_content": ReturnFieldSchema(
             type="string",
