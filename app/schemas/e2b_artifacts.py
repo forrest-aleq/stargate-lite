@@ -31,6 +31,12 @@ ARTIFACT_XLSX_BUILD = CapabilitySchema(
             description="Filename for the workbook",
             default="aleq-workbook.xlsx",
         ),
+        "author": ParameterSchema(
+            type="string",
+            required=False,
+            description="Workbook author metadata",
+            default="Aleq",
+        ),
         "path": ParameterSchema(
             type="string",
             required=False,
@@ -41,7 +47,18 @@ ARTIFACT_XLSX_BUILD = CapabilitySchema(
             required=True,
             description=(
                 "Workbook sheets. Each item should be an object with name, optional columns, "
-                "rows, and optional currency_columns / percent_columns / integer_columns."
+                "rows, optional formulas, optional charts, optional table_name / as_table, "
+                "and optional currency_columns / percent_columns / integer_columns. Row cells "
+                "may be raw values or objects with value/formula/style/number_format."
+            ),
+            items_type="object",
+        ),
+        "named_ranges": ParameterSchema(
+            type="array",
+            required=False,
+            description=(
+                "Optional workbook-level named ranges. Each item should include name plus "
+                "reference like \"'Forecast'!$B$2:$M$2\"."
             ),
             items_type="object",
         ),
@@ -72,6 +89,14 @@ ARTIFACT_XLSX_BUILD = CapabilitySchema(
             type="array",
             description="Ordered sheet names",
             items_type="string",
+        ),
+        "formula_count": ReturnFieldSchema(
+            type="integer",
+            description="Number of formula cells written into the workbook",
+        ),
+        "named_range_count": ReturnFieldSchema(
+            type="integer",
+            description="Number of workbook named ranges created",
         ),
         "file_content": ReturnFieldSchema(
             type="string",
@@ -111,6 +136,9 @@ ARTIFACT_XLSX_BUILD = CapabilitySchema(
                         "currency_columns": ["Distribution"],
                         "percent_columns": ["Promote %"],
                     }
+                ],
+                "named_ranges": [
+                    {"name": "PromoteRange", "reference": "'Waterfall'!$C$2:$C$3"},
                 ],
             },
         )

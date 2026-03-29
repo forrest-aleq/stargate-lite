@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, ClassVar
 
 from cryptography.fernet import Fernet
+from openpyxl import load_workbook
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -129,15 +130,81 @@ def test_build_xlsx_artifact_generates_workbook(monkeypatch: Any) -> None:
     assert result["artifact_kind"] == "spreadsheet"
     assert result["file_name"] == "waterfall.xlsx"
     assert result["sheet_count"] == 1
+    assert result["formula_count"] == 0
+    assert result["named_range_count"] == 0
     payload = base64.b64decode(result["file_content"])
-    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
-        workbook = archive.read("xl/workbook.xml").decode("utf-8")
-        shared = archive.read("xl/sharedStrings.xml").decode("utf-8")
-        sheet = archive.read("xl/worksheets/sheet1.xml").decode("utf-8")
-    assert "Waterfall" in workbook
-    assert "Partner" in shared
-    assert "GP" in shared
-    assert "autoFilter" in sheet
+    workbook = load_workbook(io.BytesIO(payload))
+    worksheet = workbook["Waterfall"]
+    assert workbook.calculation.fullCalcOnLoad is True
+    assert workbook.calculation.forceFullCalc is True
+    assert worksheet["A1"].value == "Partner"
+    assert worksheet["A2"].value == "GP"
+    assert worksheet["B2"].value == 1250000
+    assert worksheet["C3"].value == 0.8
+    assert worksheet.freeze_panes == "A2"
+    assert worksheet.auto_filter.ref == "A1:C3"
+
+
+def test_build_xlsx_artifact_supports_formulas_named_ranges_and_charts(monkeypatch: Any) -> None:
+    connector = _connector(monkeypatch)
+    result = connector.build_xlsx_artifact(
+        "org_1",
+        "user_1",
+        {
+            "workbook_name": "forecast.xlsx",
+            "path": "forecast.xlsx",
+            "author": "Aleq Modeling Engine",
+            "sheets": [
+                {
+                    "name": "Forecast",
+                    "columns": ["Month", "Revenue", "Growth %", "Ending Cash"],
+                    "rows": [
+                        ["Jan", 100000, 0.10, 150000],
+                        [
+                            "Feb",
+                            {"formula": "B2*(1+C3)", "style": "currency"},
+                            0.08,
+                            {"formula": "D2+B3-45000", "style": "currency"},
+                        ],
+                        [
+                            "Mar",
+                            {"formula": "=B3*(1+C4)", "style": "currency"},
+                            0.06,
+                            {"formula": "=D3+B4-46000", "style": "currency"},
+                        ],
+                    ],
+                    "currency_columns": ["Revenue", "Ending Cash"],
+                    "percent_columns": ["Growth %"],
+                    "table_name": "ForecastTable",
+                    "charts": [
+                        {
+                            "type": "line",
+                            "title": "Ending cash",
+                            "anchor": "G2",
+                            "data_range": "'Forecast'!$D$1:$D$4",
+                            "category_range": "'Forecast'!$A$2:$A$4",
+                        }
+                    ],
+                }
+            ],
+            "named_ranges": [
+                {"name": "ForecastRevenue", "reference": "'Forecast'!$B$2:$B$4"},
+            ],
+        },
+    )
+
+    assert result["sheet_count"] == 1
+    assert result["formula_count"] == 4
+    assert result["named_range_count"] == 1
+    payload = base64.b64decode(result["file_content"])
+    workbook = load_workbook(io.BytesIO(payload), data_only=False)
+    worksheet = workbook["Forecast"]
+    assert workbook.properties.creator == "Aleq Modeling Engine"
+    assert workbook.defined_names["ForecastRevenue"].attr_text == "'Forecast'!$B$2:$B$4"
+    assert worksheet["B3"].value == "=B2*(1+C3)"
+    assert worksheet["D3"].value == "=D2+B3-45000"
+    assert worksheet.tables["ForecastTable"].ref == "A1:D4"
+    assert len(worksheet._charts) == 1
 
 
 def test_render_chart_generates_svg(monkeypatch: Any) -> None:

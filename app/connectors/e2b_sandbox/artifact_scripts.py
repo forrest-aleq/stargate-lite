@@ -16,301 +16,415 @@ def _encode_spec(spec: dict[str, Any]) -> str:
 
 def build_xlsx_script(spec: dict[str, Any]) -> str:
     encoded = _encode_spec(spec)
-    return dedent(
-        f"""
-        import base64
-        import io
-        import json
-        import zipfile
-        from pathlib import Path
-        from xml.sax.saxutils import escape
+    template = """
+    import base64
+    import io
+    import json
+    import re
+    import subprocess
+    import sys
+    from pathlib import Path
 
-        SPEC = json.loads(base64.b64decode("{encoded}").decode("utf-8"))
-
-
-        def column_letter(index):
-            index += 1
-            out = []
-            while index:
-                index, remainder = divmod(index - 1, 26)
-                out.append(chr(65 + remainder))
-            return "".join(reversed(out))
+    SPEC = json.loads(base64.b64decode("__ENCODED__").decode("utf-8"))
 
 
-        def xml_text(value):
-            if value is None:
-                return ""
-            if isinstance(value, bool):
-                return "TRUE" if value else "FALSE"
-            return str(value)
-
-
-        def normalize_columns(rows, explicit):
-            if explicit:
-                return [str(col) for col in explicit]
-            names = []
-            seen = set()
-            for row in rows:
-                if isinstance(row, dict):
-                    for key in row:
-                        key_text = str(key)
-                        if key_text not in seen:
-                            seen.add(key_text)
-                            names.append(key_text)
-            return names
-
-
-        def normalize_rows(rows, columns):
-            normalized = []
-            for row in rows:
-                if isinstance(row, dict):
-                    normalized.append([row.get(column) for column in columns])
-                elif isinstance(row, list):
-                    normalized.append(row[: len(columns)] + [None] * max(0, len(columns) - len(row)))
-                else:
-                    normalized.append([row] + [None] * max(0, len(columns) - 1))
-            return normalized
-
-
-        def style_for(header, value, currency_columns, percent_columns, integer_columns):
-            header_key = header.lower()
-            if value is None:
-                return 0
-            if header_key in currency_columns and isinstance(value, (int, float)):
-                return 2
-            if header_key in percent_columns and isinstance(value, (int, float)):
-                return 3
-            if header_key in integer_columns and isinstance(value, (int, float)):
-                return 4
-            return 0
-
-
-        def cell_payload(value):
-            if value is None:
-                return "string", ""
-            if isinstance(value, bool):
-                return "bool", "1" if value else "0"
-            if isinstance(value, (int, float)) and not isinstance(value, bool):
-                return "number", repr(value)
-            return "string", xml_text(value)
-
-
-        shared_strings = []
-        shared_index = {{}}
-
-
-        def intern_shared(value):
-            if value not in shared_index:
-                shared_index[value] = len(shared_strings)
-                shared_strings.append(value)
-            return shared_index[value]
-
-
-        def build_sheet_xml(sheet_spec):
-            name = str(sheet_spec.get("name") or "Sheet")
-            rows = list(sheet_spec.get("rows") or [])
-            columns = normalize_columns(rows, sheet_spec.get("columns") or [])
-            if not columns:
-                columns = ["Value"]
-            body_rows = normalize_rows(rows, columns)
-            currency_columns = {{str(col).lower() for col in sheet_spec.get("currency_columns", [])}}
-            percent_columns = {{str(col).lower() for col in sheet_spec.get("percent_columns", [])}}
-            integer_columns = {{str(col).lower() for col in sheet_spec.get("integer_columns", [])}}
-
-            all_rows = [columns] + body_rows
-            widths = [len(xml_text(col)) for col in columns]
-            for row in body_rows:
-                for idx, cell in enumerate(row):
-                    widths[idx] = min(max(widths[idx], len(xml_text(cell))), 36)
-
-            col_xml = "".join(
-                f'<col min="{{idx + 1}}" max="{{idx + 1}}" width="{{max(10, width + 2)}}" customWidth="1"/>'
-                for idx, width in enumerate(widths)
+    def ensure_openpyxl():
+        try:
+            from openpyxl import Workbook
+            from openpyxl.chart import BarChart, LineChart
+            from openpyxl.chart.reference import Reference
+            from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+            from openpyxl.utils import get_column_letter, range_boundaries
+            from openpyxl.workbook.defined_name import DefinedName
+            from openpyxl.workbook.properties import CalcProperties
+            from openpyxl.worksheet.table import Table, TableStyleInfo
+        except ImportError:
+            subprocess.check_call(
+                [sys.executable, "-m", "pip", "install", "openpyxl==3.1.5"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
             )
-            row_xml = []
-            for row_idx, row in enumerate(all_rows, start=1):
-                cells = []
-                for col_idx, header in enumerate(columns):
-                    value = row[col_idx] if col_idx < len(row) else None
-                    if row_idx == 1:
-                        style = 1
-                        kind, payload = "string", xml_text(header)
-                    else:
-                        style = style_for(header, value, currency_columns, percent_columns, integer_columns)
-                        kind, payload = cell_payload(value)
-                    cell_ref = f"{{column_letter(col_idx)}}{{row_idx}}"
-                    if kind == "number":
-                        cells.append(f'<c r="{{cell_ref}}" s="{{style}}"><v>{{payload}}</v></c>')
-                    elif kind == "bool":
-                        cells.append(f'<c r="{{cell_ref}}" t="b" s="{{style}}"><v>{{payload}}</v></c>')
-                    else:
-                        string_id = intern_shared(payload)
-                        cells.append(f'<c r="{{cell_ref}}" t="s" s="{{style}}"><v>{{string_id}}</v></c>')
-                row_xml.append(f'<row r="{{row_idx}}">' + "".join(cells) + "</row>")
-
-            freeze_header = sheet_spec.get("freeze_header", True)
-            top_left = "A2" if freeze_header else "A1"
-            pane_xml = (
-                '<sheetViews><sheetView workbookViewId="0">'
-                '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>'
-                "</sheetView></sheetViews>"
-                if freeze_header
-                else '<sheetViews><sheetView workbookViewId="0"/></sheetViews>'
-            )
-            auto_filter = (
-                f'<autoFilter ref="A1:{{column_letter(len(columns) - 1)}}{{len(all_rows)}}"/>'
-                if sheet_spec.get("auto_filter", True) and all_rows
-                else ""
-            )
-            dimension = f"A1:{{column_letter(len(columns) - 1)}}{{max(1, len(all_rows))}}"
-            xml = (
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-                '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
-                'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-                f"<dimension ref=\\"{{dimension}}\\"/>"
-                f"{{pane_xml}}"
-                f"<cols>{{col_xml}}</cols>"
-                "<sheetData>"
-                + "".join(row_xml)
-                + "</sheetData>"
-                + auto_filter
-                + "</worksheet>"
-            )
-            return name[:31], xml
-
-
-        sheets = SPEC.get("sheets") or []
-        if not sheets:
-            raise ValueError("At least one sheet is required")
-
-        workbook_name = str(SPEC.get("workbook_name") or "aleq-workbook.xlsx")
-        if not workbook_name.lower().endswith(".xlsx"):
-            workbook_name += ".xlsx"
-        path = str(SPEC.get("path") or f"/workspace/{{workbook_name}}")
-        Path(path).parent.mkdir(parents=True, exist_ok=True)
-
-        sheet_xml = [build_sheet_xml(sheet) for sheet in sheets]
-
-        workbook = io.BytesIO()
-        with zipfile.ZipFile(workbook, "w", zipfile.ZIP_DEFLATED) as archive:
-            archive.writestr(
-                "[Content_Types].xml",
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-                '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
-                '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
-                '<Default Extension="xml" ContentType="application/xml"/>'
-                '<Override PartName="/xl/workbook.xml" '
-                'ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
-                '<Override PartName="/xl/styles.xml" '
-                'ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
-                '<Override PartName="/xl/sharedStrings.xml" '
-                'ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>'
-                + "".join(
-                    f'<Override PartName="/xl/worksheets/sheet{{idx}}.xml" '
-                    'ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
-                    for idx in range(1, len(sheet_xml) + 1)
-                )
-                + "</Types>",
-            )
-            archive.writestr(
-                "_rels/.rels",
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-                '<Relationship Id="rId1" '
-                'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" '
-                'Target="xl/workbook.xml"/>'
-                "</Relationships>",
-            )
-            archive.writestr(
-                "xl/workbook.xml",
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-                '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
-                'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-                "<sheets>"
-                + "".join(
-                    f'<sheet name="{{escape(name)}}" sheetId="{{idx}}" r:id="rId{{idx}}"/>'
-                    for idx, (name, _) in enumerate(sheet_xml, start=1)
-                )
-                + "</sheets></workbook>",
-            )
-            archive.writestr(
-                "xl/_rels/workbook.xml.rels",
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-                + "".join(
-                    f'<Relationship Id="rId{{idx}}" '
-                    'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" '
-                    f'Target="worksheets/sheet{{idx}}.xml"/>'
-                    for idx in range(1, len(sheet_xml) + 1)
-                )
-                + f'<Relationship Id="rId{{len(sheet_xml) + 1}}" '
-                'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" '
-                'Target="styles.xml"/>'
-                + f'<Relationship Id="rId{{len(sheet_xml) + 2}}" '
-                'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" '
-                'Target="sharedStrings.xml"/>'
-                + "</Relationships>",
-            )
-            archive.writestr(
-                "xl/styles.xml",
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-                '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-                '<numFmts count="3">'
-                '<numFmt numFmtId="164" formatCode="$#,##0.00;[Red]-$#,##0.00"/>'
-                '<numFmt numFmtId="165" formatCode="0.0%"/>'
-                '<numFmt numFmtId="166" formatCode="#,##0"/>'
-                "</numFmts>"
-                '<fonts count="2">'
-                '<font><sz val="11"/><name val="Aptos"/></font>'
-                '<font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Aptos"/></font>'
-                "</fonts>"
-                '<fills count="3">'
-                '<fill><patternFill patternType="none"/></fill>'
-                '<fill><patternFill patternType="gray125"/></fill>'
-                '<fill><patternFill patternType="solid"><fgColor rgb="FF3F51B5"/><bgColor indexed="64"/></patternFill></fill>'
-                "</fills>"
-                '<borders count="2">'
-                '<border><left/><right/><top/><bottom/><diagonal/></border>'
-                '<border><left/><right/><top style="thin"><color rgb="FFD0D7EE"/></top><bottom style="thin"><color rgb="FFD0D7EE"/></bottom><diagonal/></border>'
-                "</borders>"
-                '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
-                '<cellXfs count="5">'
-                '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
-                '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>'
-                '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
-                '<xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
-                '<xf numFmtId="166" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
-                "</cellXfs>"
-                "</styleSheet>",
-            )
-            archive.writestr(
-                "xl/sharedStrings.xml",
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-                '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
-                f'count="{{len(shared_strings)}}" uniqueCount="{{len(shared_strings)}}">'
-                + "".join(f"<si><t>{{escape(value)}}</t></si>" for value in shared_strings)
-                + "</sst>",
-            )
-            for idx, (_, xml) in enumerate(sheet_xml, start=1):
-                archive.writestr(f"xl/worksheets/sheet{{idx}}.xml", xml)
-
-        payload = workbook.getvalue()
-        Path(path).write_bytes(payload)
-        print(
-            json.dumps(
-                {{
-                    "file_name": workbook_name,
-                    "path": path,
-                    "mime_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    "size_bytes": len(payload),
-                    "sheet_count": len(sheet_xml),
-                    "sheet_names": [name for name, _ in sheet_xml],
-                    "file_content": base64.b64encode(payload).decode("ascii"),
-                }}
-            )
+            from openpyxl import Workbook
+            from openpyxl.chart import BarChart, LineChart
+            from openpyxl.chart.reference import Reference
+            from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+            from openpyxl.utils import get_column_letter, range_boundaries
+            from openpyxl.workbook.defined_name import DefinedName
+            from openpyxl.workbook.properties import CalcProperties
+            from openpyxl.worksheet.table import Table, TableStyleInfo
+        return (
+            Workbook,
+            BarChart,
+            LineChart,
+            Reference,
+            Alignment,
+            Border,
+            Font,
+            PatternFill,
+            Side,
+            get_column_letter,
+            range_boundaries,
+            DefinedName,
+            CalcProperties,
+            Table,
+            TableStyleInfo,
         )
-        """
-    ).strip()
+
+
+    (
+        Workbook,
+        BarChart,
+        LineChart,
+        Reference,
+        Alignment,
+        Border,
+        Font,
+        PatternFill,
+        Side,
+        get_column_letter,
+        range_boundaries,
+        DefinedName,
+        CalcProperties,
+        Table,
+        TableStyleInfo,
+    ) = ensure_openpyxl()
+
+
+    HEADER_FILL = PatternFill(fill_type="solid", fgColor="FF3F51B5")
+    HEADER_FONT = Font(bold=True, color="FFFFFFFF", name="Aptos", size=11)
+    HEADER_BORDER = Border(
+        top=Side(style="thin", color="FFD0D7EE"),
+        bottom=Side(style="thin", color="FFD0D7EE"),
+    )
+    HEADER_ALIGNMENT = Alignment(vertical="center")
+    NUMBER_FORMATS = {
+        "currency": "$#,##0.00;[Red]-$#,##0.00",
+        "percent": "0.0%",
+        "integer": "#,##0",
+    }
+    CELL_SPEC_KEYS = {"value", "formula", "style", "number_format", "hyperlink"}
+
+
+    def normalize_columns(rows, explicit):
+        if explicit:
+            return [str(col) for col in explicit]
+        names = []
+        seen = set()
+        for row in rows:
+            if isinstance(row, dict) and not CELL_SPEC_KEYS.intersection(row.keys()):
+                for key in row:
+                    key_text = str(key)
+                    if key_text not in seen:
+                        seen.add(key_text)
+                        names.append(key_text)
+        return names
+
+
+    def normalize_rows(rows, columns):
+        normalized = []
+        for row in rows:
+            if isinstance(row, dict) and not CELL_SPEC_KEYS.intersection(row.keys()):
+                normalized.append([row.get(column) for column in columns])
+            elif isinstance(row, list):
+                normalized.append(row[: len(columns)] + [None] * max(0, len(columns) - len(row)))
+            else:
+                normalized.append([row] + [None] * max(0, len(columns) - 1))
+        return normalized
+
+
+    def bool_spec(value, default):
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            lowered = value.strip().lower()
+            if lowered in {"true", "1", "yes", "on"}:
+                return True
+            if lowered in {"false", "0", "no", "off"}:
+                return False
+        raise ValueError("Boolean setting is malformed")
+
+
+    def cell_spec(value):
+        return value if isinstance(value, dict) and CELL_SPEC_KEYS.intersection(value.keys()) else None
+
+
+    def normalize_formula(value):
+        text = str(value).strip()
+        if not text:
+            raise ValueError("Formula cannot be empty")
+        return text if text.startswith("=") else "=" + text
+
+
+    def apply_style(cell, style_name, explicit_number_format=None):
+        if explicit_number_format:
+            cell.number_format = str(explicit_number_format)
+            return
+        if style_name in NUMBER_FORMATS:
+            cell.number_format = NUMBER_FORMATS[style_name]
+
+
+    def set_cell(cell, raw_value, inferred_style):
+        spec = cell_spec(raw_value)
+        if spec is None:
+            cell.value = raw_value
+            apply_style(cell, inferred_style)
+            return bool(isinstance(raw_value, str) and raw_value.startswith("="))
+
+        style_name = str(spec.get("style") or inferred_style or "").strip().lower() or None
+        explicit_number_format = spec.get("number_format")
+        if "formula" in spec and spec.get("formula") is not None:
+            cell.value = normalize_formula(spec["formula"])
+            apply_style(cell, style_name, explicit_number_format)
+            if spec.get("hyperlink"):
+                cell.hyperlink = str(spec["hyperlink"])
+            return True
+
+        cell.value = spec.get("value")
+        apply_style(cell, style_name, explicit_number_format)
+        if spec.get("hyperlink"):
+            cell.hyperlink = str(spec["hyperlink"])
+        return False
+
+
+    def unique_sheet_title(raw_name, existing):
+        base = str(raw_name or "Sheet").strip() or "Sheet"
+        base = re.sub(r"[\\\\/*?:\\[\\]]", "-", base)[:31] or "Sheet"
+        candidate = base
+        index = 2
+        while candidate in existing:
+            suffix = f" {index}"
+            candidate = f"{base[: 31 - len(suffix)]}{suffix}"
+            index += 1
+        existing.add(candidate)
+        return candidate
+
+
+    def unique_table_name(raw_name, existing):
+        base = re.sub(r"[^A-Za-z0-9_]", "_", str(raw_name or "AleqTable")).strip("_") or "AleqTable"
+        if base[0].isdigit():
+            base = f"T_{base}"
+        candidate = base[:255]
+        index = 2
+        while candidate in existing:
+            suffix = f"_{index}"
+            candidate = f"{base[: 255 - len(suffix)]}{suffix}"
+            index += 1
+        existing.add(candidate)
+        return candidate
+
+
+    def resolve_range(workbook, current_sheet, raw_reference):
+        text = str(raw_reference or "").strip()
+        if not text:
+            raise ValueError("Range reference is required")
+        if "!" in text:
+            sheet_name, coord = text.split("!", 1)
+            sheet_name = sheet_name.strip().strip("'")
+            target_sheet = workbook[sheet_name]
+        else:
+            target_sheet = current_sheet
+            coord = text
+        min_col, min_row, max_col, max_row = range_boundaries(coord)
+        return Reference(
+            target_sheet,
+            min_col=min_col,
+            min_row=min_row,
+            max_col=max_col,
+            max_row=max_row,
+        )
+
+
+    def add_charts(workbook, worksheet, chart_specs):
+        if not isinstance(chart_specs, list):
+            return
+        for chart_spec in chart_specs:
+            if not isinstance(chart_spec, dict):
+                continue
+            chart_type = str(chart_spec.get("type") or "line").strip().lower()
+            if chart_type == "column":
+                chart = BarChart()
+                chart.type = "col"
+            elif chart_type == "bar":
+                chart = BarChart()
+                chart.type = "bar"
+            else:
+                chart = LineChart()
+
+            chart.title = str(chart_spec.get("title") or "")
+            chart.y_axis.title = str(chart_spec.get("y_axis_title") or "")
+            chart.x_axis.title = str(chart_spec.get("x_axis_title") or "")
+            anchor = str(chart_spec.get("anchor") or "F2")
+
+            series_specs = chart_spec.get("series")
+            if isinstance(series_specs, list) and series_specs:
+                for series_spec in series_specs:
+                    if not isinstance(series_spec, dict):
+                        continue
+                    values = resolve_range(workbook, worksheet, series_spec.get("values"))
+                    chart.add_data(values, titles_from_data=bool_spec(series_spec.get("titles_from_data"), True))
+                    if series_spec.get("categories"):
+                        chart.set_categories(resolve_range(workbook, worksheet, series_spec.get("categories")))
+            elif chart_spec.get("data_range"):
+                values = resolve_range(workbook, worksheet, chart_spec.get("data_range"))
+                chart.add_data(values, titles_from_data=bool_spec(chart_spec.get("titles_from_data"), True))
+                if chart_spec.get("category_range"):
+                    chart.set_categories(resolve_range(workbook, worksheet, chart_spec.get("category_range")))
+            else:
+                continue
+
+            worksheet.add_chart(chart, anchor)
+
+
+    sheets = SPEC.get("sheets") or []
+    if not sheets:
+        raise ValueError("At least one sheet is required")
+
+    workbook_name = str(SPEC.get("workbook_name") or "aleq-workbook.xlsx")
+    if not workbook_name.lower().endswith(".xlsx"):
+        workbook_name += ".xlsx"
+    path = str(SPEC.get("path") or f"/workspace/{workbook_name}")
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+
+    workbook = Workbook()
+    workbook.calculation = CalcProperties(calcMode="auto", fullCalcOnLoad=True, forceFullCalc=True)
+    workbook.properties.creator = str(SPEC.get("author") or "Aleq")
+    workbook.properties.title = workbook_name
+
+    existing_sheet_names = set()
+    existing_table_names = set()
+    formula_count = 0
+    sheet_names = []
+
+    default_sheet = workbook.active
+    workbook.remove(default_sheet)
+
+    for sheet_index, sheet_spec in enumerate(sheets):
+        if not isinstance(sheet_spec, dict):
+            raise ValueError("Each sheet must be an object")
+        rows = list(sheet_spec.get("rows") or [])
+        columns = normalize_columns(rows, sheet_spec.get("columns") or [])
+        if not columns:
+            columns = ["Value"]
+
+        sheet_name = unique_sheet_title(sheet_spec.get("name") or f"Sheet {sheet_index + 1}", existing_sheet_names)
+        worksheet = workbook.create_sheet(title=sheet_name)
+        sheet_names.append(sheet_name)
+
+        currency_columns = {str(col).lower() for col in sheet_spec.get("currency_columns", [])}
+        percent_columns = {str(col).lower() for col in sheet_spec.get("percent_columns", [])}
+        integer_columns = {str(col).lower() for col in sheet_spec.get("integer_columns", [])}
+        include_header = bool_spec(sheet_spec.get("include_header"), True)
+        freeze_header = bool_spec(sheet_spec.get("freeze_header"), include_header)
+        body_rows = normalize_rows(rows, columns)
+
+        widths = [len(str(col)) for col in columns]
+
+        current_row = 1
+        if include_header:
+            for col_index, header in enumerate(columns, start=1):
+                cell = worksheet.cell(row=1, column=col_index, value=str(header))
+                cell.fill = HEADER_FILL
+                cell.font = HEADER_FONT
+                cell.border = HEADER_BORDER
+                cell.alignment = HEADER_ALIGNMENT
+            current_row = 2
+
+        for row_index, row in enumerate(body_rows, start=current_row):
+            for col_index, header in enumerate(columns, start=1):
+                value = row[col_index - 1] if col_index - 1 < len(row) else None
+                header_key = str(header).lower()
+                inferred_style = None
+                if header_key in currency_columns:
+                    inferred_style = "currency"
+                elif header_key in percent_columns:
+                    inferred_style = "percent"
+                elif header_key in integer_columns:
+                    inferred_style = "integer"
+                if set_cell(worksheet.cell(row=row_index, column=col_index), value, inferred_style):
+                    formula_count += 1
+                spec = cell_spec(value)
+                if spec is not None and "formula" in spec and spec.get("formula") is not None:
+                    cell_text = str(spec["formula"])
+                elif spec is not None and "value" in spec:
+                    cell_text = "" if spec.get("value") is None else str(spec.get("value"))
+                else:
+                    cell_text = "" if value is None else str(value)
+                widths[col_index - 1] = min(max(widths[col_index - 1], len(cell_text)), 42)
+
+        for formula_spec in sheet_spec.get("formulas", []) or []:
+            if not isinstance(formula_spec, dict):
+                continue
+            target = str(formula_spec.get("cell") or "").strip()
+            if not target:
+                raise ValueError("Formula cell reference is required")
+            target_cell = worksheet[target]
+            target_cell.value = normalize_formula(formula_spec.get("formula"))
+            style_name = str(formula_spec.get("style") or "").strip().lower() or None
+            apply_style(target_cell, style_name, formula_spec.get("number_format"))
+            if formula_spec.get("hyperlink"):
+                target_cell.hyperlink = str(formula_spec["hyperlink"])
+            formula_count += 1
+            widths[target_cell.column - 1] = min(max(widths[target_cell.column - 1], len(str(formula_spec["formula"]))), 42)
+
+        for index, width in enumerate(widths, start=1):
+            worksheet.column_dimensions[get_column_letter(index)].width = max(10, width + 2)
+
+        max_row = max(worksheet.max_row, 1)
+        max_col = max(worksheet.max_column, 1)
+        data_ref = f"A1:{get_column_letter(max_col)}{max_row}"
+
+        if freeze_header and include_header and worksheet.max_row >= 2:
+            worksheet.freeze_panes = "A2"
+        if bool_spec(sheet_spec.get("auto_filter"), include_header) and include_header and worksheet.max_row >= 1:
+            worksheet.auto_filter.ref = data_ref
+
+        table_enabled = sheet_spec.get("table_name") or bool_spec(sheet_spec.get("as_table"), False)
+        if table_enabled and include_header and worksheet.max_row >= 2:
+            table_name = unique_table_name(sheet_spec.get("table_name") or f"{sheet_name}_table", existing_table_names)
+            table = Table(displayName=table_name, ref=data_ref)
+            table.tableStyleInfo = TableStyleInfo(
+                name="TableStyleMedium2",
+                showFirstColumn=False,
+                showLastColumn=False,
+                showRowStripes=True,
+                showColumnStripes=False,
+            )
+            worksheet.add_table(table)
+
+        add_charts(workbook, worksheet, sheet_spec.get("charts"))
+
+    for named_range in SPEC.get("named_ranges", []) or []:
+        if not isinstance(named_range, dict):
+            continue
+        name = str(named_range.get("name") or "").strip()
+        reference = str(named_range.get("reference") or named_range.get("formula") or "").strip()
+        if not name or not reference:
+            continue
+        workbook.defined_names.add(DefinedName(name=name, attr_text=reference))
+
+    buffer = io.BytesIO()
+    workbook.save(buffer)
+    payload = buffer.getvalue()
+    Path(path).write_bytes(payload)
+    print(
+        json.dumps(
+            {
+                "file_name": workbook_name,
+                "path": path,
+                "mime_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "size_bytes": len(payload),
+                "sheet_count": len(sheet_names),
+                "sheet_names": sheet_names,
+                "formula_count": formula_count,
+                "named_range_count": len(workbook.defined_names),
+                "file_content": base64.b64encode(payload).decode("ascii"),
+            }
+        )
+    )
+    """
+    return dedent(template).replace("__ENCODED__", encoded).strip()
 
 
 def build_chart_script(spec: dict[str, Any]) -> str:
