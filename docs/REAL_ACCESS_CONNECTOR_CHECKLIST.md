@@ -4,6 +4,10 @@ Last verified against `stargate-lite` Railway `staging` on `2026-03-28`.
 
 This is the actual readiness sheet for making services live in Aleq.
 
+Local note:
+- This checklist is about `Railway staging`, not your local repo.
+- The local repo currently uses `stargate-lite/.env.local` when present; there is no requirement that `stargate-lite/.env` exist.
+
 - Service envs belong on `stargate-lite`, not `baby-mars`.
 - Customer-connect integrations also need to be present in `ENABLED_SERVICES` to show up in Aleq.
 - Status meanings:

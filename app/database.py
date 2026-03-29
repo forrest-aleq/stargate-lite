@@ -9,7 +9,6 @@ from datetime import UTC, datetime
 from typing import Any
 
 from cryptography.fernet import Fernet
-from dotenv import load_dotenv
 from sqlalchemy import JSON, Column, DateTime, String, Text, create_engine
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
@@ -17,13 +16,14 @@ from app.credential_queries import (
     get_services_for_org as _query_services_for_org,
     resolve_credential_owner as _resolve_credential_owner,
 )
+from app.env import load_env_files
 from app.logging_config import get_logger
 
 # Initialize logger
 logger = get_logger(__name__)
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables from .env.local / .env when present.
+load_env_files()
 
 # Database configuration
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./stargate_lite.db")

@@ -5,6 +5,11 @@ The "Hands" of the Aleq MIND
 
 import os
 
+from app.env import load_env_files
+
+# Load local env files before any os.getenv reads.
+load_env_files()
+
 # Version - Single source of truth
 # Update this on every release (see RELEASE_GUIDE.md)
 VERSION = "0.11.0"
