@@ -1,6 +1,13 @@
 # Stargate Lite
 
-Stargate Lite is the execution service for Aleq. It exposes a stable `/api/v1/execute` contract, resolves `capability_key` values through the registry, loads encrypted credentials, calls connector handlers, and returns normalized success or error payloads.
+Stargate Lite is the execution service for Aleq. It exposes a stable
+`/api/v1/execute` contract, resolves `capability_key` values through the
+registry, loads encrypted credentials, calls connector handlers, and returns
+normalized success or error payloads.
+
+In the platform-first direction, Stargate Lite is `S1`: the execution runtime
+that sits beneath `M1` and defines the `s1.*` half of the universal SDK
+surface.
 
 ## Maintained Docs
 
@@ -8,7 +15,9 @@ Only these human-written docs are maintained:
 
 - `README.md`
 - `docs/ARCHITECTURE.md`
+- `docs/PLATFORM_DIRECTION.md`
 - `docs/OPERATIONS.md`
+- `docs/S1_SURFACE_MATRIX.md`
 
 `openapi.json` is the machine-readable API contract and should stay in sync with the FastAPI app.
 

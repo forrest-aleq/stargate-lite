@@ -1,5 +1,8 @@
 # Architecture
 
+Stargate Lite is `S1`, the Aleq execution runtime. It should be reasoned about
+as a platform service, not only as an implementation detail behind one client.
+
 ## Runtime Shape
 
 Stargate Lite is a FastAPI service with a thin routing layer and a large capability registry.
@@ -37,3 +40,15 @@ Stargate Lite is a FastAPI service with a thin routing layer and a large capabil
 - `app/registry/__init__.py`
 - `app/errors.py`
 - `openapi.json`
+
+## Canonical Public Families
+
+The stable `S1` route families are:
+
+- capabilities
+- schemas
+- credentials
+- execute
+
+OAuth callbacks, webhook receivers, and registry mechanics remain operational
+surfaces rather than primary public SDK families.
