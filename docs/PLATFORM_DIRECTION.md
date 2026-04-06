@@ -23,6 +23,23 @@ Most clients should call `M1`, which will call `S1` as needed. Some trusted
 clients and internal tools may call `S1` directly when they need raw execution
 without the full M1 loop.
 
+## Direct Auth
+
+Direct `S1` access now supports two auth modes:
+
+- legacy shared key via `API_SECRET_KEY`
+- env-backed multi-client registry via `API_CLIENT_KEYS_JSON`
+
+The client registry supports:
+
+- per-client `key_id`
+- secret rotation through env/config changes
+- optional `org_allowlist` enforcement
+
+This is an intentional bridge, not the final end state. Full control-plane
+issuance and management for direct `S1` clients still belongs in the broader
+Aleq platform control plane.
+
 ## What Changes
 
 The platform is moving away from:

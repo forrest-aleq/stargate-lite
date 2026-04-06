@@ -87,6 +87,25 @@ client.s1.credentials.revoke(input)
 client.s1.execute.run(input)
 ```
 
+## Direct Auth Modes
+
+Current direct `S1` auth supports:
+
+- `API_SECRET_KEY`
+  Legacy shared server-to-server key.
+- `API_CLIENT_KEYS_JSON`
+  Env-backed client registry for multiple direct consumers.
+
+Registry entries support:
+
+- `key_id`
+- `secret`
+- optional `org_allowlist`
+
+This makes direct `S1` usage viable for trusted internal consumers and early
+platform clients without requiring the full control-plane issuance path on day
+one.
+
 ## Non-Goals
 
 This matrix does not attempt to expose:

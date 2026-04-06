@@ -7,16 +7,141 @@ Baby MARS sends X-API-Key, X-Timestamp, and X-Signature-256 on every request.
 
 import hashlib
 import hmac
+import json
 import os
 import secrets
 import time
+from dataclasses import dataclass
 
 from fastapi import Header, HTTPException, Request
 
-API_SECRET_KEY = os.getenv("API_SECRET_KEY")
+API_CLIENT_KEYS_JSON = "API_CLIENT_KEYS_JSON"
 
 # Reject requests with timestamps older than 5 minutes (replay protection)
 SIGNATURE_TOLERANCE_SECONDS = 300
+
+
+@dataclass(frozen=True)
+class ApiClientPrincipal:
+    key_id: str
+    secret: str
+    org_allowlist: tuple[str, ...] = ()
+    auth_mode: str = "client_registry"
+
+
+def _get_legacy_api_secret() -> str:
+    return os.getenv("API_SECRET_KEY", "").strip()
+
+
+def _load_client_principals() -> list[ApiClientPrincipal]:
+    raw = os.getenv(API_CLIENT_KEYS_JSON, "").strip()
+
+    if not raw:
+        return []
+
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"{API_CLIENT_KEYS_JSON} is not valid JSON",
+        ) from exc
+
+    if not isinstance(payload, list):
+        raise HTTPException(
+            status_code=500,
+            detail=f"{API_CLIENT_KEYS_JSON} must be a JSON array",
+        )
+
+    principals: list[ApiClientPrincipal] = []
+
+    for index, item in enumerate(payload):
+        if not isinstance(item, dict):
+            raise HTTPException(
+                status_code=500,
+                detail=f"{API_CLIENT_KEYS_JSON}[{index}] must be an object",
+            )
+
+        secret = item.get("secret")
+        key_id = item.get("key_id")
+        org_allowlist = item.get("org_allowlist", [])
+
+        if not isinstance(secret, str) or not secret.strip():
+            raise HTTPException(
+                status_code=500,
+                detail=f"{API_CLIENT_KEYS_JSON}[{index}].secret must be a non-empty string",
+            )
+
+        if key_id is None:
+            key_id = f"client-{index + 1}"
+
+        if not isinstance(key_id, str) or not key_id.strip():
+            raise HTTPException(
+                status_code=500,
+                detail=f"{API_CLIENT_KEYS_JSON}[{index}].key_id must be a string",
+            )
+
+        if not isinstance(org_allowlist, list) or any(
+            not isinstance(org_id, str) or not org_id.strip()
+            for org_id in org_allowlist
+        ):
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    f"{API_CLIENT_KEYS_JSON}[{index}].org_allowlist must be an array of strings"
+                ),
+            )
+
+        principals.append(
+            ApiClientPrincipal(
+                key_id=key_id,
+                secret=secret,
+                org_allowlist=tuple(org_allowlist),
+            )
+        )
+
+    return principals
+
+
+def _resolve_api_client(x_api_key: str | None) -> ApiClientPrincipal | None:
+    if not x_api_key:
+        return None
+
+    legacy_secret = _get_legacy_api_secret()
+
+    if legacy_secret and secrets.compare_digest(x_api_key, legacy_secret):
+        return ApiClientPrincipal(
+            key_id="legacy-shared-key",
+            secret=legacy_secret,
+            auth_mode="legacy_shared_key",
+        )
+
+    for principal in _load_client_principals():
+        if secrets.compare_digest(x_api_key, principal.secret):
+            return principal
+
+    return None
+
+
+async def _extract_org_id(request: Request) -> str | None:
+    body = await request.body()
+
+    if not body:
+        return None
+
+    try:
+        payload = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+
+    org_id = payload.get("org_id")
+    if isinstance(org_id, str) and org_id.strip():
+        return org_id
+
+    return None
 
 
 async def verify_api_key(
@@ -34,13 +159,38 @@ async def verify_api_key(
     Baby MARS sends: X-Signature-256: sha256={hex}
     Signing format:  HMAC-SHA256(key=API_SECRET_KEY, msg=timestamp + body)
     """
-    if not API_SECRET_KEY:
+    x_api_key = x_api_key if isinstance(x_api_key, str) else None
+    x_timestamp = x_timestamp if isinstance(x_timestamp, str) else None
+    x_signature_256 = (
+        x_signature_256 if isinstance(x_signature_256, str) else None
+    )
+    principal = _resolve_api_client(x_api_key)
+
+    if not _get_legacy_api_secret() and not _load_client_principals():
         raise HTTPException(
             status_code=500,
-            detail="API_SECRET_KEY environment variable is not configured",
+            detail=(
+                "No Stargate API credentials are configured. Set API_SECRET_KEY or "
+                "API_CLIENT_KEYS_JSON."
+            ),
         )
-    if not x_api_key or not secrets.compare_digest(x_api_key, API_SECRET_KEY):
+
+    if principal is None:
         raise HTTPException(status_code=403, detail="Invalid API Key")
+
+    if principal.org_allowlist:
+        org_id = await _extract_org_id(request)
+        if org_id is not None and org_id not in principal.org_allowlist:
+            raise HTTPException(
+                status_code=403,
+                detail=f"API key '{principal.key_id}' is not allowed for org_id '{org_id}'",
+            )
+
+    request.state.api_client = {
+        "key_id": principal.key_id,
+        "auth_mode": principal.auth_mode,
+        "org_allowlist": list(principal.org_allowlist),
+    }
 
     # Validate HMAC signature when both headers are present
     if x_timestamp is not None and x_signature_256 is not None:
@@ -55,7 +205,7 @@ async def verify_api_key(
         body = await request.body()
         # Baby MARS signs: HMAC-SHA256(key, timestamp + body)
         message = x_timestamp.encode() + body
-        expected = hmac.new(API_SECRET_KEY.encode(), message, hashlib.sha256).hexdigest()
+        expected = hmac.new(principal.secret.encode(), message, hashlib.sha256).hexdigest()
 
         # Baby MARS sends "sha256={hex}" — strip the prefix
         signature = x_signature_256.removeprefix("sha256=")
