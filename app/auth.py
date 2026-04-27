@@ -11,11 +11,15 @@ import json
 import os
 import secrets
 import time
+from asyncio import to_thread
 from dataclasses import dataclass
 
+import requests
 from fastapi import Header, HTTPException, Request
 
 API_CLIENT_KEYS_JSON = "API_CLIENT_KEYS_JSON"
+CONTROL_PLANE_BASE_URL = "CONTROL_PLANE_BASE_URL"
+CONTROL_PLANE_API_KEY = "CONTROL_PLANE_API_KEY"
 
 # Reject requests with timestamps older than 5 minutes (replay protection)
 SIGNATURE_TOLERANCE_SECONDS = 300
@@ -123,6 +127,69 @@ def _resolve_api_client(x_api_key: str | None) -> ApiClientPrincipal | None:
     return None
 
 
+def _get_control_plane_base_url() -> str:
+    return os.getenv(CONTROL_PLANE_BASE_URL, "").strip().rstrip("/")
+
+
+def _get_control_plane_api_key() -> str:
+    return os.getenv(CONTROL_PLANE_API_KEY, "").strip()
+
+
+def _control_plane_auth_configured() -> bool:
+    return bool(_get_control_plane_base_url() and _get_control_plane_api_key())
+
+
+def _introspect_control_plane_api_key(x_api_key: str) -> ApiClientPrincipal | None:
+    base_url = _get_control_plane_base_url()
+    control_plane_key = _get_control_plane_api_key()
+    if not base_url or not control_plane_key:
+        return None
+
+    try:
+        response = requests.post(
+            f"{base_url}/cp/v1/keys/introspect",
+            headers={"X-Control-Plane-Key": control_plane_key},
+            json={"secret": x_api_key},
+            timeout=5,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except requests.RequestException as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Control plane API-key introspection unavailable",
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Control plane API-key introspection returned invalid JSON",
+        ) from exc
+
+    if not isinstance(payload, dict) or not payload.get("active"):
+        return None
+
+    if payload.get("service") != "S1":
+        return None
+
+    key_id = payload.get("api_key_id") or payload.get("key_prefix") or "control-plane-key"
+    if not isinstance(key_id, str) or not key_id.strip():
+        key_id = "control-plane-key"
+
+    return ApiClientPrincipal(
+        key_id=key_id,
+        secret=x_api_key,
+        auth_mode="control_plane",
+    )
+
+
+async def _resolve_control_plane_api_client(
+    x_api_key: str | None,
+) -> ApiClientPrincipal | None:
+    if not x_api_key:
+        return None
+    return await to_thread(_introspect_control_plane_api_key, x_api_key)
+
+
 async def _extract_org_id(request: Request) -> str | None:
     body = await request.body()
 
@@ -165,13 +232,19 @@ async def verify_api_key(
         x_signature_256 if isinstance(x_signature_256, str) else None
     )
     principal = _resolve_api_client(x_api_key)
+    if principal is None:
+        principal = await _resolve_control_plane_api_client(x_api_key)
 
-    if not _get_legacy_api_secret() and not _load_client_principals():
+    if (
+        not _get_legacy_api_secret()
+        and not _load_client_principals()
+        and not _control_plane_auth_configured()
+    ):
         raise HTTPException(
             status_code=500,
             detail=(
                 "No Stargate API credentials are configured. Set API_SECRET_KEY or "
-                "API_CLIENT_KEYS_JSON."
+                "API_CLIENT_KEYS_JSON, or configure control-plane auth."
             ),
         )
 
