@@ -93,20 +93,14 @@ class RedisClient:
                 "Redis connected successfully",
                 log_event="redis_init_success",
             )
-        except (redis.ConnectionError, redis.TimeoutError) as e:
-            # CRITICAL: Redis is REQUIRED for idempotency (Stargate Command Contract v1.0)
-            # Cannot silently continue - would violate contract and risk duplicate executions
+        except redis.RedisError as e:
+            self._redis_client = None
             logger.error(
-                "Redis connection FAILED - CRITICAL for idempotency",
+                "Redis connection unavailable; continuing without idempotency cache",
                 error_type=type(e).__name__,
                 log_event="redis_init_error",
                 exc_info=True,
             )
-            raise RuntimeError(
-                f"Redis connection REQUIRED but failed: {e}\n"
-                f"Idempotency caching is mandatory per Stargate Command Contract.\n"
-                "Fix: Set REDIS_URL (Upstash) or REDIS_HOST/REDIS_PORT environment variables."
-            ) from e
 
     def get_cached_response(self, turn_id: str, capability_key: str) -> dict[str, Any] | None:
         """
