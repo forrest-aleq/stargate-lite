@@ -205,6 +205,7 @@
       "ConnectorStatus": {
         "description": "Status for a single connector (admin endpoint)",
         "example": {
+          "configured": true,
           "connection_count": 5,
           "credential_status": "connected",
           "last_updated": "2025-10-18T10:00:00",
@@ -213,6 +214,11 @@
           "token_expiry": "2025-12-31T23:59:59"
         },
         "properties": {
+          "configured": {
+            "description": "Whether this service is configured for new customer connections",
+            "title": "Configured",
+            "type": "boolean"
+          },
           "connection_count": {
             "default": 0,
             "description": "Number of org:user combinations with this credential",
@@ -264,6 +270,7 @@
         "required": [
           "service",
           "credential_status",
+          "configured",
           "requires_oauth"
         ],
         "title": "ConnectorStatus",
