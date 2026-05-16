@@ -17,6 +17,7 @@ Only these human-written docs are maintained:
 - `docs/ARCHITECTURE.md`
 - `docs/PLATFORM_DIRECTION.md`
 - `docs/OPERATIONS.md`
+- `docs/RELEASE_CONTROLS.md`
 - `docs/S1_SURFACE_MATRIX.md`
 
 `openapi.json` is the machine-readable API contract and should stay in sync with the FastAPI app.

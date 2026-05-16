@@ -52,6 +52,13 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Release provenance gate
+        run: |
+          python3 scripts/release_gate.py \
+            --mode production \
+            --target-ref HEAD \
+            --write-proof release-proof/stargate-lite-production.json
+
       - name: Install verification dependencies
         run: pip install requests
 
