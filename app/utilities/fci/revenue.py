@@ -173,31 +173,27 @@ class RevenueMixin:
             # Look for Income section in the report
             rows = result.get("Rows", {}).get("Row", [])
 
+            revenue_section_keys = {"income", "revenue", "salesrevenue", "operatingrevenue"}
+
             for row in rows:
-                group = row.get("group", "")
+                section_key = self._quickbooks_section_key(row)
                 summary = row.get("Summary", {})
 
-                if "income" in group.lower() or "revenue" in group.lower():
+                if section_key in revenue_section_keys:
                     col_data = summary.get("ColData", [])
-                    if col_data:
-                        with contextlib.suppress(ValueError, IndexError):
-                            # Last column is typically the total
-                            data["income"] = float(col_data[-1].get("value", 0) or 0)
+                    amount = self._last_numeric_col_value(col_data)
+                    if amount is not None:
+                        data["income"] = amount
 
                     # Extract category breakdown from section rows
                     section_rows = row.get("Rows", {}).get("Row", [])
                     for sub_row in section_rows:
                         sub_col_data = sub_row.get("ColData", [])
                         if len(sub_col_data) >= 2:
-                            try:
-                                category = sub_col_data[0].get("value", "Other")
-                                amount = float(sub_col_data[-1].get("value", 0) or 0)
-                                if amount != 0:
-                                    data["categories"].append(
-                                        {"category": category, "amount": amount}
-                                    )
-                            except (ValueError, TypeError):
-                                pass
+                            category = sub_col_data[0].get("value", "Other")
+                            amount = self._last_numeric_col_value(sub_col_data)
+                            if amount:
+                                data["categories"].append({"category": category, "amount": amount})
 
         elif service == "xero":
             # Xero P&L report

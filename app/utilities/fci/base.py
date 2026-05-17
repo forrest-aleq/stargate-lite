@@ -57,6 +57,62 @@ class FCIBase(BaseUtility, ABC):
         """FCI doesn't need its own client - uses connectors."""
         pass
 
+    @staticmethod
+    def _coerce_amount(value: Any) -> float | None:
+        """Convert connector amount strings to floats, returning None for labels."""
+        if value is None:
+            return None
+        if isinstance(value, int | float):
+            return float(value)
+
+        text = str(value).strip()
+        if not text:
+            return None
+
+        is_negative = text.startswith("(") and text.endswith(")")
+        normalized = text.strip("()").replace(",", "").replace("$", "").strip()
+        if normalized in {"", "-"}:
+            return None
+
+        try:
+            amount = float(normalized)
+        except ValueError:
+            return None
+
+        return -abs(amount) if is_negative else amount
+
+    def _last_numeric_col_value(self, col_data: list[dict[str, Any]]) -> float | None:
+        """Return the right-most numeric ColData value, skipping label columns."""
+        for col in reversed(col_data):
+            amount = self._coerce_amount(col.get("value"))
+            if amount is not None:
+                return amount
+        return None
+
+    @staticmethod
+    def _normalize_accounting_key(value: Any) -> str:
+        """Normalize accounting section labels like 'Net Income' or 'COGS'."""
+        return "".join(ch for ch in str(value or "").lower() if ch.isalnum())
+
+    def _quickbooks_section_key(self, row: dict[str, Any]) -> str:
+        """Return a stable key for QuickBooks report sections."""
+        group_key = self._normalize_accounting_key(row.get("group"))
+        if group_key:
+            return group_key
+
+        for container in ("Summary", "Header"):
+            col_data = row.get(container, {}).get("ColData", [])
+            if col_data:
+                label_key = self._normalize_accounting_key(col_data[0].get("value"))
+                if label_key:
+                    return label_key.removeprefix("total")
+
+        col_data = row.get("ColData", [])
+        if col_data:
+            return self._normalize_accounting_key(col_data[0].get("value")).removeprefix("total")
+
+        return ""
+
     def _get_connected_services(
         self,
         org_id: str,

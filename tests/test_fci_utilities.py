@@ -209,6 +209,231 @@ class TestCashMixin:
         assert len(result["accounts"]) == 0
 
 
+class TestRevenueParsing:
+    """Test QuickBooks P&L revenue parsing."""
+
+    def test_quickbooks_revenue_uses_income_not_net_income(self):
+        """Revenue parser does not overwrite income with net income."""
+        fci = FCIUtility()
+
+        result = fci._parse_pl_revenue(
+            "quickbooks",
+            {
+                "Rows": {
+                    "Row": [
+                        {
+                            "group": "Income",
+                            "Summary": {
+                                "ColData": [
+                                    {"value": "Total Income"},
+                                    {"value": "6,871.52"},
+                                ]
+                            },
+                            "Rows": {
+                                "Row": [
+                                    {
+                                        "ColData": [
+                                            {"value": "Design income"},
+                                            {"value": "1275.00"},
+                                        ]
+                                    },
+                                    {
+                                        "ColData": [
+                                            {"value": "Discounts given"},
+                                            {"value": "-89.50"},
+                                        ]
+                                    },
+                                ]
+                            },
+                        },
+                        {
+                            "group": "NetIncome",
+                            "Summary": {
+                                "ColData": [
+                                    {"value": "Net Income"},
+                                    {"value": "-217.03"},
+                                ]
+                            },
+                        },
+                    ]
+                }
+            },
+        )
+
+        assert result["income"] == 6871.52
+        assert result["categories"] == [
+            {"category": "Design income", "amount": 1275.0},
+            {"category": "Discounts given", "amount": -89.5},
+        ]
+
+    def test_quickbooks_revenue_ignores_label_only_totals(self):
+        """Label-only QuickBooks summary rows should not crash or invent revenue."""
+        fci = FCIUtility()
+
+        result = fci._parse_pl_revenue(
+            "quickbooks",
+            {
+                "Rows": {
+                    "Row": [
+                        {
+                            "group": "Income",
+                            "Summary": {"ColData": [{"value": "Total Income"}]},
+                        }
+                    ]
+                }
+            },
+        )
+
+        assert result["income"] == 0
+        assert result["categories"] == []
+
+
+class TestReportParsing:
+    """Test QuickBooks full P&L parsing."""
+
+    def test_quickbooks_profit_loss_uses_explicit_sections(self):
+        """Full P&L parser keeps income, expenses, and net income distinct."""
+        fci = FCIUtility()
+
+        result = fci._parse_full_pl_report(
+            "quickbooks",
+            {
+                "Rows": {
+                    "Row": [
+                        {
+                            "group": "Income",
+                            "Summary": {
+                                "ColData": [
+                                    {"value": "Total Income"},
+                                    {"value": "6,871.52"},
+                                ]
+                            },
+                        },
+                        {
+                            "group": "COGS",
+                            "Summary": {
+                                "ColData": [
+                                    {"value": "Total Cost of Goods Sold"},
+                                    {"value": "405.00"},
+                                ]
+                            },
+                        },
+                        {
+                            "group": "GrossProfit",
+                            "Summary": {
+                                "ColData": [
+                                    {"value": "Gross Profit"},
+                                    {"value": "6466.52"},
+                                ]
+                            },
+                        },
+                        {
+                            "group": "Expenses",
+                            "Summary": {
+                                "ColData": [
+                                    {"value": "Total Expenses"},
+                                    {"value": "4017.55"},
+                                ]
+                            },
+                        },
+                        {
+                            "group": "NetOperatingIncome",
+                            "Summary": {
+                                "ColData": [
+                                    {"value": "Net Operating Income"},
+                                    {"value": "2448.97"},
+                                ]
+                            },
+                        },
+                        {
+                            "group": "OtherExpenses",
+                            "Summary": {
+                                "ColData": [
+                                    {"value": "Total Other Expenses"},
+                                    {"value": "2666.00"},
+                                ]
+                            },
+                        },
+                        {
+                            "group": "NetIncome",
+                            "Summary": {
+                                "ColData": [
+                                    {"value": "Net Income"},
+                                    {"value": "-217.03"},
+                                ]
+                            },
+                        },
+                    ]
+                }
+            },
+        )
+
+        assert result["total_income"] == 6871.52
+        assert result["total_expenses"] == 7088.55
+        assert result["gross_profit"] == 6466.52
+        assert result["net_income"] == -217.03
+
+    def test_quickbooks_profit_loss_ignores_label_only_totals(self):
+        """Sparse QuickBooks report rows should parse to zero values."""
+        fci = FCIUtility()
+
+        result = fci._parse_full_pl_report(
+            "quickbooks",
+            {
+                "Rows": {
+                    "Row": [
+                        {
+                            "group": "Income",
+                            "Summary": {"ColData": [{"value": "Total Income"}]},
+                        },
+                        {
+                            "group": "Expenses",
+                            "Summary": {"ColData": [{"value": "Total Expenses"}]},
+                        },
+                    ]
+                }
+            },
+        )
+
+        assert result["total_income"] == 0
+        assert result["total_expenses"] == 0
+        assert result["net_income"] == 0
+
+    def test_quickbooks_profit_loss_preserves_zero_net_income(self):
+        """Explicit zero net income should not fall back to operating income."""
+        fci = FCIUtility()
+
+        result = fci._parse_full_pl_report(
+            "quickbooks",
+            {
+                "Rows": {
+                    "Row": [
+                        {
+                            "group": "NetOperatingIncome",
+                            "Summary": {
+                                "ColData": [
+                                    {"value": "Net Operating Income"},
+                                    {"value": "2448.97"},
+                                ]
+                            },
+                        },
+                        {
+                            "group": "NetIncome",
+                            "Summary": {
+                                "ColData": [
+                                    {"value": "Net Income"},
+                                    {"value": "0.00"},
+                                ]
+                            },
+                        },
+                    ]
+                }
+            },
+        )
+
+        assert result["net_income"] == 0
+
+
 class TestARMixin:
     """Test accounts receivable aggregation."""
 
