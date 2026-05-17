@@ -86,8 +86,7 @@ def _load_client_principals() -> list[ApiClientPrincipal]:
             )
 
         if not isinstance(org_allowlist, list) or any(
-            not isinstance(org_id, str) or not org_id.strip()
-            for org_id in org_allowlist
+            not isinstance(org_id, str) or not org_id.strip() for org_id in org_allowlist
         ):
             raise HTTPException(
                 status_code=500,
@@ -228,9 +227,7 @@ async def verify_api_key(
     """
     x_api_key = x_api_key if isinstance(x_api_key, str) else None
     x_timestamp = x_timestamp if isinstance(x_timestamp, str) else None
-    x_signature_256 = (
-        x_signature_256 if isinstance(x_signature_256, str) else None
-    )
+    x_signature_256 = x_signature_256 if isinstance(x_signature_256, str) else None
     principal = _resolve_api_client(x_api_key)
     if principal is None:
         principal = await _resolve_control_plane_api_client(x_api_key)

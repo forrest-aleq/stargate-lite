@@ -22,6 +22,7 @@ logger = get_logger(__name__)
 _DEFAULT_TIMEOUT_SECONDS = 60 * 60
 _MAX_TIMEOUT_SECONDS = 24 * 60 * 60
 
+
 def _load_sandbox_class() -> type[Any]:
     try:
         from e2b import Sandbox
@@ -31,6 +32,7 @@ def _load_sandbox_class() -> type[Any]:
             details={"service": "e2b"},
         ) from exc
     return cast(type[Any], Sandbox)
+
 
 def _require_str(args: dict[str, Any], key: str) -> str:
     value = args.get(key)

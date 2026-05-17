@@ -300,7 +300,4 @@ def get_customer_facing_enabled_services() -> dict[str, bool]:
     made staging look artificially narrow and prevented Aleq from surfacing the
     actual integration roadmap of the environment.
     """
-    return {
-        service: ALL_SERVICES_OAUTH.get(service, False)
-        for service in ENABLED_SERVICES
-    }
+    return {service: ALL_SERVICES_OAUTH.get(service, False) for service in ENABLED_SERVICES}
