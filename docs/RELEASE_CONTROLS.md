@@ -22,12 +22,14 @@ Production mode is used before deploying:
 python3 scripts/release_gate.py --mode production --target-ref origin/main
 ```
 
-The gate requires everything from promotion mode, plus:
+The gate requires:
 
 - the target commit is contained in `origin/main`
+- the target commit is contained in `origin/staging`, or its Git tree exactly
+  matches the staged tree if GitHub created a merge or squash commit on `main`
 
 That prevents a production deploy from a direct branch, local SHA, tag, or hotfix
-that was not first present on staging.
+whose content was not first present on staging.
 
 ## Coordinated Stack Gate
 
@@ -51,3 +53,19 @@ tested unit.
   the staging-to-main PR.
 - `.github/workflows/deploy-production.yml` runs the production gate before
   Railway readiness checks and deployment.
+- `.github/workflows/ci.yml` runs PR checks for both `main` and `staging`, so
+  both protected branches can require the same CI contexts.
+
+## Required Branch Controls
+
+`staging` and `main` must be protected in GitHub:
+
+- force pushes disabled
+- branch deletion disabled
+- admins included
+- PRs required before merge
+- stale approvals dismissed
+- required checks enabled: `Lint & Type Check`, `Tests`, `Security Scan`, and
+  `Build Check`
+- required linear history enabled
+- required conversation resolution enabled
