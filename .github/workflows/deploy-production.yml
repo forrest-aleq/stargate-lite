@@ -23,8 +23,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  preflight:
-    name: Pre-deploy Validation
+  provenance:
+    name: Release Provenance Gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -59,6 +59,21 @@ jobs:
             --target-ref HEAD \
             --write-proof release-proof/stargate-lite-production.json
 
+  staging-preflight:
+    name: Staging Preflight
+    needs: provenance
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.git_ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Install verification dependencies
         run: pip install requests
 
@@ -78,6 +93,37 @@ jobs:
             --service "$SERVICE_NAME" \
             --expect-env-value staging
 
+      - name: Verify staging API health and smoke tests
+        env:
+          STAGING_URL: ${{ vars.STAGING_URL }}
+          STAGING_API_KEY: ${{ secrets.STAGING_API_KEY }}
+        run: |
+          python scripts/verify_remote_api.py \
+            --base-url "$STAGING_URL" \
+            --api-key "$STAGING_API_KEY" \
+            --min-capabilities "${{ github.event.inputs.min_capabilities }}"
+
+  production-preflight:
+    name: Production Preflight
+    needs: provenance
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.git_ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install verification dependencies
+        run: pip install requests
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
       - name: Verify production Railway readiness
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
@@ -91,16 +137,6 @@ jobs:
             --service "$SERVICE_NAME" \
             --expect-env-value production
 
-      - name: Verify staging API health and smoke tests
-        env:
-          STAGING_URL: ${{ vars.STAGING_URL }}
-          STAGING_API_KEY: ${{ secrets.STAGING_API_KEY }}
-        run: |
-          python scripts/verify_remote_api.py \
-            --base-url "$STAGING_URL" \
-            --api-key "$STAGING_API_KEY" \
-            --min-capabilities "${{ github.event.inputs.min_capabilities }}"
-
       - name: Verify current production health before deploy
         run: |
           response=$(curl -s "${{ vars.PRODUCTION_URL }}/health")
@@ -112,7 +148,7 @@ jobs:
 
   deploy:
     name: Deploy to Railway Production
-    needs: preflight
+    needs: [provenance, staging-preflight, production-preflight]
     runs-on: ubuntu-latest
     environment: production
     steps:
