@@ -55,6 +55,10 @@ def _is_ancestor(ancestor: str, descendant: str) -> bool:
     return result.returncode == 0
 
 
+def _tree(ref: str) -> str:
+    return _run_git(["rev-parse", "--verify", f"{ref}^{{tree}}"])
+
+
 def _short(sha: str) -> str:
     return sha[:12]
 
@@ -84,8 +88,7 @@ def _require_stack_lock_match(path: Path, service: str, target_sha: str) -> dict
         raise ReleaseGateError(f"stack lock service '{service}' is missing release_sha")
     if target_sha != locked_sha:
         raise ReleaseGateError(
-            f"target {_short(target_sha)} does not match locked {service} "
-            f"sha {_short(locked_sha)}"
+            f"target {_short(target_sha)} does not match locked {service} sha {_short(locked_sha)}"
         )
     return entry
 
@@ -130,32 +133,43 @@ def main() -> int:
         main_sha = _resolve(main_ref)
         staging_sha = _resolve(staging_ref)
 
-        main_is_in_staging = _is_ancestor(main_sha, staging_sha)
-        checks.append(
-            {
-                "name": "main_is_ancestor_of_staging",
-                "passed": main_is_in_staging,
-                "details": f"{_short(main_sha)} <= {_short(staging_sha)}",
-            }
-        )
-        if not main_is_in_staging:
-            raise ReleaseGateError(
-                f"{main_ref} ({_short(main_sha)}) is not an ancestor of "
-                f"{staging_ref} ({_short(staging_sha)})"
+        if args.mode == "promotion":
+            main_is_in_staging = _is_ancestor(main_sha, staging_sha)
+            checks.append(
+                {
+                    "name": "main_is_ancestor_of_staging",
+                    "passed": main_is_in_staging,
+                    "details": f"{_short(main_sha)} <= {_short(staging_sha)}",
+                }
             )
+            if not main_is_in_staging:
+                raise ReleaseGateError(
+                    f"{main_ref} ({_short(main_sha)}) is not an ancestor of "
+                    f"{staging_ref} ({_short(staging_sha)})"
+                )
 
         target_is_in_staging = _is_ancestor(target_sha, staging_sha)
+        target_tree_matches_staging = False
+        if args.mode == "production" and not target_is_in_staging:
+            target_tree_matches_staging = _tree(target_sha) == _tree(staging_sha)
+
+        target_matches_staged_content = target_is_in_staging or target_tree_matches_staging
         checks.append(
             {
-                "name": "target_is_contained_in_staging",
-                "passed": target_is_in_staging,
-                "details": f"{_short(target_sha)} <= {_short(staging_sha)}",
+                "name": "target_matches_staged_content",
+                "passed": target_matches_staged_content,
+                "details": {
+                    "target_in_staging": target_is_in_staging,
+                    "target_tree_matches_staging": target_tree_matches_staging,
+                    "target": _short(target_sha),
+                    "staging": _short(staging_sha),
+                },
             }
         )
-        if not target_is_in_staging:
+        if not target_matches_staged_content:
             raise ReleaseGateError(
-                f"target {args.target_ref} ({_short(target_sha)}) is not contained in "
-                f"{staging_ref} ({_short(staging_sha)})"
+                f"target {args.target_ref} ({_short(target_sha)}) does not match "
+                f"staged content from {staging_ref} ({_short(staging_sha)})"
             )
 
         if args.mode == "production":

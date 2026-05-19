@@ -22,12 +22,14 @@ Production mode is used before deploying:
 python3 scripts/release_gate.py --mode production --target-ref origin/main
 ```
 
-The gate requires everything from promotion mode, plus:
+The gate requires:
 
 - the target commit is contained in `origin/main`
+- the target commit is contained in `origin/staging`, or its Git tree exactly
+  matches the staged tree if GitHub created a merge or squash commit on `main`
 
 That prevents a production deploy from a direct branch, local SHA, tag, or hotfix
-that was not first present on staging.
+whose content was not first present on staging.
 
 ## Coordinated Stack Gate
 
@@ -49,5 +51,48 @@ tested unit.
 
 - `.github/workflows/promote-staging.yml` runs the promotion gate before creating
   the staging-to-main PR.
-- `.github/workflows/deploy-production.yml` runs the production gate before
-  Railway readiness checks and deployment.
+- `.github/workflows/deploy-production.yml` runs the production gate, then runs
+  staging preflight under the `staging` GitHub environment and production
+  preflight/deploy under the `production` GitHub environment. This is required
+  because deploy secrets and variables are environment-scoped.
+- `.github/workflows/ci.yml` runs PR checks for both `main` and `staging`, so
+  both protected branches can require the same CI contexts.
+- `scripts/verify_release_infra.py` checks GitHub environment secrets/variables,
+  branch protection, and Railway runtime variables without printing secret
+  values:
+
+```bash
+python3 scripts/verify_release_infra.py
+```
+
+## Required Branch Controls
+
+`staging` and `main` must be protected in GitHub:
+
+- force pushes disabled
+- branch deletion disabled
+- admins included
+- PRs required before merge
+- stale approvals dismissed
+- required checks enabled: `Lint & Type Check`, `Tests`, `Security Scan`, and
+  `Build Check`
+- required linear history enabled
+- required conversation resolution enabled
+
+## Required Deployment Configuration
+
+The `staging` GitHub environment must contain:
+
+- secrets: `RAILWAY_TOKEN_STAGING`, `STAGING_API_KEY`
+- variables: `RAILWAY_SERVICE_NAME`, `RAILWAY_STAGING_ENVIRONMENT`,
+  `STAGING_MIN_CAPABILITIES`, `STAGING_URL`
+
+The `production` GitHub environment must contain:
+
+- secrets: `RAILWAY_TOKEN_PRODUCTION`, `PRODUCTION_API_KEY`
+- variables: `PRODUCTION_URL`, `RAILWAY_PRODUCTION_ENVIRONMENT`,
+  `RAILWAY_SERVICE_NAME`
+
+Railway `staging` and `production` must both contain core runtime variables:
+`API_SECRET_KEY`, `DATABASE_URL`, `ENABLED_SERVICES`, `ENCRYPTION_KEY`,
+`ENVIRONMENT`, and `REDIS_URL`.
