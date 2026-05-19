@@ -381,3 +381,102 @@ class PlaidConnector:
         )
 
         return {"processor_token": result["processor_token"]}
+
+    def get_liabilities(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Get liabilities (credit cards, student loans, mortgages)"""
+        data: dict[str, Any] = {"access_token": args.get("access_token")}
+
+        result = self._make_request("/liabilities/get", data)
+
+        return {
+            "accounts": result.get("accounts", []),
+            "liabilities": result.get("liabilities", {}),
+            "item_id": result.get("item", {}).get("item_id"),
+        }
+
+    def get_investment_holdings(
+        self, org_id: str, user_id: str, args: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Get investment holdings"""
+        data: dict[str, Any] = {"access_token": args.get("access_token")}
+
+        result = self._make_request("/investments/holdings/get", data)
+
+        return {
+            "accounts": result.get("accounts", []),
+            "holdings": result.get("holdings", []),
+            "securities": result.get("securities", []),
+        }
+
+    def get_investment_transactions(
+        self, org_id: str, user_id: str, args: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Get investment transactions"""
+        data: dict[str, Any] = {
+            "access_token": args.get("access_token"),
+            "start_date": args.get("start_date"),
+            "end_date": args.get("end_date"),
+        }
+
+        result = self._make_request("/investments/transactions/get", data)
+
+        return {
+            "accounts": result.get("accounts", []),
+            "investment_transactions": result.get("investment_transactions", []),
+            "securities": result.get("securities", []),
+            "total_investment_transactions": result.get("total_investment_transactions", 0),
+        }
+
+    def list_transfers(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """List transfers"""
+        data: dict[str, Any] = {}
+
+        if args.get("start_date"):
+            data["start_date"] = args["start_date"]
+        if args.get("end_date"):
+            data["end_date"] = args["end_date"]
+        if args.get("count"):
+            data["count"] = args["count"]
+
+        result = self._make_request("/transfer/list", data)
+
+        return {
+            "transfers": [
+                {
+                    "id": t["id"],
+                    "amount": t["amount"],
+                    "status": t["status"],
+                    "type": t["type"],
+                    "network": t.get("network"),
+                    "created": t.get("created"),
+                }
+                for t in result.get("transfers", [])
+            ]
+        }
+
+    def get_institution(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Get institution details by ID"""
+        data: dict[str, Any] = {
+            "institution_id": args.get("institution_id"),
+            "country_codes": args.get("country_codes", ["US"]),
+        }
+
+        result = self._make_request("/institutions/get_by_id", data)
+        inst = result.get("institution", {})
+
+        return {
+            "institution_id": inst.get("institution_id"),
+            "name": inst.get("name"),
+            "products": inst.get("products", []),
+            "country_codes": inst.get("country_codes", []),
+            "url": inst.get("url"),
+            "logo": inst.get("logo"),
+        }
+
+    def get_categories(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Get all Plaid transaction categories"""
+        data: dict[str, Any] = {}
+
+        result = self._make_request("/categories/get", data)
+
+        return {"categories": result.get("categories", [])}

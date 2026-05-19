@@ -25,12 +25,13 @@ def test_registry_import():
 def test_capability_count():
     """Verify we have expected number of capabilities (614+)"""
     try:
-        from app.registry import CAPABILITY_REGISTRY
+        from app.registry import ALL_CAPABILITIES
 
-        # Minimum expected capabilities - can grow as services are added
+        # Validate unfiltered registry — CAPABILITY_REGISTRY may be smaller
+        # depending on which env vars are set (key-gated services)
         assert (
-            len(CAPABILITY_REGISTRY) >= 600
-        ), f"Expected at least 600 capabilities, got {len(CAPABILITY_REGISTRY)}"
+            len(ALL_CAPABILITIES) >= 600
+        ), f"Expected at least 600 capabilities, got {len(ALL_CAPABILITIES)}"
     except ImportError:
         pytest.skip("Dependencies not installed")
 
@@ -38,11 +39,11 @@ def test_capability_count():
 def test_all_capabilities_have_required_fields():
     """Ensure each capability has handler, tool_name, description, service"""
     try:
-        from app.registry import CAPABILITY_REGISTRY
+        from app.registry import ALL_CAPABILITIES
 
         required_fields = ["handler", "tool_name", "description", "service", "requires_oauth"]
 
-        for key, config in CAPABILITY_REGISTRY.items():
+        for key, config in ALL_CAPABILITIES.items():
             for field in required_fields:
                 assert field in config, f"Capability '{key}' missing field '{field}'"
                 assert config[field] is not None, f"Capability '{key}' has None value for '{field}'"
@@ -53,9 +54,9 @@ def test_all_capabilities_have_required_fields():
 def test_capability_handlers_are_callable():
     """Verify all handlers are actual callable functions"""
     try:
-        from app.registry import CAPABILITY_REGISTRY
+        from app.registry import ALL_CAPABILITIES
 
-        for key, config in CAPABILITY_REGISTRY.items():
+        for key, config in ALL_CAPABILITIES.items():
             handler = config["handler"]
             assert callable(handler), f"Handler for '{key}' is not callable"
     except ImportError:
@@ -65,9 +66,10 @@ def test_capability_handlers_are_callable():
 def test_service_counts():
     """Verify endpoint counts per service (minimum thresholds)"""
     try:
-        from app.registry import CAPABILITY_REGISTRY
+        from app.registry import ALL_CAPABILITIES
 
-        # Minimum expected counts per service - can grow as features are added
+        # Validate against unfiltered registry — key-gated services may be
+        # hidden in CAPABILITY_REGISTRY depending on env vars
         minimum_counts = {
             "quickbooks": 70,
             "stripe": 60,
@@ -95,8 +97,8 @@ def test_service_counts():
         }
 
         # Count actual capabilities per service
-        actual_counts = {}
-        for config in CAPABILITY_REGISTRY.values():
+        actual_counts: dict[str, int] = {}
+        for config in ALL_CAPABILITIES.values():
             service = config["service"]
             actual_counts[service] = actual_counts.get(service, 0) + 1
 
@@ -113,7 +115,7 @@ def test_service_counts():
 def test_oauth_requirements():
     """Verify OAuth requirements are set correctly for known services"""
     try:
-        from app.registry import CAPABILITY_REGISTRY
+        from app.registry import ALL_CAPABILITIES
 
         # Services that should require OAuth
         oauth_services = {
@@ -137,11 +139,11 @@ def test_oauth_requirements():
             "sage_intacct",
             "xero",
             "linear",
+            "stripe",  # Stripe Connect OAuth
         }
 
         # Services that use API keys, session auth, or no auth
         api_key_services = {
-            "stripe",
             "recurly",
             "plaid",
             "mercury",
@@ -149,7 +151,7 @@ def test_oauth_requirements():
             "billcom",  # Session-based auth, not OAuth
         }
 
-        for key, config in CAPABILITY_REGISTRY.items():
+        for key, config in ALL_CAPABILITIES.items():
             service = config["service"]
             requires_oauth = config["requires_oauth"]
 
@@ -164,9 +166,9 @@ def test_oauth_requirements():
 def test_unique_capability_keys():
     """Ensure no duplicate capability keys"""
     try:
-        from app.registry import CAPABILITY_REGISTRY
+        from app.registry import ALL_CAPABILITIES
 
-        keys = list(CAPABILITY_REGISTRY.keys())
+        keys = list(ALL_CAPABILITIES.keys())
         unique_keys = set(keys)
 
         assert len(keys) == len(unique_keys), "Duplicate capability keys found"
@@ -179,10 +181,10 @@ def test_get_capability_function():
     try:
         from app.registry import get_capability
 
-        # Test valid capability
-        vendor_create = get_capability("vendor.create")
-        assert vendor_create is not None
-        assert vendor_create["service"] == "quickbooks"
+        # Test with always-available capability (not key-gated)
+        ocr_extract = get_capability("ocr.text.extract")
+        assert ocr_extract is not None
+        assert ocr_extract["service"] == "ocr"
 
         # Test invalid capability
         invalid = get_capability("does.not.exist")
@@ -198,7 +200,8 @@ def test_list_capabilities_function():
 
         capabilities = list_capabilities()
         assert isinstance(capabilities, dict)
-        assert len(capabilities) >= 600  # Minimum expected
+        # Runtime list depends on env vars; just verify it returns something
+        assert len(capabilities) >= 1
 
         # Verify structure of returned dict
         for info in capabilities.values():
@@ -215,21 +218,15 @@ def test_get_capabilities_by_service():
     try:
         from app.registry import get_capabilities_by_service
 
-        # Test QuickBooks (expanded)
-        qb_caps = get_capabilities_by_service("quickbooks")
-        assert len(qb_caps) >= 70
+        # Test always-available services (not key-gated)
+        ocr_caps = get_capabilities_by_service("ocr")
+        assert len(ocr_caps) >= 5
 
-        # Test Stripe
-        stripe_caps = get_capabilities_by_service("stripe")
-        assert len(stripe_caps) >= 60
+        workflow_caps = get_capabilities_by_service("workflow")
+        assert len(workflow_caps) >= 1
 
-        # Test Google (expanded)
-        google_caps = get_capabilities_by_service("google")
-        assert len(google_caps) >= 30
-
-        # Test Microsoft
-        microsoft_caps = get_capabilities_by_service("microsoft")
-        assert len(microsoft_caps) >= 15
+        financial_calc_caps = get_capabilities_by_service("financial_calculator")
+        assert len(financial_calc_caps) >= 5
 
         # Test non-existent service
         none_caps = get_capabilities_by_service("nonexistent")

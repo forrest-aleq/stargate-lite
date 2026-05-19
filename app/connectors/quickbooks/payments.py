@@ -7,6 +7,7 @@ from typing import Any, cast
 
 import requests
 
+from app.connectors.quickbooks import deep_links
 from app.http_client import http_client
 
 
@@ -53,11 +54,13 @@ class QuickBooksPaymentsMixin:
         )
 
         payment = result.get("Payment", {})
+        pay_id = payment.get("Id")
         return {
-            "payment_id": f"qb:{payment.get('Id')}",
+            "payment_id": f"qb:{pay_id}",
             "amount": payment.get("TotalAmt"),
             "customer_id": f"qb:{customer_id}",
             "txn_date": payment.get("TxnDate"),
+            "deep_link": deep_links.payment_link(pay_id),
         }
 
     def get_payment(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -77,11 +80,13 @@ class QuickBooksPaymentsMixin:
         )
 
         payment = result.get("Payment", {})
+        pay_id = payment.get("Id")
         return {
-            "payment_id": f"qb:{payment.get('Id')}",
+            "payment_id": f"qb:{pay_id}",
             "amount": payment.get("TotalAmt"),
             "customer_id": f"qb:{payment.get('CustomerRef', {}).get('value')}",
             "txn_date": payment.get("TxnDate"),
+            "deep_link": deep_links.payment_link(pay_id),
         }
 
     def list_payments(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -113,6 +118,7 @@ class QuickBooksPaymentsMixin:
                     "amount": p.get("TotalAmt"),
                     "customer": p.get("CustomerRef", {}).get("name"),
                     "txn_date": p.get("TxnDate"),
+                    "deep_link": deep_links.payment_link(p.get("Id")),
                 }
                 for p in payments
             ],
@@ -191,8 +197,9 @@ class QuickBooksPaymentsMixin:
 
         if response.status_code == 200:
             payment = response.json().get("Payment", {})
+            pay_id = payment["Id"]
             return {
-                "payment_id": f"qb:{payment['Id']}",
+                "payment_id": f"qb:{pay_id}",
                 "customer_id": f"qb:{customer_id}",
                 "total_amount": total_amount,
                 "invoice_allocations": [
@@ -203,6 +210,7 @@ class QuickBooksPaymentsMixin:
                     for a in invoice_allocations
                 ],
                 "status": "applied",
+                "deep_link": deep_links.payment_link(pay_id),
             }
 
         error_body = (
@@ -252,9 +260,11 @@ class QuickBooksPaymentsMixin:
         )
 
         refund = result.get("RefundReceipt", {})
+        refund_id = refund.get("Id")
         return {
-            "refund_receipt_id": f"qb:{refund.get('Id')}",
+            "refund_receipt_id": f"qb:{refund_id}",
             "customer_id": f"qb:{customer_id}",
             "total_amount": refund.get("TotalAmt"),
             "txn_date": refund.get("TxnDate"),
+            "deep_link": deep_links.refund_receipt_link(refund_id),
         }

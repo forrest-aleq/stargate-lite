@@ -12,6 +12,7 @@ from typing import Any
 from app.errors import ValidationError
 from app.logging_config import get_logger
 
+from . import deep_links
 from .invoices import InvoicesMixin
 
 logger = get_logger(__name__)
@@ -48,10 +49,10 @@ class BillsMixin(InvoicesMixin):
             where_clauses.append(f'Contact.ContactID==GUID("{args["contact_id"]}")')
 
         if args.get("date_from"):
-            where_clauses.append(f'Date>=DateTime({args["date_from"].replace("-", ",")})')
+            where_clauses.append(f"Date>=DateTime({args['date_from'].replace('-', ',')})")
 
         if args.get("date_to"):
-            where_clauses.append(f'Date<=DateTime({args["date_to"].replace("-", ",")})')
+            where_clauses.append(f"Date<=DateTime({args['date_to'].replace('-', ',')})")
 
         params["where"] = " AND ".join(where_clauses)
 
@@ -282,9 +283,9 @@ class BillsMixin(InvoicesMixin):
             where_clauses.append(f'Contact.ContactID==GUID("{args["contact_id"]}")')
 
         if args.get("overdue_only"):
-            from datetime import datetime
+            from datetime import UTC, datetime
 
-            today = datetime.utcnow().strftime("%Y,%m,%d")
+            today = datetime.now(UTC).strftime("%Y,%m,%d")
             where_clauses.append(f"DueDate<DateTime({today})")
 
         params = {"where": " AND ".join(where_clauses), "order": "DueDate ASC"}
@@ -325,9 +326,9 @@ class BillsMixin(InvoicesMixin):
         result = self._make_api_call("GET", "Invoices", cred, tenant_id, params=params)
         bills = result.get("Invoices", [])
 
-        from datetime import datetime
+        from datetime import UTC, datetime
 
-        today = datetime.utcnow()
+        today = datetime.now(UTC)
         aging: dict[str, dict[str, float]] = {
             "current": {"amount": 0.0, "count": 0},
             "1_30_days": {"amount": 0.0, "count": 0},
@@ -424,6 +425,7 @@ class BillsMixin(InvoicesMixin):
             ],
             "has_attachments": bill.get("HasAttachments", False),
             "updated_date": bill.get("UpdatedDateUTC"),
+            "deep_link": deep_links.bill_link(bill.get("InvoiceID")),
         }
 
     def _format_bill_line_items_for_api(

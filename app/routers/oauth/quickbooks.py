@@ -4,9 +4,10 @@ QuickBooks OAuth Routes
 Handles OAuth authorization and callback for QuickBooks Online.
 """
 
+import asyncio
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
@@ -19,7 +20,10 @@ from app.logging_config import get_logger
 from app.routers.oauth.base import (
     build_oauth_error_redirect,
     build_oauth_success_redirect,
+    build_signed_state_3parts,
+    build_signed_state_4parts,
     parse_oauth_state_3parts,
+    parse_oauth_state_4parts,
 )
 
 logger = get_logger(__name__)
@@ -76,13 +80,15 @@ def _exchange_quickbooks_tokens(
             org_id=org_id,
             user_id=user_id,
             status_code=response.status_code,
+            response_body=response.text,
+            redirect_uri=redirect_uri,
             duration_ms=round(token_duration_ms, 2),
             log_event="oauth_token_exchange_error",
         )
         raise HTTPException(status_code=500, detail=f"Token exchange failed: {response.text}")
 
     token_data = response.json()
-    token_expiry = datetime.utcnow() + timedelta(seconds=token_data["expires_in"])
+    token_expiry = datetime.now(UTC) + timedelta(seconds=token_data["expires_in"])
 
     logger.info(
         "Token exchange successful",
@@ -137,7 +143,7 @@ def _store_quickbooks_credential(
 
 @router.get("/oauth/quickbooks/authorize")
 async def quickbooks_oauth_authorize(
-    org_id: str, user_id: str, credential_type: str = "customer"
+    org_id: str, user_id: str, credential_type: str = "customer", source: str = ""
 ) -> RedirectResponse:
     """
     Initiate QuickBooks OAuth flow
@@ -160,8 +166,12 @@ async def quickbooks_oauth_authorize(
         logger.error("OAuth not configured", service="quickbooks", log_event="oauth_config_error")
         raise HTTPException(status_code=500, detail="QuickBooks OAuth not configured")
 
-    # State encodes org_id:user_id:credential_type for the callback
-    state = f"{org_id}:{user_id}:{credential_type}"
+    # State is cryptographically signed to prevent CSRF/tampering
+    # When source is provided (e.g. "chat"), use 4-part state so callback can thread it
+    if source:
+        state = build_signed_state_4parts(org_id, user_id, credential_type, source)
+    else:
+        state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     # OAuth authorization URL
     auth_base_url = "https://appcenter.intuit.com/connect/oauth2"
@@ -193,8 +203,15 @@ async def quickbooks_oauth_callback(code: str, state: str, realmId: str) -> Redi
 
     # Parse state first to get org_id for error redirects
     org_id: str | None = None
+    source = ""
     try:
-        org_id, user_id, credential_type = parse_oauth_state_3parts(state, "quickbooks")
+        parts = state.split(":")
+        if len(parts) == 5:
+            # 4 data + 1 signature — has source (e.g. "chat")
+            org_id, user_id, credential_type, source = parse_oauth_state_4parts(state, "quickbooks")
+        else:
+            # 3 data + 1 signature — legacy, no source
+            org_id, user_id, credential_type = parse_oauth_state_3parts(state, "quickbooks")
     except HTTPException:
         return build_oauth_error_redirect(
             service="quickbooks",
@@ -204,20 +221,31 @@ async def quickbooks_oauth_callback(code: str, state: str, realmId: str) -> Redi
 
     try:
         # Exchange authorization code for tokens
-        token_data, token_expiry = _exchange_quickbooks_tokens(code, org_id, user_id)
-
-        # Store credentials in database
-        _store_quickbooks_credential(
-            org_id, user_id, token_data, token_expiry, realmId, credential_type
+        token_data, token_expiry = await asyncio.to_thread(
+            _exchange_quickbooks_tokens, code, org_id, user_id
         )
 
-        return build_oauth_success_redirect(service="quickbooks", org_id=org_id)
+        # Store credentials in database
+        await asyncio.to_thread(
+            _store_quickbooks_credential,
+            org_id,
+            user_id,
+            token_data,
+            token_expiry,
+            realmId,
+            credential_type,
+        )
 
-    except HTTPException as e:
+        extra = {"source": source} if source else None
+        return build_oauth_success_redirect(
+            service="quickbooks", org_id=org_id, extra_params=extra, user_id=user_id
+        )
+
+    except HTTPException:
         return build_oauth_error_redirect(
             service="quickbooks",
             error="token_exchange_failed",
-            error_description=str(e.detail),
+            error_description="Token exchange failed",
             org_id=org_id,
         )
     except Exception as e:
@@ -231,6 +259,6 @@ async def quickbooks_oauth_callback(code: str, state: str, realmId: str) -> Redi
         return build_oauth_error_redirect(
             service="quickbooks",
             error="callback_failed",
-            error_description=str(e),
+            error_description="An unexpected error occurred",
             org_id=org_id,
         )

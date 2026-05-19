@@ -9,6 +9,7 @@ from typing import Any
 
 from app.connectors.hyperbrowser_v2 import HyperbrowserConnectorV2
 from app.connectors.ocr_utility import OCRUtility
+from app.registry.e2b import E2B_CAPABILITIES
 from app.utilities import (
     get_financial_calculator_utility,
     get_summarizer_utility,
@@ -114,7 +115,7 @@ UTILITIES_CAPABILITIES = {
         "handler": ocr_utility.extract_with_gemini,
         "tool_name": "ocr.extract_with_gemini",
         "description": (
-            "Extract structured data from document using Gemini Flash - " "supports custom prompts"
+            "Extract structured data from document using Gemini Flash - supports custom prompts"
         ),
         "requires_oauth": False,
         "service": "ocr",
@@ -135,7 +136,7 @@ UTILITIES_CAPABILITIES = {
         "handler": hyperbrowser_connector.navigate_to,
         "tool_name": "hyperbrowser.navigate_to",
         "description": (
-            "Navigate browser to URL and wait for page load " "(October 2025 computer use API)"
+            "Navigate browser to URL and wait for page load (October 2025 computer use API)"
         ),
         "requires_oauth": False,
         "service": "hyperbrowser",
@@ -164,7 +165,7 @@ UTILITIES_CAPABILITIES = {
         "handler": hyperbrowser_connector.extract_data,
         "tool_name": "hyperbrowser.extract_data",
         "description": (
-            "Extract data from page using natural language description " "(returns JSON/CSV/text)"
+            "Extract data from page using natural language description (returns JSON/CSV/text)"
         ),
         "requires_oauth": False,
         "service": "hyperbrowser",
@@ -193,7 +194,7 @@ UTILITIES_CAPABILITIES = {
         "handler": hyperbrowser_connector.export_powerbi_report,
         "tool_name": "hyperbrowser.export_powerbi_report",
         "description": (
-            "Export Power BI report to Excel " "(automates dashboard -> filters -> export workflow)"
+            "Export Power BI report to Excel (automates dashboard -> filters -> export workflow)"
         ),
         "requires_oauth": False,
         "service": "hyperbrowser",
@@ -209,6 +210,33 @@ UTILITIES_CAPABILITIES = {
         "credential_type": None,
         "supports_delegation": False,
     },
+    "portal.login_with_credentials": {
+        "handler": hyperbrowser_connector.login_with_credentials,
+        "tool_name": "hyperbrowser.login_with_credentials",
+        "description": "Login to portal using stored credentials from vault (supports TOTP MFA)",
+        "requires_oauth": False,
+        "service": "hyperbrowser",
+        "credential_type": None,
+        "supports_delegation": False,
+    },
+    "invite.accept": {
+        "handler": hyperbrowser_connector.accept_invite,
+        "tool_name": "hyperbrowser.accept_invite",
+        "description": "Accept a service invitation via browser (Slack, Linear, Notion, etc.)",
+        "requires_oauth": False,
+        "service": "hyperbrowser",
+        "credential_type": None,
+        "supports_delegation": False,
+    },
+    "service.signup": {
+        "handler": hyperbrowser_connector.signup_for_service,
+        "tool_name": "hyperbrowser.signup_for_service",
+        "description": "Sign up for a new service via browser automation",
+        "requires_oauth": False,
+        "service": "hyperbrowser",
+        "credential_type": None,
+        "supports_delegation": False,
+    },
     "browser.reset_session": {
         "handler": hyperbrowser_connector.reset_session,
         "tool_name": "hyperbrowser.reset_session",
@@ -218,6 +246,7 @@ UTILITIES_CAPABILITIES = {
         "credential_type": None,
         "supports_delegation": False,
     },
+    **E2B_CAPABILITIES,
     # ========== WEB SEARCH ==========
     "search.web": {
         "handler": _lazy_web_search("search"),
@@ -315,7 +344,7 @@ UTILITIES_CAPABILITIES = {
         "handler": _lazy_financial_calc("calculate_depreciation"),
         "tool_name": "financial_calculator.calculate_depreciation",
         "description": (
-            "Calculate asset depreciation " "(straight-line, declining balance, sum-of-years)"
+            "Calculate asset depreciation (straight-line, declining balance, sum-of-years)"
         ),
         "requires_oauth": False,
         "service": "financial_calculator",

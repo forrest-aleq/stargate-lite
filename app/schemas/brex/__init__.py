@@ -238,7 +238,7 @@ BREX_CARD_UNLOCK = CapabilitySchema(
     category="cards",
     description="Unlock a card in Brex",
     description_detailed=(
-        "Unlock a previously locked card to resume transactions. " "Card returns to active status."
+        "Unlock a previously locked card to resume transactions. Card returns to active status."
     ),
     parameters={
         "access_token": ParameterSchema(
@@ -284,7 +284,7 @@ BREX_CARD_LIMIT_UPDATE = CapabilitySchema(
     category="cards",
     description="Update card spending limit",
     description_detailed=(
-        "Update the spending limit for an existing card. " "Can increase or decrease the limit."
+        "Update the spending limit for an existing card. Can increase or decrease the limit."
     ),
     parameters={
         "access_token": ParameterSchema(

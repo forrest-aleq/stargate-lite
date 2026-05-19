@@ -73,6 +73,11 @@ JOURNAL_CREATE = CapabilitySchema(
         "txn_date": ReturnFieldSchema(type="string", description="Entry date"),
         "total_amount": ReturnFieldSchema(type="number", description="Total amount"),
         "memo": ReturnFieldSchema(type="string", description="Memo"),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this journal entry in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/journal?txnId=100",
+        ),
     },
     errors=[
         ErrorHint(
@@ -203,7 +208,7 @@ CHART_OF_ACCOUNTS_GET = CapabilitySchema(
     returns={
         "accounts": ReturnFieldSchema(
             type="array",
-            description="List of account objects",
+            description="List of account objects (each includes deep_link URL to QBO)",
             items_type="object",
         ),
         "count": ReturnFieldSchema(type="integer", description="Number of accounts"),
@@ -261,6 +266,11 @@ ACCOUNT_GET = CapabilitySchema(
         "number": ReturnFieldSchema(type="string", description="Account number"),
         "balance": ReturnFieldSchema(type="number", description="Current balance"),
         "active": ReturnFieldSchema(type="boolean", description="Is active"),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this account register in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/register?accountId=35",
+        ),
     },
     errors=[
         ErrorHint(

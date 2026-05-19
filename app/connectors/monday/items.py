@@ -52,7 +52,7 @@ class ItemsMixin(BoardsMixin):
 
         mutation = f"""
         mutation ($itemName: String!, $columnValues: JSON) {{
-            create_item({', '.join(mutation_args)}) {{
+            create_item({", ".join(mutation_args)}) {{
                 id
                 name
                 url: relative_link

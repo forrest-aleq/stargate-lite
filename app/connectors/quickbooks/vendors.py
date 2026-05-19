@@ -4,6 +4,7 @@ QuickBooks Online connector - Vendors module
 
 from typing import Any
 
+from app.connectors.quickbooks import deep_links
 from app.http_client import http_client
 
 
@@ -46,13 +47,15 @@ class QuickBooksVendorsMixin:
         )
 
         vendor = result.get("Vendor", {})
+        vendor_id = vendor.get("Id")
 
         return {
-            "vendor_id": f"qb:{vendor.get('Id')}",
+            "vendor_id": f"qb:{vendor_id}",
             "display_name": vendor.get("DisplayName"),
             "email": vendor.get("PrimaryEmailAddr", {}).get("Address"),
             "status": "active",
             "created_at": vendor.get("MetaData", {}).get("CreateTime"),
+            "deep_link": deep_links.vendor_link(vendor_id),
         }
 
     def get_vendor(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -72,13 +75,15 @@ class QuickBooksVendorsMixin:
         )
 
         vendor = result.get("Vendor", {})
+        vid = vendor.get("Id")
 
         return {
-            "vendor_id": f"qb:{vendor.get('Id')}",
+            "vendor_id": f"qb:{vid}",
             "display_name": vendor.get("DisplayName"),
             "email": vendor.get("PrimaryEmailAddr", {}).get("Address"),
             "phone": vendor.get("PrimaryPhone", {}).get("FreeFormNumber"),
             "status": "active" if vendor.get("Active") else "inactive",
+            "deep_link": deep_links.vendor_link(vid),
         }
 
     def list_vendors(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -86,12 +91,13 @@ class QuickBooksVendorsMixin:
         cred = self._get_access_token(org_id, user_id)
         realm_id = cred["realm_id"]
 
-        max_results = args.get("max_results", 100)
-        start_position = args.get("start_position", 1)
-        active_only = args.get("active_only", True)
+        max_results = int(args.get("max_results", 100))
+        start_position = int(args.get("start_position", 1))
+        active_only = bool(args.get("active_only", True))
 
-        query = f"SELECT * FROM Vendor WHERE Active = {str(active_only).lower()}"
-        query += f" STARTPOSITION {start_position} MAXRESULTS {max_results}"
+        # Safe: boolean converted to lowercase string, integers validated
+        query = f"SELECT * FROM Vendor WHERE Active = {str(active_only).lower()}"  # nosec B608
+        query += f" STARTPOSITION {start_position} MAXRESULTS {max_results}"  # nosec B608
 
         url = f"{self.base_url}/{realm_id}/query"
         result = http_client.get(
@@ -113,6 +119,7 @@ class QuickBooksVendorsMixin:
                     "display_name": v.get("DisplayName"),
                     "email": v.get("PrimaryEmailAddr", {}).get("Address"),
                     "status": "active" if v.get("Active") else "inactive",
+                    "deep_link": deep_links.vendor_link(v.get("Id")),
                 }
                 for v in vendors
             ],
@@ -164,10 +171,12 @@ class QuickBooksVendorsMixin:
         )
 
         vendor = result.get("Vendor", {})
+        vid = vendor.get("Id")
         return {
-            "vendor_id": f"qb:{vendor.get('Id')}",
+            "vendor_id": f"qb:{vid}",
             "display_name": vendor.get("DisplayName"),
             "updated": True,
+            "deep_link": deep_links.vendor_link(vid),
         }
 
     def search_vendors(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -176,10 +185,13 @@ class QuickBooksVendorsMixin:
         realm_id = cred["realm_id"]
 
         search_term = args.get("search_term", args.get("name", ""))
-        max_results = args.get("max_results", 25)
+        max_results = int(args.get("max_results", 25))
 
-        query = f"SELECT * FROM Vendor WHERE DisplayName LIKE '%{search_term}%'"
-        query += f" MAXRESULTS {max_results}"
+        # Sanitize search term: escape single quotes for QuickBooks Query Language
+        safe_search_term = str(search_term).replace("'", "\\'")
+
+        query = f"SELECT * FROM Vendor WHERE DisplayName LIKE '%{safe_search_term}%'"  # nosec B608
+        query += f" MAXRESULTS {max_results}"  # nosec B608
 
         url = f"{self.base_url}/{realm_id}/query"
         result = http_client.get(
@@ -201,6 +213,7 @@ class QuickBooksVendorsMixin:
                     "display_name": v.get("DisplayName"),
                     "email": v.get("PrimaryEmailAddr", {}).get("Address"),
                     "status": "active" if v.get("Active") else "inactive",
+                    "deep_link": deep_links.vendor_link(v.get("Id")),
                 }
                 for v in vendors
             ],

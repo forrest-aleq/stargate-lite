@@ -3,11 +3,12 @@ Shopify connector - Base module with authentication
 """
 
 import os
-from datetime import datetime, timedelta
+import time
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.database import CredentialManager
-from app.errors import CredentialMissingError
+from app.errors import CredentialMissingError, NetworkError
 from app.http_client import http_client
 from app.logging_config import get_logger
 from app.posthog_client import track_token_refreshed
@@ -43,7 +44,7 @@ class ShopifyBase:
 
         # Shopify tokens don't expire for offline access, but check anyway
         expiry = cred.get("token_expiry")
-        if expiry and expiry < datetime.utcnow() + timedelta(minutes=5):
+        if expiry and expiry < datetime.now(UTC) + timedelta(minutes=5):
             logger.info("Token expired, refreshing", service="shopify", org_id=org_id)
             return self._refresh_token(org_id, user_id, cred)
 
@@ -55,48 +56,61 @@ class ShopifyBase:
         if not shop_domain:
             raise ValueError("shop_domain is required but not found in credentials")
 
-        try:
-            token_data = http_client.post(
-                url=f"https://{shop_domain}/admin/oauth/access_token",
-                service="shopify",
-                headers={"Content-Type": "application/json"},
-                json={
-                    "client_id": self.client_id,
-                    "client_secret": self.client_secret,
-                    "refresh_token": cred["refresh_token"],
-                },
-            )
+        for attempt in range(2):
+            try:
+                token_data = http_client.post(
+                    url=f"https://{shop_domain}/admin/oauth/access_token",
+                    service="shopify",
+                    headers={"Content-Type": "application/json"},
+                    json={
+                        "client_id": self.client_id,
+                        "client_secret": self.client_secret,
+                        "refresh_token": cred["refresh_token"],
+                    },
+                )
 
-            new_expiry = datetime.utcnow() + timedelta(seconds=token_data.get("expires_in", 86400))
+                new_expiry = datetime.now(UTC) + timedelta(
+                    seconds=token_data.get("expires_in", 86400)
+                )
 
-            CredentialManager.store_credential(
-                org_id=org_id,
-                user_id=user_id,
-                service="shopify",
-                access_token=token_data["access_token"],
-                refresh_token=token_data.get("refresh_token", cred["refresh_token"]),
-                token_expiry=new_expiry,
-                extra_data={"shop_domain": shop_domain},
-            )
+                CredentialManager.store_credential(
+                    org_id=org_id,
+                    user_id=user_id,
+                    service="shopify",
+                    access_token=token_data["access_token"],
+                    refresh_token=token_data.get("refresh_token", cred["refresh_token"]),
+                    token_expiry=new_expiry,
+                    extra_data={"shop_domain": shop_domain},
+                )
 
-            # Track successful token refresh to PostHog
-            track_token_refreshed(
-                user_id=user_id,
-                org_id=org_id,
-                service="shopify",
-                success=True,
-            )
+                # Track successful token refresh to PostHog
+                track_token_refreshed(
+                    user_id=user_id,
+                    org_id=org_id,
+                    service="shopify",
+                    success=True,
+                )
 
-            return {
-                "access_token": token_data["access_token"],
-                "shop_domain": shop_domain,
-            }
-        except Exception:
-            # Track failed token refresh to PostHog
-            track_token_refreshed(
-                user_id=user_id,
-                org_id=org_id,
-                service="shopify",
-                success=False,
-            )
-            raise
+                return {
+                    "access_token": token_data["access_token"],
+                    "shop_domain": shop_domain,
+                }
+            except NetworkError:
+                if attempt == 0:
+                    logger.warning(
+                        "Token refresh transient failure, retrying",
+                        service="shopify",
+                        log_event="token_refresh_retry",
+                    )
+                    time.sleep(1.0)
+                    continue
+                track_token_refreshed(
+                    user_id=user_id, org_id=org_id, service="shopify", success=False
+                )
+                raise
+            except Exception:
+                track_token_refreshed(
+                    user_id=user_id, org_id=org_id, service="shopify", success=False
+                )
+                raise
+        raise NetworkError(service="shopify")

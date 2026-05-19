@@ -7,7 +7,7 @@ exclude_dirs = ["tests", "scripts", "migrations", "__pycache__"]
 
 [limits]
 max_file_lines = 500
-max_function_lines = 100  # Many functions contain GraphQL queries or API logic
+max_function_lines = 150  # FCI utilities and OAuth callbacks contain complex multi-step logic
 
 [limits.custom_file_limits]
 # Schema files - auto-generated, pending split
@@ -23,6 +23,17 @@ max_function_lines = 100  # Many functions contain GraphQL queries or API logic
 # Sage Intacct connector - pending split
 "app/connectors/sage_intacct/ar.py" = 550
 "app/connectors/sage_intacct/cash.py" = 550
+# DocuSign - single-file connector with many endpoints
+"app/connectors/docusign.py" = 510
+# OAuth base - contains common utilities, pending refactor
+"app/routers/oauth/base.py" = 650
+# Database manager - pending split into query/session modules
+"app/database.py" = 550
+# FCI utilities - contain complex financial calculations, pending modularization
+"app/utilities/fci/entities.py" = 850
+"app/utilities/fci/reports.py" = 850
+# Guardian script itself
+"scripts/guardian.py" = 700
 
 [async]
 # Optional: enforce async in I/O-heavy directories

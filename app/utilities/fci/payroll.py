@@ -10,7 +10,7 @@ Aggregates payroll data from Gusto:
 Returns payroll summary with change tracking.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 from app.logging_config import get_logger
@@ -124,6 +124,10 @@ class PayrollMixin:
             headcount=payroll_data.get("headcount", 0),
             contractor_count=payroll_data.get("contractor_count", 0),
             source="gusto",
+            data_quality={
+                "historical_comparison": "unavailable",
+                "trend_mode": "snapshot_only",
+            },
         )
 
     def _parse_payroll_data(
@@ -224,11 +228,13 @@ class PayrollMixin:
         user_id: str,
         current_total: float,
     ) -> float:
-        """Get prior month payroll for comparison."""
-        # Payroll typically doesn't change much month-to-month
-        estimated_change_rate = 0.01  # 1% typical payroll change
-        prior_total = current_total / (1 + estimated_change_rate)
-        return prior_total
+        """Get prior month payroll for comparison.
+
+        Historical payroll snapshots are not yet wired. Return current value so
+        delta metrics remain truthful instead of inferred.
+        """
+        _ = (org_id, user_id)
+        return current_total
 
     def _generate_payroll_trend(
         self,
@@ -236,23 +242,9 @@ class PayrollMixin:
         change_percent: float,
     ) -> list[dict[str, Any]]:
         """Generate trend data points for payroll sparkline."""
-        trend: list[dict[str, Any]] = []
-        today = datetime.utcnow()
-
-        for i in range(5, -1, -1):
-            point_date = today - timedelta(days=30 * i)
-            # Payroll is typically stable, so less variance
-            factor = 1 - (change_percent / 100) * (i / 5) * 0.5
-            value = current_total * max(0.8, min(1.2, factor))
-
-            trend.append(
-                {
-                    "date": point_date.strftime("%Y-%m"),
-                    "value": round(value, 2),
-                }
-            )
-
-        return trend
+        _ = change_percent  # reserved for future historical mode
+        today = datetime.now(UTC)
+        return [{"date": today.strftime("%Y-%m"), "value": round(current_total, 2)}]
 
     def _generate_payroll_insight(
         self,
@@ -267,7 +259,7 @@ class PayrollMixin:
         if next_run:
             try:
                 next_date = datetime.fromisoformat(next_run.replace("Z", ""))
-                days_until = (next_date.date() - datetime.utcnow().date()).days
+                days_until = (next_date.date() - datetime.now(UTC).date()).days
                 if 0 <= days_until <= 3:
                     return (
                         f"Next payroll in {days_until} days; "

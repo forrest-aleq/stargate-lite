@@ -1,17 +1,17 @@
 """
 DocuSign connector for Stargate Lite
-Handles envelopes, recipients, documents, and templates
-Uses DocuSign eSignature REST API
+Handles envelopes, recipients, documents, and templates via eSignature REST API
 """
 
 import base64
 import os
-from datetime import datetime, timedelta
+import time
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
 from app.database import CredentialManager
-from app.errors import CredentialMissingError
+from app.errors import CredentialMissingError, NetworkError
 from app.http_client import http_client
 from app.logging_config import get_logger
 from app.posthog_client import track_token_refreshed
@@ -28,7 +28,12 @@ class DocuSignConnector:
     def __init__(self) -> None:
         self.client_id = os.getenv("DOCUSIGN_CLIENT_ID")
         self.client_secret = os.getenv("DOCUSIGN_CLIENT_SECRET")
-        self.environment = os.getenv("DOCUSIGN_ENVIRONMENT", "demo")
+        env = os.getenv("DOCUSIGN_ENVIRONMENT", "").strip().lower()
+        if env:
+            self.environment = env
+        else:
+            use_demo = os.getenv("DOCUSIGN_USE_DEMO", "true").lower() == "true"
+            self.environment = "demo" if use_demo else "production"
 
     def _get_base_url(self, account_id: str) -> str:
         """Get base URL for account"""
@@ -49,7 +54,7 @@ class DocuSignConnector:
         if not cred:
             raise CredentialMissingError("docusign", org_id, user_id)
 
-        if cred["token_expiry"] and cred["token_expiry"] < datetime.utcnow() + timedelta(minutes=5):
+        if cred["token_expiry"] and cred["token_expiry"] < datetime.now(UTC) + timedelta(minutes=5):
             logger.info("Token expired, refreshing", service="docusign", org_id=org_id)
             return self._refresh_token(org_id, user_id, cred["refresh_token"])
 
@@ -59,59 +64,67 @@ class DocuSignConnector:
         """Refresh the access token"""
         auth_url = self.DEMO_AUTH_URL if self.environment == "demo" else self.AUTH_URL
 
-        # DocuSign uses Basic auth for token refresh
         credentials = base64.b64encode(f"{self.client_id}:{self.client_secret}".encode()).decode()
+        for attempt in range(2):
+            try:
+                token_data = http_client.post(
+                    url=auth_url,
+                    service="docusign",
+                    headers={
+                        "Authorization": f"Basic {credentials}",
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                    data={
+                        "grant_type": "refresh_token",
+                        "refresh_token": refresh_token,
+                    },
+                )
 
-        try:
-            token_data = http_client.post(
-                url=auth_url,
-                service="docusign",
-                headers={
-                    "Authorization": f"Basic {credentials}",
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-                data={
-                    "grant_type": "refresh_token",
-                    "refresh_token": refresh_token,
-                },
-            )
+                new_expiry = datetime.now(UTC) + timedelta(
+                    seconds=token_data.get("expires_in", 28800)
+                )
 
-            new_expiry = datetime.utcnow() + timedelta(seconds=token_data.get("expires_in", 28800))
+                CredentialManager.store_credential(
+                    org_id=org_id,
+                    user_id=user_id,
+                    service="docusign",
+                    access_token=token_data["access_token"],
+                    refresh_token=token_data["refresh_token"],
+                    token_expiry=new_expiry,
+                )
 
-            CredentialManager.store_credential(
-                org_id=org_id,
-                user_id=user_id,
-                service="docusign",
-                access_token=token_data["access_token"],
-                refresh_token=token_data["refresh_token"],
-                token_expiry=new_expiry,
-            )
+                track_token_refreshed(
+                    user_id=user_id,
+                    org_id=org_id,
+                    service="docusign",
+                    success=True,
+                )
 
-            # Track successful token refresh to PostHog
-            track_token_refreshed(
-                user_id=user_id,
-                org_id=org_id,
-                service="docusign",
-                success=True,
-            )
-
-            return {
-                "access_token": token_data["access_token"],
-                "refresh_token": token_data["refresh_token"],
-                "token_expiry": new_expiry,
-                "account_id": token_data.get("account_id"),
-            }
-        except Exception:
-            # Track failed token refresh to PostHog
-            track_token_refreshed(
-                user_id=user_id,
-                org_id=org_id,
-                service="docusign",
-                success=False,
-            )
-            raise
-
-    # ============ ENVELOPES ============
+                return {
+                    "access_token": token_data["access_token"],
+                    "refresh_token": token_data["refresh_token"],
+                    "token_expiry": new_expiry,
+                    "account_id": token_data.get("account_id"),
+                }
+            except NetworkError:
+                if attempt == 0:
+                    logger.warning(
+                        "Token refresh transient failure, retrying",
+                        service="docusign",
+                        log_event="token_refresh_retry",
+                    )
+                    time.sleep(1.0)
+                    continue
+                track_token_refreshed(
+                    user_id=user_id, org_id=org_id, service="docusign", success=False
+                )
+                raise
+            except Exception:
+                track_token_refreshed(
+                    user_id=user_id, org_id=org_id, service="docusign", success=False
+                )
+                raise
+        raise NetworkError(service="docusign")
 
     def list_envelopes(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List envelopes from DocuSign"""
@@ -252,8 +265,6 @@ class DocuSignConnector:
             "status": result.get("status", "voided"),
         }
 
-    # ============ RECIPIENTS ============
-
     def list_recipients(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List recipients for an envelope"""
         cred = self._get_access_token(org_id, user_id)
@@ -301,8 +312,6 @@ class DocuSignConnector:
             "recipient_id": args["recipient_id"],
             "status": "updated",
         }
-
-    # ============ DOCUMENTS ============
 
     def list_documents(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List documents in an envelope"""
@@ -355,8 +364,6 @@ class DocuSignConnector:
             else result,
             "content_type": "application/pdf",
         }
-
-    # ============ TEMPLATES ============
 
     def list_templates(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
         """List templates from DocuSign"""
@@ -422,6 +429,78 @@ class DocuSignConnector:
         return {
             "envelope_id": result["envelopeId"],
             "status": result.get("status"),
+        }
+
+    def get_envelope_audit(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Get audit events for an envelope"""
+        cred = self._get_access_token(org_id, user_id)
+        account_id = cred.get("account_id") or args.get("account_id")
+        base_url = self._get_base_url(account_id)
+        envelope_id = args["envelope_id"]
+
+        result = http_client.get(
+            url=f"{base_url}/envelopes/{envelope_id}/audit_events",
+            service="docusign",
+            headers=self._get_headers(cred["access_token"]),
+        )
+
+        return {
+            "envelope_id": envelope_id,
+            "audit_events": result.get("auditEvents", []),
+        }
+
+    def get_signing_url(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Get an embedded signing URL for a recipient"""
+        cred = self._get_access_token(org_id, user_id)
+        account_id = cred.get("account_id") or args.get("account_id")
+        base_url = self._get_base_url(account_id)
+        envelope_id = args["envelope_id"]
+
+        recipient_view_data = {
+            "recipientName": args["recipient_name"],
+            "recipientEmail": args["recipient_email"],
+            "returnUrl": args["return_url"],
+            "authenticationMethod": "none",
+        }
+
+        result = http_client.post(
+            url=f"{base_url}/envelopes/{envelope_id}/views/recipient",
+            service="docusign",
+            headers=self._get_headers(cred["access_token"]),
+            json=recipient_view_data,
+        )
+
+        return {
+            "envelope_id": envelope_id,
+            "signing_url": result.get("url"),
+        }
+
+    def get_envelope_status(
+        self, org_id: str, user_id: str, args: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Get envelope status details"""
+        cred = self._get_access_token(org_id, user_id)
+        account_id = cred.get("account_id") or args.get("account_id")
+        base_url = self._get_base_url(account_id)
+        envelope_id = args["envelope_id"]
+
+        result = http_client.get(
+            url=f"{base_url}/envelopes/{envelope_id}",
+            service="docusign",
+            headers=self._get_headers(cred["access_token"]),
+        )
+
+        return {
+            "envelope_id": result["envelopeId"],
+            "status": result.get("status"),
+            "status_changed_date_time": result.get("statusChangedDateTime"),
+            "sent_date_time": result.get("sentDateTime"),
+            "delivered_date_time": result.get("deliveredDateTime"),
+            "completed_date_time": result.get("completedDateTime"),
+            "voided_date_time": result.get("voidedDateTime"),
+            "voided_reason": result.get("voidedReason"),
+            "sender": result.get("sender"),
+            "recipients_uri": result.get("recipientsUri"),
         }
 
 

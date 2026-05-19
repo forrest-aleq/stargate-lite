@@ -326,3 +326,61 @@ class GoogleDriveConnector:
 
         except HttpError as error:
             self._handle_http_error(error)
+
+    def delete_file(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Delete a file from Google Drive"""
+        creds = self._get_credentials(org_id, user_id)
+
+        try:
+            service = build("drive", "v3", credentials=creds)
+
+            file_id = args.get("file_id")
+
+            service.files().delete(fileId=file_id).execute()
+
+            return {
+                "file_id": file_id,
+                "deleted": True,
+            }
+
+        except HttpError as error:
+            self._handle_http_error(error)
+
+    def search_files(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Search for files in Google Drive"""
+        creds = self._get_credentials(org_id, user_id)
+
+        try:
+            service = build("drive", "v3", credentials=creds)
+
+            query = args.get("query")
+            limit = args.get("limit", 25)
+
+            results = (
+                service.files()
+                .list(
+                    q=query,
+                    pageSize=limit,
+                    fields="files(id, name, mimeType, modifiedTime, size)",
+                )
+                .execute()
+            )
+
+            files = results.get("files", [])
+
+            return {
+                "files": [
+                    {
+                        "file_id": f.get("id"),
+                        "name": f.get("name"),
+                        "mime_type": f.get("mimeType"),
+                        "modified_time": f.get("modifiedTime"),
+                        "size_bytes": int(f.get("size", 0)) if f.get("size") else 0,
+                    }
+                    for f in files
+                ],
+                "count": len(files),
+            }
+
+        except HttpError as error:
+            self._handle_http_error(error)

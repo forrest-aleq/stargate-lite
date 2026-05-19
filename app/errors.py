@@ -4,11 +4,11 @@ Standardized error codes and retry strategies for MARS integration
 Per management directive - critical for Subgraph error handling
 """
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class ErrorCode(str, Enum):
+class ErrorCode(StrEnum):
     """Standardized error codes that MARS Subgraphs expect (per Contract v1.0)"""
 
     # Contract-required error codes
@@ -33,7 +33,7 @@ class ErrorCode(str, Enum):
     EXTERNAL_API_ERROR = "EXECUTION_ERROR"  # Alias for EXECUTION_ERROR
 
 
-class RetryStrategy(str, Enum):
+class RetryStrategy(StrEnum):
     """Retry strategies that MARS should follow"""
 
     HUMAN_INTERVENTION = "human_intervention"  # User must fix (reconnect, grant permission)
@@ -83,6 +83,7 @@ class StargateError(Exception):
             "status": "error",  # Contract-compliant: always "error"
             "error_code": self.error_code.value,
             "error_message": self.message,
+            "retry_strategy": self.retry_strategy.value,  # REQUIRED per Baby MARS contract
             "details": self.details,
             # Note: capability_key, timestamp, logs added by caller (main.py)
         }
@@ -132,10 +133,7 @@ class CredentialsInsufficientError(StargateError):
     """User needs additional OAuth scopes"""
 
     def __init__(self, service: str, required_scopes: list[str]) -> None:
-        msg = (
-            f"Insufficient credentials for service '{service}': "
-            f"missing scopes {required_scopes}"
-        )
+        msg = f"Insufficient credentials for service '{service}': missing scopes {required_scopes}"
         super().__init__(
             message=msg,
             error_code=ErrorCode.CREDENTIALS_INSUFFICIENT,
@@ -325,11 +323,23 @@ class ProviderUnavailableError(StargateError):
     """All providers for a utility are unavailable (rate limited, network error)"""
 
     def __init__(self, utility: str, providers_tried: list[str]) -> None:
-        msg = f"All providers unavailable for utility '{utility}': " f"tried {providers_tried}"
+        msg = f"All providers unavailable for utility '{utility}': tried {providers_tried}"
         super().__init__(
             message=msg,
             error_code=ErrorCode.NETWORK_ERROR,
             details={"utility": utility, "providers_tried": providers_tried},
+            http_status=200,
+        )
+
+
+class ServiceUnavailableError(StargateError):
+    """Service is temporarily unavailable (circuit breaker open)"""
+
+    def __init__(self, service: str) -> None:
+        super().__init__(
+            message=f"Service '{service}' is temporarily unavailable (circuit breaker open)",
+            error_code=ErrorCode.NETWORK_ERROR,
+            details={"service": service, "reason": "circuit_breaker_open"},
             http_status=200,
         )
 

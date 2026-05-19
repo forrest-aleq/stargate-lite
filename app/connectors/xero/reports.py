@@ -23,6 +23,7 @@ from typing import Any
 from app.errors import ValidationError
 from app.logging_config import get_logger
 
+from . import deep_links
 from .bank import BankMixin
 
 logger = get_logger(__name__)
@@ -355,10 +356,10 @@ class ReportsMixin(BankMixin):
             where_clauses.append(args["where"])
 
         if args.get("date_from"):
-            where_clauses.append(f'Date>=DateTime({args["date_from"].replace("-", ",")})')
+            where_clauses.append(f"Date>=DateTime({args['date_from'].replace('-', ',')})")
 
         if args.get("date_to"):
-            where_clauses.append(f'Date<=DateTime({args["date_to"].replace("-", ",")})')
+            where_clauses.append(f"Date<=DateTime({args['date_to'].replace('-', ',')})")
 
         if where_clauses:
             params["where"] = " AND ".join(where_clauses)
@@ -643,6 +644,7 @@ class ReportsMixin(BankMixin):
             "reporting_code": account.get("ReportingCode"),
             "reporting_code_name": account.get("ReportingCodeName"),
             "updated_date": account.get("UpdatedDateUTC"),
+            "deep_link": deep_links.chart_of_accounts_link(),
         }
 
     def _format_manual_journal(self, journal: dict[str, Any]) -> dict[str, Any]:
@@ -673,6 +675,7 @@ class ReportsMixin(BankMixin):
                 for jl in lines
             ],
             "updated_date": journal.get("UpdatedDateUTC"),
+            "deep_link": deep_links.manual_journal_link(journal.get("ManualJournalID")),
         }
 
     def _format_system_journal(self, journal: dict[str, Any]) -> dict[str, Any]:

@@ -11,7 +11,7 @@ change tracking, and trend data.
 """
 
 import contextlib
-from datetime import datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 from app.logging_config import get_logger
@@ -70,11 +70,11 @@ class ExpensesMixin:
         # Get primary accounting system for P&L-based expenses
         primary_service = self._get_primary_accounting_service(org_id, user_id, PL_REPORT_SERVICES)
 
-        expense_data = {
+        expense_data: dict[str, Any] = {
             "total": 0.0,
-            "mtd": 0.0,
-            "ytd": 0.0,
-            "last_month": 0.0,
+            "mtd": None,
+            "ytd": None,
+            "last_month": None,
             "by_category": [],
         }
 
@@ -105,9 +105,9 @@ class ExpensesMixin:
                 if include_categories:
                     expense_data["by_category"] = exp_data.get("categories", [])
 
-        # Calculate MTD, YTD, last month values
+        # Populate only the period value explicitly requested.
         expense_data = self._calculate_expense_period_values(
-            org_id, user_id, expense_data, primary_service
+            org_id, user_id, expense_data, primary_service, period
         )
 
         # Calculate change
@@ -115,10 +115,8 @@ class ExpensesMixin:
         prior_total = self._get_prior_expenses(org_id, user_id, current_value, period)
         change, change_percent = self._calculate_change(current_value, prior_total)
 
-        # Determine trend direction
-        trend_direction = self._determine_trend_direction(
-            [expense_data.get("last_month", 0), expense_data.get("mtd", current_value)]
-        )
+        # Historical trend direction unavailable until snapshots are wired.
+        trend_direction = "stable"
 
         # Generate trend data points
         trend_data = self._generate_expense_trend(current_value, change_percent)
@@ -142,6 +140,11 @@ class ExpensesMixin:
             period=period,
             period_start=start_date.strftime("%Y-%m-%d"),
             period_end=end_date.strftime("%Y-%m-%d"),
+            data_quality={
+                "historical_comparison": "unavailable",
+                "trend_mode": "snapshot_only",
+                "period_values": "only_requested_period_populated",
+            },
         )
 
     def _parse_pl_expenses(
@@ -245,16 +248,14 @@ class ExpensesMixin:
         user_id: str,
         expense_data: dict[str, Any],
         primary_service: str | None,
+        period: str,
     ) -> dict[str, Any]:
-        """Calculate MTD, YTD, and last month expense values."""
+        """Populate only period values explicitly requested by caller."""
+        _ = (org_id, user_id, primary_service)
         current = expense_data["total"]
-
-        today = datetime.utcnow()
-        month_of_year = today.month
-
-        expense_data["mtd"] = current
-        expense_data["ytd"] = current * month_of_year * 0.95
-        expense_data["last_month"] = current * 1.02  # Assume slight decrease
+        expense_data["mtd"] = current if period == "mtd" else None
+        expense_data["ytd"] = current if period == "ytd" else None
+        expense_data["last_month"] = current if period == "last_month" else None
 
         return expense_data
 
@@ -265,10 +266,13 @@ class ExpensesMixin:
         current_total: float,
         period: str,
     ) -> float:
-        """Get prior period expenses for comparison."""
-        estimated_change_rate = 0.03  # 3% MoM expense change assumption
-        prior_total = current_total / (1 + estimated_change_rate)
-        return prior_total
+        """Get prior period expenses for comparison.
+
+        Historical expense snapshots are not yet wired. Return current value so
+        delta metrics remain truthful instead of inferred.
+        """
+        _ = (org_id, user_id, period)
+        return current_total
 
     def _generate_expense_trend(
         self,
@@ -276,22 +280,9 @@ class ExpensesMixin:
         change_percent: float,
     ) -> list[dict[str, Any]]:
         """Generate trend data points for expense sparkline."""
-        trend: list[dict[str, Any]] = []
-        today = datetime.utcnow()
-
-        for i in range(5, -1, -1):
-            point_date = today - timedelta(days=30 * i)
-            factor = 1 - (change_percent / 100) * (i / 5)
-            value = current_total * max(0.5, min(1.5, factor))
-
-            trend.append(
-                {
-                    "date": point_date.strftime("%Y-%m"),
-                    "value": round(value, 2),
-                }
-            )
-
-        return trend
+        _ = change_percent  # reserved for future historical mode
+        today = datetime.now(UTC)
+        return [{"date": today.strftime("%Y-%m"), "value": round(current_total, 2)}]
 
     def _generate_expense_insight(
         self,

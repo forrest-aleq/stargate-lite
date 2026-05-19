@@ -12,10 +12,11 @@ Square OAuth Documentation:
 https://developer.squareup.com/docs/oauth-api/overview
 """
 
+import asyncio
 import hashlib
 import hmac
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
 
 import requests
@@ -27,24 +28,18 @@ from app.logging_config import get_logger
 from app.routers.oauth.base import (
     build_oauth_error_redirect,
     build_oauth_success_redirect,
+    build_signed_state_3parts,
+    build_signed_state_4parts,
+    build_signed_state_5parts,
     get_env_or_raise,
     parse_oauth_state_3parts,
+    parse_oauth_state_4parts,
+    parse_oauth_state_5parts,
 )
 
 logger = get_logger(__name__)
 
 router = APIRouter(tags=["oauth"])
-
-
-def _parse_shopify_state(state: str) -> tuple[str, str, str, str] | None:
-    """Parse Shopify OAuth state with format org_id:user_id:credential_type:shop."""
-    parts = state.split(":")
-    if len(parts) != 4:
-        return None
-    org_id, user_id, credential_type, shop = parts
-    if not all([org_id, user_id, credential_type, shop]):
-        return None
-    return org_id, user_id, credential_type, shop
 
 
 def _validate_shopify_hmac(
@@ -89,6 +84,7 @@ async def shopify_oauth_authorize(
     user_id: str,
     shop: str,
     credential_type: str = "customer",
+    source: str = "",
 ) -> RedirectResponse:
     """
     Initiate Shopify OAuth flow.
@@ -112,9 +108,12 @@ async def shopify_oauth_authorize(
     if not shop or not all(c.isalnum() or c == "-" for c in shop):
         raise HTTPException(status_code=400, detail="Invalid shop name format")
 
-    # State encodes org_id:user_id:credential_type:shop for the callback
-    # We include shop in state to verify it matches on callback
-    state = f"{org_id}:{user_id}:{credential_type}:{shop}"
+    # State is cryptographically signed to prevent CSRF/tampering
+    # We include shop as sub_service to verify it matches on callback
+    if source:
+        state = build_signed_state_5parts(org_id, user_id, credential_type, shop, source)
+    else:
+        state = build_signed_state_4parts(org_id, user_id, credential_type, shop)
 
     # Shopify scopes for e-commerce access
     # https://shopify.dev/docs/api/usage/access-scopes
@@ -165,15 +164,24 @@ async def shopify_oauth_callback(
     timestamp: str = "",
 ) -> RedirectResponse:
     """Handle Shopify OAuth callback with HMAC validation. Redirects to N3."""
-    parsed = _parse_shopify_state(state)
-    if not parsed:
+    source = ""
+    try:
+        parts = state.split(":")
+        if len(parts) == 6:
+            # 5 data + 1 signature — has source
+            org_id, user_id, _credential_type, state_shop, source = parse_oauth_state_5parts(
+                state, "shopify"
+            )
+        else:
+            org_id, user_id, _credential_type, state_shop = parse_oauth_state_4parts(
+                state, "shopify"
+            )
+    except HTTPException:
         return build_oauth_error_redirect(
             service="shopify",
             error="invalid_state",
             error_description="Invalid OAuth state parameter",
         )
-
-    org_id, user_id, _credential_type, state_shop = parsed
 
     # Normalize and verify shop name
     callback_shop = shop.replace(".myshopify.com", "")
@@ -195,7 +203,8 @@ async def shopify_oauth_callback(
 
         # Exchange code for access token
         token_url = f"https://{callback_shop}.myshopify.com/admin/oauth/access_token"
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             token_url,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             data={"client_id": client_id, "client_secret": client_secret, "code": code},
@@ -213,32 +222,42 @@ async def shopify_oauth_callback(
 
         token_data = response.json()
 
-        CredentialManager.store_credential(
+        await asyncio.to_thread(
+            CredentialManager.store_credential,
             org_id=org_id,
             user_id=user_id,
             service="shopify",
             access_token=token_data["access_token"],
             refresh_token=None,
-            token_expiry=datetime.utcnow() + timedelta(days=3650),
+            token_expiry=datetime.now(UTC) + timedelta(days=3650),
             extra_data={"shop": callback_shop},
         )
 
         logger.info("Shopify OAuth completed", org_id=org_id, shop=callback_shop)
-        return build_oauth_success_redirect(service="shopify", org_id=org_id)
+        extra = {"source": source} if source else None
+        return build_oauth_success_redirect(
+            service="shopify", org_id=org_id, extra_params=extra, user_id=user_id
+        )
 
-    except HTTPException as e:
+    except HTTPException:
         return build_oauth_error_redirect(
             service="shopify",
             error="validation_failed",
-            error_description=str(e.detail),
+            error_description="Request validation failed",
             org_id=org_id,
         )
     except Exception as e:
-        logger.error("Shopify OAuth callback failed", error=str(e), exc_info=True)
+        logger.error(
+            "OAuth callback failed",
+            service="shopify",
+            error_type=type(e).__name__,
+            log_event="oauth_callback_error",
+            exc_info=True,
+        )
         return build_oauth_error_redirect(
             service="shopify",
             error="callback_failed",
-            error_description=str(e),
+            error_description="An unexpected error occurred",
             org_id=org_id,
         )
 
@@ -250,7 +269,7 @@ async def shopify_oauth_callback(
 
 @router.get("/oauth/square/authorize")
 async def square_oauth_authorize(
-    org_id: str, user_id: str, credential_type: str = "customer"
+    org_id: str, user_id: str, credential_type: str = "customer", source: str = ""
 ) -> RedirectResponse:
     """
     Initiate Square OAuth flow.
@@ -272,8 +291,11 @@ async def square_oauth_authorize(
 
     auth_url, _ = _get_square_urls()
 
-    # State encodes org_id:user_id:credential_type for the callback
-    state = f"{org_id}:{user_id}:{credential_type}"
+    # State is cryptographically signed to prevent CSRF/tampering
+    if source:
+        state = build_signed_state_4parts(org_id, user_id, credential_type, source)
+    else:
+        state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     # Square OAuth scopes
     # https://developer.squareup.com/docs/oauth-api/square-permissions
@@ -319,8 +341,13 @@ async def square_oauth_authorize(
 async def square_oauth_callback(code: str, state: str) -> RedirectResponse:
     """Handle Square OAuth callback. Redirects to N3 on completion."""
     # Parse state first
+    source = ""
     try:
-        org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "square")
+        parts = state.split(":")
+        if len(parts) == 5:
+            org_id, user_id, _credential_type, source = parse_oauth_state_4parts(state, "square")
+        else:
+            org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "square")
     except HTTPException:
         return build_oauth_error_redirect(
             service="square",
@@ -335,11 +362,12 @@ async def square_oauth_callback(code: str, state: str) -> RedirectResponse:
 
         _, token_url = _get_square_urls()
 
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             token_url,
             headers={
                 "Content-Type": "application/json",
-                "Square-Version": "2024-01-18",
+                "Square-Version": "2026-01-22",
             },
             json={
                 "client_id": client_id,
@@ -365,9 +393,10 @@ async def square_oauth_callback(code: str, state: str) -> RedirectResponse:
         if "expires_at" in token_data:
             token_expiry = datetime.fromisoformat(token_data["expires_at"].replace("Z", "+00:00"))
         else:
-            token_expiry = datetime.utcnow() + timedelta(days=30)
+            token_expiry = datetime.now(UTC) + timedelta(days=30)
 
-        CredentialManager.store_credential(
+        await asyncio.to_thread(
+            CredentialManager.store_credential,
             org_id=org_id,
             user_id=user_id,
             service="square",
@@ -378,20 +407,29 @@ async def square_oauth_callback(code: str, state: str) -> RedirectResponse:
         )
 
         logger.info("Square OAuth completed", org_id=org_id)
-        return build_oauth_success_redirect(service="square", org_id=org_id)
+        extra = {"source": source} if source else None
+        return build_oauth_success_redirect(
+            service="square", org_id=org_id, extra_params=extra, user_id=user_id
+        )
 
-    except HTTPException as e:
+    except HTTPException:
         return build_oauth_error_redirect(
             service="square",
             error="config_error",
-            error_description=str(e.detail),
+            error_description="Service configuration error",
             org_id=org_id,
         )
     except Exception as e:
-        logger.error("Square OAuth callback failed", error=str(e), exc_info=True)
+        logger.error(
+            "OAuth callback failed",
+            service="square",
+            error_type=type(e).__name__,
+            log_event="oauth_callback_error",
+            exc_info=True,
+        )
         return build_oauth_error_redirect(
             service="square",
             error="callback_failed",
-            error_description=str(e),
+            error_description="An unexpected error occurred",
             org_id=org_id,
         )

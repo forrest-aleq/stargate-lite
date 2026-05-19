@@ -15,6 +15,7 @@ from typing import Any
 from app.errors import ValidationError
 from app.logging_config import get_logger
 
+from . import deep_links
 from .contacts import ContactsMixin
 
 logger = get_logger(__name__)
@@ -52,10 +53,10 @@ class InvoicesMixin(ContactsMixin):
             where_clauses.append(f'Contact.ContactID==GUID("{args["contact_id"]}")')
 
         if args.get("date_from"):
-            where_clauses.append(f'Date>=DateTime({args["date_from"].replace("-", ",")})')
+            where_clauses.append(f"Date>=DateTime({args['date_from'].replace('-', ',')})")
 
         if args.get("date_to"):
-            where_clauses.append(f'Date<=DateTime({args["date_to"].replace("-", ",")})')
+            where_clauses.append(f"Date<=DateTime({args['date_to'].replace('-', ',')})")
 
         params["where"] = " AND ".join(where_clauses)
 
@@ -345,9 +346,9 @@ class InvoicesMixin(ContactsMixin):
 
         if args.get("overdue_only"):
             # Get invoices where due date has passed
-            from datetime import datetime
+            from datetime import UTC, datetime
 
-            today = datetime.utcnow().strftime("%Y,%m,%d")
+            today = datetime.now(UTC).strftime("%Y,%m,%d")
             where_clauses.append(f"DueDate<DateTime({today})")
 
         params = {"where": " AND ".join(where_clauses), "order": "DueDate ASC"}
@@ -397,9 +398,9 @@ class InvoicesMixin(ContactsMixin):
         invoices = result.get("Invoices", [])
 
         # Calculate aging buckets
-        from datetime import datetime
+        from datetime import UTC, datetime
 
-        today = datetime.utcnow()
+        today = datetime.now(UTC)
         aging: dict[str, dict[str, float]] = {
             "current": {"amount": 0.0, "count": 0},
             "1_30_days": {"amount": 0.0, "count": 0},
@@ -498,6 +499,7 @@ class InvoicesMixin(ContactsMixin):
             "has_attachments": invoice.get("HasAttachments", False),
             "online_invoice_url": invoice.get("OnlineInvoiceUrl"),
             "updated_date": invoice.get("UpdatedDateUTC"),
+            "deep_link": deep_links.invoice_link(invoice.get("InvoiceID")),
         }
 
     def _format_line_items_for_api(self, line_items: list[dict[str, Any]]) -> list[dict[str, Any]]:

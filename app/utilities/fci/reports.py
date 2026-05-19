@@ -11,7 +11,7 @@ Provides standard financial reports:
 These wrap existing connector methods with FCI-consistent response formatting.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from app.logging_config import get_logger
@@ -69,10 +69,10 @@ class ReportsMixin:
 
         # Default dates if not provided
         if not start_date:
-            today = datetime.utcnow()
+            today = datetime.now(UTC)
             start_date = today.replace(day=1).strftime("%Y-%m-%d")
         if not end_date:
-            end_date = datetime.utcnow().strftime("%Y-%m-%d")
+            end_date = datetime.now(UTC).strftime("%Y-%m-%d")
 
         # Get primary accounting system
         preferred_service = source or self._get_primary_accounting_service(
@@ -168,7 +168,7 @@ class ReportsMixin:
             }
         """
         source = args.get("source")
-        as_of_date = args.get("as_of_date", datetime.utcnow().strftime("%Y-%m-%d"))
+        as_of_date = args.get("as_of_date", datetime.now(UTC).strftime("%Y-%m-%d"))
 
         preferred_service = source or self._get_primary_accounting_service(
             org_id, user_id, BALANCE_SHEET_SERVICES
@@ -256,7 +256,7 @@ class ReportsMixin:
             }
         """
         source = args.get("source")
-        as_of_date = args.get("as_of_date", datetime.utcnow().strftime("%Y-%m-%d"))
+        as_of_date = args.get("as_of_date", datetime.now(UTC).strftime("%Y-%m-%d"))
 
         preferred_service = source or self._get_primary_accounting_service(
             org_id, user_id, AR_SERVICES
@@ -352,7 +352,7 @@ class ReportsMixin:
             }
         """
         source = args.get("source")
-        as_of_date = args.get("as_of_date", datetime.utcnow().strftime("%Y-%m-%d"))
+        as_of_date = args.get("as_of_date", datetime.now(UTC).strftime("%Y-%m-%d"))
 
         preferred_service = source or self._get_primary_accounting_service(
             org_id, user_id, AP_SERVICES
@@ -451,10 +451,10 @@ class ReportsMixin:
         end_date = args.get("end_date")
 
         if not start_date:
-            today = datetime.utcnow()
+            today = datetime.now(UTC)
             start_date = today.replace(day=1).strftime("%Y-%m-%d")
         if not end_date:
-            end_date = datetime.utcnow().strftime("%Y-%m-%d")
+            end_date = datetime.now(UTC).strftime("%Y-%m-%d")
 
         preferred_service = source or self._get_primary_accounting_service(
             org_id, user_id, CASHFLOW_SERVICES
@@ -529,53 +529,82 @@ class ReportsMixin:
             "income_breakdown": [],
             "expense_breakdown": [],
         }
+        net_income_fallback: float | None = None
+        net_income_seen = False
 
         if service == "quickbooks":
             rows = result.get("Rows", {}).get("Row", [])
+            income_section_keys = {"income", "revenue", "salesrevenue", "operatingrevenue"}
+            expense_section_keys = {
+                "cogs",
+                "costofgoodssold",
+                "costofsales",
+                "expenses",
+                "expense",
+                "otherexpenses",
+            }
 
             for row in rows:
-                group = row.get("group", "").lower()
+                section_key = self._quickbooks_section_key(row)
                 summary = row.get("Summary", {})
                 col_data = summary.get("ColData", [])
 
-                if "income" in group or "revenue" in group:
-                    if col_data:
-                        data["total_income"] = float(col_data[-1].get("value", 0) or 0)
+                if section_key in income_section_keys:
+                    amount = self._last_numeric_col_value(col_data)
+                    if amount is not None:
+                        data["total_income"] = amount
                     # Get breakdown
                     for sub_row in row.get("Rows", {}).get("Row", []):
                         sub_cols = sub_row.get("ColData", [])
                         if len(sub_cols) >= 2:
-                            data["income_breakdown"].append(
-                                {
-                                    "category": sub_cols[0].get("value", "Other"),
-                                    "amount": float(sub_cols[-1].get("value", 0) or 0),
-                                }
-                            )
+                            amount = self._last_numeric_col_value(sub_cols)
+                            if amount is not None:
+                                data["income_breakdown"].append(
+                                    {
+                                        "category": sub_cols[0].get("value", "Other"),
+                                        "amount": amount,
+                                    }
+                                )
 
-                elif "expense" in group or "cost" in group:
-                    if col_data:
-                        data["total_expenses"] += abs(float(col_data[-1].get("value", 0) or 0))
+                elif section_key in expense_section_keys:
+                    amount = self._last_numeric_col_value(col_data)
+                    if amount is not None:
+                        data["total_expenses"] += abs(amount)
                     for sub_row in row.get("Rows", {}).get("Row", []):
                         sub_cols = sub_row.get("ColData", [])
                         if len(sub_cols) >= 2:
-                            data["expense_breakdown"].append(
-                                {
-                                    "category": sub_cols[0].get("value", "Other"),
-                                    "amount": abs(float(sub_cols[-1].get("value", 0) or 0)),
-                                }
-                            )
+                            amount = self._last_numeric_col_value(sub_cols)
+                            if amount is not None:
+                                data["expense_breakdown"].append(
+                                    {
+                                        "category": sub_cols[0].get("value", "Other"),
+                                        "amount": abs(amount),
+                                    }
+                                )
 
-                elif "gross" in group:
-                    if col_data:
-                        data["gross_profit"] = float(col_data[-1].get("value", 0) or 0)
+                elif section_key == "grossprofit":
+                    amount = self._last_numeric_col_value(col_data)
+                    if amount is not None:
+                        data["gross_profit"] = amount
 
-                elif "net" in group:
-                    if col_data:
-                        data["net_income"] = float(col_data[-1].get("value", 0) or 0)
+                elif section_key == "netincome":
+                    amount = self._last_numeric_col_value(col_data)
+                    if amount is not None:
+                        data["net_income"] = amount
+                        net_income_seen = True
+
+                elif section_key == "netoperatingincome":
+                    amount = self._last_numeric_col_value(col_data)
+                    if amount is not None:
+                        net_income_fallback = amount
 
         # Calculate net if not in report
-        if data["net_income"] == 0:
-            data["net_income"] = data["total_income"] - data["total_expenses"]
+        if not net_income_seen:
+            data["net_income"] = (
+                net_income_fallback
+                if service == "quickbooks" and net_income_fallback is not None
+                else data["total_income"] - data["total_expenses"]
+            )
 
         return data
 

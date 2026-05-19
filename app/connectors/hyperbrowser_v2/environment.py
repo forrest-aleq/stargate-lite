@@ -1,44 +1,34 @@
 """
-Browser execution environment interface for Hyperbrowser v2.
+Hyperbrowser Cloud browser environment.
+
+Provides direct session operations (screenshots, session lifecycle)
+via the Hyperbrowser SDK. The managed Claude Computer Use agent
+handles all browser automation; this class is for supplementary
+operations like on-demand screenshots.
 """
 
 from typing import Any
 
+from hyperbrowser import Hyperbrowser
 
-class BrowserExecutionEnvironment:
-    """
-    Interface for browser execution environments.
 
-    Implementations could be:
-    - Docker container running browser + VNC
-    - Cloud service like BrowserBase, Browserless
-    - Local desktop automation
-    - Anthropic's reference implementation
-    """
+class HyperbrowserCloud:
+    """Thin wrapper for direct Hyperbrowser session operations."""
 
-    def execute_action(self, action: dict[str, Any]) -> dict[str, Any]:
-        """
-        Execute a computer use action (click, type, screenshot, etc.)
-
-        Args:
-            action: Computer use action dict from Claude
-                   e.g., {"action": "key", "text": "Return"}
-                        {"action": "left_click", "coordinate": [100, 200]}
-
-        Returns:
-            Dict with execution result and new screenshot
-        """
-        raise NotImplementedError("Execution environment must be configured")
+    def __init__(self, client: Hyperbrowser, session_id: str) -> None:
+        self.client = client
+        self.session_id = session_id
 
     def take_screenshot(self) -> str:
-        """
-        Take screenshot of current browser state
+        """Take screenshot via Hyperbrowser computer action API.
 
         Returns:
-            Base64-encoded PNG screenshot
+            Base64-encoded PNG screenshot, or empty string on failure.
         """
-        raise NotImplementedError("Execution environment must be configured")
+        result = self.client.computer_action.screenshot(self.session_id)
+        return result.screenshot or ""
 
-    def get_download_path(self) -> str:
-        """Get path to downloads folder in execution environment"""
-        raise NotImplementedError("Execution environment must be configured")
+    def get_downloads_url(self) -> dict[str, Any]:
+        """Get the URL for downloading files from the session."""
+        result = self.client.sessions.get_downloads_url(self.session_id)
+        return {"url": getattr(result, "url", str(result))}

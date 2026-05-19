@@ -8,8 +8,9 @@ Gusto OAuth Documentation:
 https://docs.gusto.com/app-integrations/v2024-03-01/docs/oauth2
 """
 
+import asyncio
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
 
 import requests
@@ -21,8 +22,11 @@ from app.logging_config import get_logger
 from app.routers.oauth.base import (
     build_oauth_error_redirect,
     build_oauth_success_redirect,
+    build_signed_state_3parts,
+    build_signed_state_4parts,
     get_env_or_raise,
     parse_oauth_state_3parts,
+    parse_oauth_state_4parts,
 )
 
 logger = get_logger(__name__)
@@ -48,7 +52,7 @@ def _get_gusto_urls() -> tuple[str, str]:
 
 @router.get("/oauth/gusto/authorize")
 async def gusto_oauth_authorize(
-    org_id: str, user_id: str, credential_type: str = "customer"
+    org_id: str, user_id: str, credential_type: str = "customer", source: str = ""
 ) -> RedirectResponse:
     """
     Initiate Gusto OAuth flow.
@@ -68,8 +72,11 @@ async def gusto_oauth_authorize(
 
     auth_url, _ = _get_gusto_urls()
 
-    # State encodes org_id:user_id:credential_type for the callback
-    state = f"{org_id}:{user_id}:{credential_type}"
+    # State is cryptographically signed to prevent CSRF/tampering
+    if source:
+        state = build_signed_state_4parts(org_id, user_id, credential_type, source)
+    else:
+        state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     params = {
         "client_id": client_id,
@@ -99,8 +106,13 @@ async def gusto_oauth_callback(code: str, state: str) -> RedirectResponse:
     Redirects to N3 frontend on completion.
     """
     # Parse state first
+    source = ""
     try:
-        org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "gusto")
+        parts = state.split(":")
+        if len(parts) == 5:
+            org_id, user_id, _credential_type, source = parse_oauth_state_4parts(state, "gusto")
+        else:
+            org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "gusto")
     except HTTPException:
         return build_oauth_error_redirect(
             service="gusto",
@@ -115,7 +127,8 @@ async def gusto_oauth_callback(code: str, state: str) -> RedirectResponse:
 
         _, token_url = _get_gusto_urls()
 
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             token_url,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             data={
@@ -139,9 +152,10 @@ async def gusto_oauth_callback(code: str, state: str) -> RedirectResponse:
 
         token_data = response.json()
         expires_in = token_data.get("expires_in", 7200)
-        token_expiry = datetime.utcnow() + timedelta(seconds=expires_in)
+        token_expiry = datetime.now(UTC) + timedelta(seconds=expires_in)
 
-        CredentialManager.store_credential(
+        await asyncio.to_thread(
+            CredentialManager.store_credential,
             org_id=org_id,
             user_id=user_id,
             service="gusto",
@@ -151,20 +165,29 @@ async def gusto_oauth_callback(code: str, state: str) -> RedirectResponse:
         )
 
         logger.info("Gusto OAuth completed", org_id=org_id)
-        return build_oauth_success_redirect(service="gusto", org_id=org_id)
+        extra = {"source": source} if source else None
+        return build_oauth_success_redirect(
+            service="gusto", org_id=org_id, extra_params=extra, user_id=user_id
+        )
 
-    except HTTPException as e:
+    except HTTPException:
         return build_oauth_error_redirect(
             service="gusto",
             error="config_error",
-            error_description=str(e.detail),
+            error_description="Service configuration error",
             org_id=org_id,
         )
     except Exception as e:
-        logger.error("Gusto OAuth callback failed", error=str(e), exc_info=True)
+        logger.error(
+            "OAuth callback failed",
+            service="gusto",
+            error_type=type(e).__name__,
+            log_event="oauth_callback_error",
+            exc_info=True,
+        )
         return build_oauth_error_redirect(
             service="gusto",
             error="callback_failed",
-            error_description=str(e),
+            error_description="An unexpected error occurred",
             org_id=org_id,
         )

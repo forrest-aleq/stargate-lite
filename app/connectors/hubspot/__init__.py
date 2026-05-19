@@ -1,13 +1,14 @@
 """
 HubSpot connector for Stargate Lite.
 
-Handles OAuth 2.0 and CRM operations for contacts, deals, and companies.
+Handles OAuth 2.0 and CRM operations for contacts, deals, companies,
+tickets, associations, pipelines, owners, notes, and properties.
 """
 
-from .companies import CompaniesMixin
+from .properties import PropertiesMixin
 
 
-class HubSpotConnector(CompaniesMixin):
+class HubSpotConnector(PropertiesMixin):
     """HubSpot CRM API connector with full CRUD operations."""
 
     pass

@@ -38,7 +38,7 @@ Stargate Lite is the execution layer ("The Hands") for the Aleq MIND ecosystem. 
 # Development mode with auto-reload
 make run
 # Or manually:
-source venv/bin/activate
+source .venv/bin/activate
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
@@ -47,15 +47,17 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 # Run the test suite
 make test
 # Or manually:
-source venv/bin/activate
-python test.py
+source .venv/bin/activate
+python -m pytest tests -v
 ```
 
-### Docker
+### Deployment (Railway)
 ```bash
-make docker-up      # Start containers
-make docker-down    # Stop containers
-make docker-logs    # View logs
+# Push to staging branch — Railway auto-deploys
+git push origin staging
+
+# Database migrations must be applied manually after deploy
+# (Railway does NOT run migrations automatically)
 ```
 
 ## Core Architecture
@@ -246,6 +248,56 @@ Token refresh is handled automatically by connectors when tokens are near expiry
 
 ---
 
+## Code Review & Auditing
+
+When auditing, reviewing, or fixing code/docs, always do a thorough, exhaustive pass the FIRST time. Cross-reference every claim against actual code. Do not treat issues as "doc-only" without verifying the code matches. Never require the user to ask for more rigor — assume "ironclad" level by default.
+
+- Check every field, parameter, and return type against both docs and implementation
+- Flag mismatches with severity (critical/major/minor) and include file:line references
+- If a doc says "22 platforms" but the code has 24, that's a finding — count everything
+- Verify at implementation level, not just surface level (read the function, not just the docstring)
+
+## Implementation Standards
+
+When implementing a plan or feature, ensure ALL surfaces/components/files mentioned in the plan are addressed comprehensively. Do not scope down or skip items unless explicitly told to. If a plan mentions 12 items, cover all 12.
+
+- Read the entire plan before starting — understand the dependency chain
+- Implement in the order specified (or dependency order if unspecified)
+- After each logical group of changes, run `source .venv/bin/activate && python -m pytest tests/ -x -q` to catch regressions early
+- After ALL changes, run `source .venv/bin/activate && pre-commit run --all-files` before reporting done
+- Never report "done" with failing tests or lint errors
+
+## Safety & Defensive Coding
+
+Never remove, delete, or modify existing working code/config (e.g., triggers, endpoints, registry entries, settings) unless explicitly asked. When fixing bugs, verify your changes don't break adjacent functionality. After making fixes, confirm nothing was inadvertently removed.
+
+- Before editing a file, read it fully and understand what exists
+- After editing, mentally diff your changes — did you accidentally delete anything?
+- Run `git diff` on your changes and review before committing
+- If you're unsure whether something is used, search for references before removing it
+- DISABLED_SERVICES in `app/registry/__init__.py` must never be reduced without explicit approval
+
+## Project Context
+
+This is a **Python 3.12 / FastAPI** project. The codebase is Python throughout — no TypeScript, no frontend code. Always build real project-integrated code, never isolated prototypes or standalone files unless explicitly asked.
+
+- Virtual environment: `source .venv/bin/activate` before any Python commands
+- Test runner: `python -m pytest tests/ -v` (the `make test` target now shells to this)
+- Pre-commit: `pre-commit run --all-files` (runs ruff, ruff-format, mypy --strict, guardian, release-check)
+- Guardian enforces: max 650 lines per file, max function size limits
+- Pre-push hook runs the full test suite — tests must pass before push
+
+## Commit & Pre-commit Rules
+
+Pre-commit hooks may take 30-60+ seconds — do not assume timeouts indicate failure. The guardian hook enforces file size limits (650 lines max). Plan for this constraint proactively by splitting large files before committing.
+
+- If guardian blocks a commit for file size, trim docstrings or split the file — don't just suppress the hook
+- If ruff-format reformats files you didn't directly change, include them in the commit (that's normal)
+- If mypy reports errors, fix them properly with type annotations — don't use `# type: ignore` unless truly necessary
+- Pre-push runs `python -m pytest tests/ -x -q` — all tests must pass before push succeeds
+
+---
+
 ## AI Agent Rules (MANDATORY)
 
 **These rules are enforced by pre-commit hooks. Violations will block commits.**
@@ -268,7 +320,7 @@ Token refresh is handled automatically by connectors when tokens are near expiry
 
 ### Release Process
 
-**Read `docs/RELEASE_GUIDE.md` before any release work.**
+**Read `docs/operations/RELEASE_GUIDE.md` before any release work.**
 
 1. **Never ship on Friday** - No exceptions
 2. **Always run tests before committing**: `make test`
@@ -286,14 +338,18 @@ Pre-commit hooks enforce:
 
 ### Disabled Services (Production Safety)
 
-These services are **disabled by default** in `app/registry/__init__.py`:
-- `ibkr` - Interactive Brokers (trading)
-- `schwab` - Charles Schwab (trading)
-- `blandai` - Voice AI (cost)
-- `twilio` - SMS/Voice (cost/abuse)
-- `hyperbrowser` - Web automation (security)
+Services in `app/registry/__init__.py` are managed two ways:
 
-**Do NOT enable these without explicit approval.**
+**Always disabled** (trading — HIGH RISK):
+- `ibkr` - Interactive Brokers
+- `schwab` - Charles Schwab
+
+**Key-gated** (auto-enable when env var is set):
+- `blandai` - Voice AI (set `BLANDAI_API_KEY`)
+- `twilio` - SMS/Voice (set `TWILIO_ACCOUNT_SID`)
+- `hyperbrowser` - Web automation (set `HYPERBROWSER_API_KEY`)
+
+**Do NOT add trading services to key-gated — they stay always-disabled.**
 
 ### Commit Checklist
 

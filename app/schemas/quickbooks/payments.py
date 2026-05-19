@@ -52,6 +52,11 @@ PAYMENT_CREATE = CapabilitySchema(
         "amount": ReturnFieldSchema(type="number", description="Amount"),
         "customer_id": ReturnFieldSchema(type="string", description="Customer ID"),
         "txn_date": ReturnFieldSchema(type="string", description="Transaction date"),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this payment in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/recvpayment?txnId=456",
+        ),
     },
     errors=[
         ErrorHint(
@@ -90,6 +95,11 @@ PAYMENT_GET = CapabilitySchema(
         "amount": ReturnFieldSchema(type="number", description="Amount"),
         "customer_id": ReturnFieldSchema(type="string", description="Customer ID"),
         "txn_date": ReturnFieldSchema(type="string", description="Date"),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this payment in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/recvpayment?txnId=456",
+        ),
     },
     errors=[
         ErrorHint(
@@ -155,6 +165,11 @@ PAYMENT_APPLY_TO_INVOICE = CapabilitySchema(
             description="How payment was allocated",
         ),
         "status": ReturnFieldSchema(type="string", description="'applied'"),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this payment in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/recvpayment?txnId=456",
+        ),
     },
     errors=[
         ErrorHint(
@@ -196,7 +211,10 @@ PAYMENT_LIST = CapabilitySchema(
         ),
     },
     returns={
-        "payments": ReturnFieldSchema(type="array", description="List of payments"),
+        "payments": ReturnFieldSchema(
+            type="array",
+            description="List of payment objects (each includes deep_link URL to QBO)",
+        ),
         "count": ReturnFieldSchema(type="integer", description="Number returned"),
     },
     errors=[

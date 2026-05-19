@@ -4,6 +4,7 @@ QuickBooks Online connector - Customers module
 
 from typing import Any
 
+from app.connectors.quickbooks import deep_links
 from app.http_client import http_client
 
 
@@ -47,12 +48,14 @@ class QuickBooksCustomersMixin:
         )
 
         customer = result.get("Customer", {})
+        cust_id = customer.get("Id")
         return {
-            "customer_id": f"qb:{customer.get('Id')}",
+            "customer_id": f"qb:{cust_id}",
             "display_name": customer.get("DisplayName"),
             "email": customer.get("PrimaryEmailAddr", {}).get("Address"),
             "balance": customer.get("Balance", 0),
             "created_at": customer.get("MetaData", {}).get("CreateTime"),
+            "deep_link": deep_links.customer_link(cust_id),
         }
 
     def get_customer(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -72,13 +75,15 @@ class QuickBooksCustomersMixin:
         )
 
         customer = result.get("Customer", {})
+        cid = customer.get("Id")
         return {
-            "customer_id": f"qb:{customer.get('Id')}",
+            "customer_id": f"qb:{cid}",
             "display_name": customer.get("DisplayName"),
             "email": customer.get("PrimaryEmailAddr", {}).get("Address"),
             "phone": customer.get("PrimaryPhone", {}).get("FreeFormNumber"),
             "balance": customer.get("Balance", 0),
             "status": "active" if customer.get("Active") else "inactive",
+            "deep_link": deep_links.customer_link(cid),
         }
 
     def update_customer(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -122,10 +127,12 @@ class QuickBooksCustomersMixin:
         )
 
         customer = result.get("Customer", {})
+        cid = customer.get("Id")
         return {
-            "customer_id": f"qb:{customer.get('Id')}",
+            "customer_id": f"qb:{cid}",
             "display_name": customer.get("DisplayName"),
             "updated": True,
+            "deep_link": deep_links.customer_link(cid),
         }
 
     def list_customers(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -156,6 +163,7 @@ class QuickBooksCustomersMixin:
                     "display_name": c.get("DisplayName"),
                     "email": c.get("PrimaryEmailAddr", {}).get("Address"),
                     "balance": c.get("Balance", 0),
+                    "deep_link": deep_links.customer_link(c.get("Id")),
                 }
                 for c in customers
             ],
@@ -168,10 +176,13 @@ class QuickBooksCustomersMixin:
         realm_id = cred["realm_id"]
 
         search_term = args.get("search_term", args.get("name", ""))
-        max_results = args.get("max_results", 25)
+        max_results = int(args.get("max_results", 25))
 
-        query = f"SELECT * FROM Customer WHERE DisplayName LIKE '%{search_term}%'"
-        query += f" MAXRESULTS {max_results}"
+        # Sanitize search term: escape single quotes for QuickBooks Query Language
+        safe_search_term = str(search_term).replace("'", "\\'")
+
+        query = f"SELECT * FROM Customer WHERE DisplayName LIKE '%{safe_search_term}%'"  # nosec B608
+        query += f" MAXRESULTS {max_results}"  # nosec B608
 
         url = f"{self.base_url}/{realm_id}/query?query={query}"
         result = http_client.get(
@@ -191,6 +202,7 @@ class QuickBooksCustomersMixin:
                     "display_name": c.get("DisplayName"),
                     "email": c.get("PrimaryEmailAddr", {}).get("Address"),
                     "balance": c.get("Balance", 0),
+                    "deep_link": deep_links.customer_link(c.get("Id")),
                 }
                 for c in customers
             ],

@@ -2,24 +2,24 @@
 Credentials and capabilities routes for Stargate Lite.
 """
 
+import asyncio
 from typing import Any
 
 from fastapi import APIRouter, Depends
 
 from app.auth import verify_api_key
 from app.database import CredentialManager
+from app.models import CapabilitiesResponse
 from app.registry import get_capability, list_capabilities
 
 router = APIRouter(prefix="/api/v1", tags=["credentials"])
 
 
 @router.get("/capabilities")
-async def get_capabilities(_: bool = Depends(verify_api_key)) -> dict[str, Any]:
+async def get_capabilities(_: bool = Depends(verify_api_key)) -> CapabilitiesResponse:
     """List all available capabilities"""
-    return {
-        "capabilities": list_capabilities(),
-        "count": len(list_capabilities()),
-    }
+    caps = list_capabilities()
+    return CapabilitiesResponse(capabilities=caps, count=len(caps))
 
 
 @router.post("/credentials/status")
@@ -70,7 +70,8 @@ async def check_credential_status(
             }
 
         # Get credential using the dual credential system
-        cred = CredentialManager.get_credential_for_capability(
+        cred = await asyncio.to_thread(
+            CredentialManager.get_credential_for_capability,
             capability_key=str(capability_key),
             org_id=str(org_id),
             user_id=str(user_id),
@@ -140,7 +141,8 @@ async def revoke_credential(
         }
 
     try:
-        deleted = CredentialManager.delete_credential(
+        deleted = await asyncio.to_thread(
+            CredentialManager.delete_credential,
             org_id=str(org_id),
             user_id=str(user_id),
             service=str(service),
@@ -187,8 +189,12 @@ async def get_credential_metadata(
     Returns credential metadata: expiry, realm_id, etc. without exposing access_token
     """
     try:
-        cred = CredentialManager.get_credential(
-            org_id=org_id, user_id=user_id, service=service, credential_type=credential_type
+        cred = await asyncio.to_thread(
+            CredentialManager.get_credential,
+            org_id=org_id,
+            user_id=user_id,
+            service=service,
+            credential_type=credential_type,
         )
 
         if not cred:

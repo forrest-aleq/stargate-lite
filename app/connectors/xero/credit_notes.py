@@ -13,6 +13,7 @@ from typing import Any
 from app.errors import ValidationError
 from app.logging_config import get_logger
 
+from . import deep_links
 from .payments import PaymentsMixin
 
 logger = get_logger(__name__)
@@ -358,6 +359,9 @@ class CreditNotesMixin(PaymentsMixin):
             ],
             "has_attachments": credit_note.get("HasAttachments", False),
             "updated_date": credit_note.get("UpdatedDateUTC"),
+            "deep_link": deep_links.credit_note_link(
+                credit_note.get("CreditNoteID"), credit_note.get("Type")
+            ),
         }
 
     def _format_line_items_for_credit_note(

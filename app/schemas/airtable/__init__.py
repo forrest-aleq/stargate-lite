@@ -183,8 +183,7 @@ AIRTABLE_RECORDS_CREATE = CapabilitySchema(
     category="records",
     description="Create record(s) in Airtable",
     description_detailed=(
-        "Creates one or more records in an Airtable table. "
-        "Can create up to 10 records per request."
+        "Creates one or more records in an Airtable table. Can create up to 10 records per request."
     ),
     parameters={
         "base_id": ParameterSchema(type="string", required=True, description="Airtable base ID"),
@@ -219,8 +218,7 @@ AIRTABLE_RECORDS_UPDATE = CapabilitySchema(
     category="records",
     description="Update record(s) in Airtable",
     description_detailed=(
-        "Updates one or more records. PATCH updates only specified fields, "
-        "PUT replaces all fields."
+        "Updates one or more records. PATCH updates only specified fields, PUT replaces all fields."
     ),
     parameters={
         "base_id": ParameterSchema(type="string", required=True, description="Airtable base ID"),

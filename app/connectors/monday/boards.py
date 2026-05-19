@@ -27,9 +27,9 @@ class BoardsMixin(MondayBase):
         # Build query with optional filters
         filters = []
         if args.get("board_kind"):
-            filters.append(f'board_kind: {args["board_kind"]}')
+            filters.append(f"board_kind: {args['board_kind']}")
         if args.get("state"):
-            filters.append(f'state: {args["state"]}')
+            filters.append(f"state: {args['state']}")
 
         filter_str = f"({', '.join(filters)})" if filters else ""
 

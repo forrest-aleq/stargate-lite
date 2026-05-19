@@ -1,8 +1,0 @@
-{
-  "capability_key": "qb.query",
-  "org_id": "test_org",
-  "user_id": "test_user",
-  "args": {
-    "query": "SELECT * FROM Vendor WHERE Active = true"
-  }
-}

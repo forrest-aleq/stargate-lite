@@ -3,7 +3,7 @@ Connector health service - Helper functions for analyzing connector/credential s
 """
 
 from collections import defaultdict
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from app.constants.services import (
@@ -11,7 +11,7 @@ from app.constants.services import (
     SERVICE_DISPLAY_NAMES,
     WORKFLOW_OAUTH_REQUIREMENTS,
 )
-from app.database import CredentialManager
+from app.database import CredentialManager, credential_auth_status_is_invalid
 from app.models import ConnectorStatus, WorkflowConnectorStatus
 
 
@@ -36,20 +36,32 @@ def analyze_connections(
     latest_updated: datetime | None = None
 
     for conn in connections:
-        if conn["token_expiry"]:
-            if conn["token_expiry"] < now:
+        token_expiry = conn["token_expiry"]
+        if token_expiry:
+            # Normalize to UTC-aware for comparison (Supabase returns tz-aware)
+            if token_expiry.tzinfo is None:
+                token_expiry = token_expiry.replace(tzinfo=UTC)
+            if token_expiry < now:
                 expired_count += 1
-            if latest_expiry is None or conn["token_expiry"] > latest_expiry:
-                latest_expiry = conn["token_expiry"]
+            if latest_expiry is None or token_expiry > latest_expiry:
+                latest_expiry = token_expiry
 
-        if latest_updated is None or (conn["updated_at"] and conn["updated_at"] > latest_updated):
-            latest_updated = conn["updated_at"]
+        updated_at = conn["updated_at"]
+        if updated_at:
+            if updated_at.tzinfo is None:
+                updated_at = updated_at.replace(tzinfo=UTC)
+            if latest_updated is None or updated_at > latest_updated:
+                latest_updated = updated_at
 
     return expired_count, latest_expiry, latest_updated
 
 
 def build_connector_status(
-    service: str, requires_oauth: bool, connections: list[dict[str, Any]], now: datetime
+    service: str,
+    requires_oauth: bool,
+    configured: bool,
+    connections: list[dict[str, Any]],
+    now: datetime,
 ) -> ConnectorStatus:
     """Build ConnectorStatus for a single service."""
     connection_count = len(connections)
@@ -58,6 +70,7 @@ def build_connector_status(
         return ConnectorStatus(
             service=service,
             credential_status="missing",
+            configured=configured,
             requires_oauth=requires_oauth,
             connection_count=0,
         )
@@ -74,6 +87,7 @@ def build_connector_status(
     return ConnectorStatus(
         service=service,
         credential_status=status,
+        configured=configured,
         token_expiry=latest_expiry,
         last_updated=latest_updated,
         requires_oauth=requires_oauth,
@@ -100,54 +114,114 @@ def get_credential_with_fallback(
     return None, None
 
 
-def build_workflow_connector_status(
-    service: str, org_id: str, user_id: str, now: datetime
+def _select_preferred_workflow_credential(
+    credentials: list[dict[str, Any]],
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Pick the credential record that workflow status should reflect.
+
+    Preserve existing behavior: prefer customer credentials over agent credentials,
+    then prefer the freshest record within that type.
+    """
+    if not credentials:
+        return None, None
+
+    def _sort_key(item: dict[str, Any]) -> tuple[int, float]:
+        cred_type = str(item.get("credential_type") or "")
+        updated_at = item.get("updated_at")
+        if not isinstance(updated_at, datetime):
+            updated_at = datetime.min.replace(tzinfo=UTC)
+        elif updated_at.tzinfo is None:
+            updated_at = updated_at.replace(tzinfo=UTC)
+        type_rank = 0 if cred_type == "customer" else 1
+        return (-type_rank, updated_at.timestamp())
+
+    preferred = max(credentials, key=_sort_key)
+    cred_type = str(preferred.get("credential_type") or "") or None
+    return preferred, cred_type
+
+
+def build_workflow_connector_status_from_credential(
+    service: str,
+    credential: dict[str, Any] | None,
+    credential_type: str | None,
+    now: datetime,
 ) -> WorkflowConnectorStatus:
-    """Build WorkflowConnectorStatus for a single service."""
-    requires_oauth = WORKFLOW_OAUTH_REQUIREMENTS.get(service, False)
+    """Build workflow connector status from a pre-fetched credential record."""
+    requires_oauth = WORKFLOW_OAUTH_REQUIREMENTS.get(service, True)
     display_name = SERVICE_DISPLAY_NAMES.get(service, service.title())
 
-    if not requires_oauth:
-        return WorkflowConnectorStatus(
-            kind=service,
-            display_name=display_name,
-            status="connected",
-            requires_oauth=False,
-            credential_type=None,
-            token_expiry=None,
-            last_updated=None,
-        )
-
-    cred, credential_type = get_credential_with_fallback(org_id, user_id, service)
-
-    if not cred:
+    if not credential:
         return WorkflowConnectorStatus(
             kind=service,
             display_name=display_name,
             status="missing",
-            requires_oauth=True,
+            requires_oauth=requires_oauth,
             credential_type=None,
             token_expiry=None,
             last_updated=None,
         )
 
-    token_expiry = cred.get("token_expiry")
+    token_expiry = credential.get("token_expiry")
+    if token_expiry and token_expiry.tzinfo is None:
+        token_expiry = token_expiry.replace(tzinfo=UTC)
     is_expired = token_expiry and token_expiry < now
+    auth_invalid = credential_auth_status_is_invalid(credential.get("extra_data"))
 
     return WorkflowConnectorStatus(
         kind=service,
         display_name=display_name,
-        status="expired" if is_expired else "connected",
-        requires_oauth=True,
+        status="expired" if is_expired or auth_invalid else "connected",
+        requires_oauth=requires_oauth,
         credential_type=credential_type,
         token_expiry=token_expiry,
-        last_updated=cred.get("updated_at"),
+        last_updated=credential.get("updated_at"),
+    )
+
+
+def build_workflow_connector_statuses(
+    services: list[str],
+    credentials: list[dict[str, Any]],
+    now: datetime,
+) -> list[WorkflowConnectorStatus]:
+    """Build workflow connector statuses from one bulk credential query."""
+    credentials_by_service: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for credential in credentials:
+        service = str(credential.get("service") or "").strip().lower()
+        if not service:
+            continue
+        credentials_by_service[service].append(credential)
+
+    statuses: list[WorkflowConnectorStatus] = []
+    for service in services:
+        selected_credential, credential_type = _select_preferred_workflow_credential(
+            credentials_by_service.get(service, [])
+        )
+        statuses.append(
+            build_workflow_connector_status_from_credential(
+                service,
+                selected_credential,
+                credential_type,
+                now,
+            )
+        )
+    return statuses
+
+
+def build_workflow_connector_status(
+    service: str, org_id: str, user_id: str, now: datetime
+) -> WorkflowConnectorStatus:
+    """Build WorkflowConnectorStatus for a single service."""
+    cred, credential_type = get_credential_with_fallback(org_id, user_id, service)
+    return build_workflow_connector_status_from_credential(
+        service,
+        cred,
+        credential_type,
+        now,
     )
 
 
 def aggregate_connector_status(connectors: list[WorkflowConnectorStatus]) -> tuple[bool, int]:
     """Calculate all_connected and missing_count from connector list."""
-    oauth_connectors = [c for c in connectors if c.requires_oauth]
-    all_connected = all(c.status == "connected" for c in oauth_connectors)
-    missing_count = sum(1 for c in oauth_connectors if c.status in ["missing", "expired"])
+    all_connected = all(c.status == "connected" for c in connectors)
+    missing_count = sum(1 for c in connectors if c.status in ["missing", "expired"])
     return all_connected, missing_count

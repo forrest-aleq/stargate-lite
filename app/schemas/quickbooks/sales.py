@@ -55,6 +55,11 @@ ESTIMATE_CREATE = CapabilitySchema(
         "total_amount": ReturnFieldSchema(type="number", description="Total"),
         "customer_id": ReturnFieldSchema(type="string", description="Customer"),
         "status": ReturnFieldSchema(type="string", description="Status"),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this estimate in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/estimate?txnId=100",
+        ),
     },
     errors=[
         ErrorHint(
@@ -90,6 +95,11 @@ ESTIMATE_GET = CapabilitySchema(
         "total_amount": ReturnFieldSchema(type="number", description="Total"),
         "expiration_date": ReturnFieldSchema(type="string", description="Expires"),
         "status": ReturnFieldSchema(type="string", description="Status"),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this estimate in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/estimate?txnId=100",
+        ),
     },
     errors=[
         ErrorHint(
@@ -138,6 +148,11 @@ SALES_RECEIPT_CREATE = CapabilitySchema(
         "doc_number": ReturnFieldSchema(type="string", description="Receipt number"),
         "total_amount": ReturnFieldSchema(type="number", description="Total"),
         "customer_id": ReturnFieldSchema(type="string", description="Customer"),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this sales receipt in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/salesreceipt?txnId=200",
+        ),
     },
     errors=[
         ErrorHint(
@@ -182,6 +197,11 @@ CREDIT_MEMO_CREATE = CapabilitySchema(
         "total_amount": ReturnFieldSchema(type="number", description="Credit amount"),
         "customer_id": ReturnFieldSchema(type="string", description="Customer"),
         "balance": ReturnFieldSchema(type="number", description="Unapplied balance"),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this credit memo in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/creditmemo?txnId=300",
+        ),
     },
     errors=[
         ErrorHint(
@@ -312,6 +332,11 @@ REFUND_RECEIPT_CREATE = CapabilitySchema(
         "customer_id": ReturnFieldSchema(type="string", description="Customer"),
         "total_amount": ReturnFieldSchema(type="number", description="Refund amount"),
         "txn_date": ReturnFieldSchema(type="string", description="Date"),
+        "deep_link": ReturnFieldSchema(
+            type="string",
+            description="Direct URL to open this refund receipt in QuickBooks Online",
+            example="https://app.qbo.intuit.com/app/refundreceipt?txnId=400",
+        ),
     },
     errors=[
         ErrorHint(

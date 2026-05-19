@@ -6,6 +6,7 @@ python-dotenv==1.0.1
 
 # Database & Security
 sqlalchemy==2.0.35
+alembic==1.13.1
 cryptography==43.0.1
 psycopg2-binary==2.9.10
 redis==5.0.1
@@ -49,11 +50,17 @@ colorama==0.4.6
 # OCR / Document Intelligence
 deepdoctection[source-pt]>=0.35.0
 
-# Browser Automation (Anthropic Computer Use)
+# Browser Automation (Hyperbrowser Cloud + Anthropic)
 anthropic==0.71.0
+hyperbrowser>=0.80.0
+e2b>=2.10.2
+openpyxl==3.1.5
 
 # MFA / TOTP Support
 pyotp==2.9.0
+
+# Credential Vault (Bitwarden Secrets Manager)
+bitwarden-sdk>=2.0.0
 
 # Testing
 pytest==8.3.3

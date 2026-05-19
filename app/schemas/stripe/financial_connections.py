@@ -133,7 +133,7 @@ FC_ACCOUNT_REFRESH = CapabilitySchema(
     category="financial_connections",
     description="Refresh financial account data",
     description_detailed=(
-        "Refreshes the data for a linked account including balance " "and transaction information."
+        "Refreshes the data for a linked account including balance and transaction information."
     ),
     parameters={
         "account_id": ParameterSchema(

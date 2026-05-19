@@ -297,3 +297,40 @@ class MicrosoftOneDriveConnector:
             "web_url": result.get("webUrl"),
             "mime_type": result.get("file", {}).get("mimeType"),
         }
+
+    def delete_file(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Delete a file from OneDrive"""
+        token = self._get_access_token(org_id, user_id)
+
+        file_id = args.get("file_id")
+
+        endpoint = f"me/drive/items/{file_id}"
+
+        self._make_request("DELETE", endpoint, token)
+
+        return {"file_id": file_id, "deleted": True}
+
+    def search_files(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Search for files in OneDrive"""
+        token = self._get_access_token(org_id, user_id)
+
+        query = args.get("query")
+
+        endpoint = f"me/drive/root/search(q='{query}')"
+
+        result = self._make_request("GET", endpoint, token)
+
+        items = result.get("value", [])
+
+        return {
+            "files": [
+                {
+                    "file_id": item.get("id"),
+                    "name": item.get("name"),
+                    "size": item.get("size"),
+                    "modified_time": item.get("lastModifiedDateTime"),
+                }
+                for item in items
+            ],
+            "count": len(items),
+        }

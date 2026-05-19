@@ -8,8 +8,9 @@ DocuSign OAuth Documentation:
 https://developers.docusign.com/platform/auth/authcode/
 """
 
+import asyncio
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
 
 import requests
@@ -21,8 +22,11 @@ from app.logging_config import get_logger
 from app.routers.oauth.base import (
     build_oauth_error_redirect,
     build_oauth_success_redirect,
+    build_signed_state_3parts,
+    build_signed_state_4parts,
     get_env_or_raise,
     parse_oauth_state_3parts,
+    parse_oauth_state_4parts,
 )
 
 logger = get_logger(__name__)
@@ -42,7 +46,13 @@ DOCUSIGN_DEMO_USERINFO_URL = "https://account-d.docusign.com/oauth/userinfo"
 
 def _get_docusign_urls() -> tuple[str, str, str]:
     """Get DocuSign OAuth URLs based on environment."""
-    use_demo = os.getenv("DOCUSIGN_USE_DEMO", "false").lower() == "true"
+    env = os.getenv("DOCUSIGN_ENVIRONMENT", "").strip().lower()
+    if env:
+        use_demo = env in {"demo", "sandbox"}
+    else:
+        # Backward compatibility for older deployments.
+        use_demo = os.getenv("DOCUSIGN_USE_DEMO", "true").lower() == "true"
+
     if use_demo:
         return DOCUSIGN_DEMO_AUTH_URL, DOCUSIGN_DEMO_TOKEN_URL, DOCUSIGN_DEMO_USERINFO_URL
     return DOCUSIGN_AUTH_URL, DOCUSIGN_TOKEN_URL, DOCUSIGN_USERINFO_URL
@@ -72,7 +82,7 @@ def _fetch_docusign_account_info(
 
 @router.get("/oauth/docusign/authorize")
 async def docusign_oauth_authorize(
-    org_id: str, user_id: str, credential_type: str = "customer"
+    org_id: str, user_id: str, credential_type: str = "customer", source: str = ""
 ) -> RedirectResponse:
     """
     Initiate DocuSign OAuth flow.
@@ -93,8 +103,11 @@ async def docusign_oauth_authorize(
 
     auth_url, _, _ = _get_docusign_urls()
 
-    # State encodes org_id:user_id:credential_type for the callback
-    state = f"{org_id}:{user_id}:{credential_type}"
+    # State is cryptographically signed to prevent CSRF/tampering
+    if source:
+        state = build_signed_state_4parts(org_id, user_id, credential_type, source)
+    else:
+        state = build_signed_state_3parts(org_id, user_id, credential_type)
 
     # DocuSign OAuth scopes for eSignature API
     # https://developers.docusign.com/platform/auth/reference/scopes/
@@ -129,8 +142,13 @@ async def docusign_oauth_authorize(
 @router.get("/oauth/docusign/callback")
 async def docusign_oauth_callback(code: str, state: str) -> RedirectResponse:
     """Handle DocuSign OAuth callback. Redirects to N3 on completion."""
+    source = ""
     try:
-        org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "docusign")
+        parts = state.split(":")
+        if len(parts) == 5:
+            org_id, user_id, _credential_type, source = parse_oauth_state_4parts(state, "docusign")
+        else:
+            org_id, user_id, _credential_type = parse_oauth_state_3parts(state, "docusign")
     except HTTPException:
         return build_oauth_error_redirect(
             service="docusign",
@@ -145,7 +163,8 @@ async def docusign_oauth_callback(code: str, state: str) -> RedirectResponse:
 
         _, token_url, userinfo_url = _get_docusign_urls()
 
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             token_url,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             auth=(client_id, client_secret),
@@ -164,34 +183,46 @@ async def docusign_oauth_callback(code: str, state: str) -> RedirectResponse:
 
         token_data = response.json()
         access_token = token_data["access_token"]
-        account_id, base_uri = _fetch_docusign_account_info(access_token, userinfo_url)
+        account_id, base_uri = await asyncio.to_thread(
+            _fetch_docusign_account_info, access_token, userinfo_url
+        )
 
         expires_in = token_data.get("expires_in", 28800)
-        CredentialManager.store_credential(
+        await asyncio.to_thread(
+            CredentialManager.store_credential,
             org_id=org_id,
             user_id=user_id,
             service="docusign",
             access_token=token_data["access_token"],
             refresh_token=token_data.get("refresh_token"),
-            token_expiry=datetime.utcnow() + timedelta(seconds=expires_in),
+            token_expiry=datetime.now(UTC) + timedelta(seconds=expires_in),
             extra_data={"account_id": account_id, "base_uri": base_uri},
         )
 
         logger.info("DocuSign OAuth completed", org_id=org_id)
-        return build_oauth_success_redirect(service="docusign", org_id=org_id)
+        extra = {"source": source} if source else None
+        return build_oauth_success_redirect(
+            service="docusign", org_id=org_id, extra_params=extra, user_id=user_id
+        )
 
-    except HTTPException as e:
+    except HTTPException:
         return build_oauth_error_redirect(
             service="docusign",
             error="config_error",
-            error_description=str(e.detail),
+            error_description="Service configuration error",
             org_id=org_id,
         )
     except Exception as e:
-        logger.error("DocuSign OAuth callback failed", error=str(e), exc_info=True)
+        logger.error(
+            "OAuth callback failed",
+            service="docusign",
+            error_type=type(e).__name__,
+            log_event="oauth_callback_error",
+            exc_info=True,
+        )
         return build_oauth_error_redirect(
             service="docusign",
             error="callback_failed",
-            error_description=str(e),
+            error_description="An unexpected error occurred",
             org_id=org_id,
         )

@@ -137,17 +137,29 @@ class VendorBillMixin(NetSuiteBase):
         cred = self._get_credentials(org_id, user_id)
 
         # Build SuiteQL query
+        import re
+
         conditions = ["recordtype = 'vendorbill'"]
 
         if args.get("vendor_id"):
-            vendor_id = str(args["vendor_id"]).replace("ns:", "")
-            conditions.append(f"entity = {vendor_id}")
+            # Validate vendor_id as integer
+            vendor_id_int = int(str(args["vendor_id"]).replace("ns:", ""))
+            conditions.append(f"entity = {vendor_id_int}")
         if args.get("from_date"):
-            conditions.append(f"trandate >= TO_DATE('{args['from_date']}', 'YYYY-MM-DD')")
+            # Validate date format
+            from_date = str(args["from_date"])
+            if not re.match(r"^\d{4}-\d{2}-\d{2}$", from_date):
+                raise ValueError("from_date must be in YYYY-MM-DD format")
+            conditions.append(f"trandate >= TO_DATE('{from_date}', 'YYYY-MM-DD')")
         if args.get("to_date"):
-            conditions.append(f"trandate <= TO_DATE('{args['to_date']}', 'YYYY-MM-DD')")
+            # Validate date format
+            to_date = str(args["to_date"])
+            if not re.match(r"^\d{4}-\d{2}-\d{2}$", to_date):
+                raise ValueError("to_date must be in YYYY-MM-DD format")
+            conditions.append(f"trandate <= TO_DATE('{to_date}', 'YYYY-MM-DD')")
 
         where_clause = " AND ".join(conditions)
+        # nosec B608: Vendor ID and dates validated before concatenation
         query = f"""
             SELECT id, tranid, trandate, entity, total, status, approvalstatus
             FROM transaction

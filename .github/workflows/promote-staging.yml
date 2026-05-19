@@ -1,0 +1,108 @@
+name: Promote Staging to Main
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_staging_smoke:
+        description: "Skip live staging smoke check"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: stargate-staging-promotion
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Promotion Gate
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: staging
+          fetch-depth: 0
+
+      - name: Release provenance gate
+        run: |
+          python3 scripts/release_gate.py \
+            --mode promotion \
+            --target-ref HEAD \
+            --write-proof release-proof/stargate-lite-promotion.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install verification dependencies
+        if: ${{ github.event.inputs.skip_staging_smoke != 'true' }}
+        run: pip install requests
+
+      - name: Verify staging API
+        if: ${{ github.event.inputs.skip_staging_smoke != 'true' }}
+        env:
+          STAGING_URL: ${{ vars.STAGING_URL }}
+          STAGING_API_KEY: ${{ secrets.STAGING_API_KEY }}
+          STAGING_MIN_CAPABILITIES: ${{ vars.STAGING_MIN_CAPABILITIES }}
+        run: |
+          if [ -z "${STAGING_URL:-}" ] || [ -z "${STAGING_API_KEY:-}" ]; then
+            echo "::warning::Skipping staging smoke: STAGING_URL/STAGING_API_KEY not configured."
+            exit 0
+          fi
+          MIN_CAPS="${STAGING_MIN_CAPABILITIES:-100}"
+          python scripts/verify_remote_api.py \
+            --base-url "$STAGING_URL" \
+            --api-key "$STAGING_API_KEY" \
+            --min-capabilities "$MIN_CAPS"
+
+  open-pr:
+    name: Open Promotion PR
+    needs: gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Open or reuse staging-to-main PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git fetch origin main staging
+          COMMITS=$(git rev-list origin/main..origin/staging --count)
+          if [ "$COMMITS" -eq "0" ]; then
+            echo "origin/staging is already contained in origin/main"
+            exit 0
+          fi
+
+          HEAD_BRANCH="${{ github.repository_owner }}:staging"
+          if gh pr view --head "$HEAD_BRANCH" --base main --json number --jq .number >/tmp/pr-number; then
+            echo "Promotion PR already exists: #$(cat /tmp/pr-number)"
+            exit 0
+          fi
+
+          gh pr create \
+            --base main \
+            --head staging \
+            --title "Promote Stargate Lite staging to main" \
+            --body "## Staging to Main Promotion
+
+          This PR promotes Stargate Lite staging to main after the release provenance gate passed.
+
+          ### Verification
+          - Release provenance gate passed
+          - origin/main is contained in origin/staging
+          - target commit is contained in origin/staging
+          - staging API smoke passed or was explicitly skipped
+
+          ### Release Control
+          Production deploys are separately blocked unless the deploy target is contained in both origin/main and origin/staging."

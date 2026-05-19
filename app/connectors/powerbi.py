@@ -305,3 +305,38 @@ class PowerBIConnector:
             "is_read_only": result.get("isReadOnly"),
             "is_on_dedicated_capacity": result.get("isOnDedicatedCapacity"),
         }
+
+    def list_workspaces(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """List Power BI workspaces (groups)"""
+        access_token = self._get_access_token(args)
+
+        result = self._make_request("GET", "/groups", access_token)
+
+        return {
+            "workspaces": [
+                {
+                    "id": w["id"],
+                    "name": w.get("name"),
+                    "type": w.get("type"),
+                }
+                for w in result.get("value", [])
+            ]
+        }
+
+    def delete_dataset(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Delete a dataset"""
+        access_token = self._get_access_token(args)
+        dataset_id = args["dataset_id"]
+        group_id = args.get("group_id")
+
+        if group_id:
+            endpoint = f"/groups/{group_id}/datasets/{dataset_id}"
+        else:
+            endpoint = f"/datasets/{dataset_id}"
+
+        self._make_request("DELETE", endpoint, access_token)
+
+        return {
+            "dataset_id": dataset_id,
+            "deleted": True,
+        }

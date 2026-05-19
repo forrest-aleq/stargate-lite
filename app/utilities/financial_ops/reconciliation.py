@@ -11,7 +11,7 @@ Matches GL transactions against bank transactions to identify:
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from app.errors import ValidationError
@@ -22,7 +22,7 @@ from .base import FinancialOpsBase
 logger = get_logger(__name__)
 
 
-class MatchType(str, Enum):
+class MatchType(StrEnum):
     """Types of transaction matches."""
 
     EXACT = "exact"

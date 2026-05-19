@@ -1,0 +1,288 @@
+"""
+Ramp Capability Registry
+Endpoints verified against Ramp OpenAPI spec (2026).
+"""
+
+from app.connectors.ramp import RampConnector
+
+ramp_connector = RampConnector()
+
+RAMP_CAPABILITIES = {
+    # ========== TRANSACTIONS ==========
+    "ramp.transaction.list": {
+        "handler": ramp_connector.list_transactions,
+        "tool_name": "ramp.list_transactions",
+        "description": "List card transactions in Ramp",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "ramp.transaction.get": {
+        "handler": ramp_connector.get_transaction,
+        "tool_name": "ramp.get_transaction",
+        "description": "Get a single transaction by ID",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    # ========== CARDS ==========
+    "ramp.card.list": {
+        "handler": ramp_connector.list_cards,
+        "tool_name": "ramp.list_cards",
+        "description": "List all cards in Ramp",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "ramp.card.get": {
+        "handler": ramp_connector.get_card,
+        "tool_name": "ramp.get_card",
+        "description": "Get card details by ID",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "ramp.card.create": {
+        "handler": ramp_connector.create_card,
+        "tool_name": "ramp.create_card",
+        "description": "Create a virtual or physical card",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    # ========== REIMBURSEMENTS ==========
+    "ramp.reimbursement.create": {
+        "handler": ramp_connector.create_reimbursement,
+        "tool_name": "ramp.create_reimbursement",
+        "description": "Create expense reimbursement in Ramp",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "ramp.reimbursement.list": {
+        "handler": ramp_connector.list_reimbursements,
+        "tool_name": "ramp.list_reimbursements",
+        "description": "List reimbursements",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    # ========== USERS ==========
+    "ramp.user.list": {
+        "handler": ramp_connector.get_users,
+        "tool_name": "ramp.get_users",
+        "description": "List users in Ramp",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    # ========== DEPARTMENTS ==========
+    "ramp.department.list": {
+        "handler": ramp_connector.list_departments,
+        "tool_name": "ramp.list_departments",
+        "description": "List departments",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "ramp.department.get": {
+        "handler": ramp_connector.get_department,
+        "tool_name": "ramp.get_department",
+        "description": "Get department details by ID",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    # ========== LOCATIONS ==========
+    "ramp.location.list": {
+        "handler": ramp_connector.list_locations,
+        "tool_name": "ramp.list_locations",
+        "description": "List locations",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "ramp.location.get": {
+        "handler": ramp_connector.get_location,
+        "tool_name": "ramp.get_location",
+        "description": "Get location details by ID",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    # ========== MERCHANTS ==========
+    "ramp.merchant.list": {
+        "handler": ramp_connector.list_merchants,
+        "tool_name": "ramp.list_merchants",
+        "description": "List merchants",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "ramp.merchant.get": {
+        "handler": ramp_connector.get_merchant,
+        "tool_name": "ramp.get_merchant",
+        "description": "Get merchant details by ID",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    # ========== RECEIPTS ==========
+    "ramp.receipt.list": {
+        "handler": ramp_connector.list_receipts,
+        "tool_name": "ramp.list_receipts",
+        "description": "List receipts",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "ramp.receipt.get": {
+        "handler": ramp_connector.get_receipt,
+        "tool_name": "ramp.get_receipt",
+        "description": "Get receipt details by ID",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    # ========== VENDORS (accounting) ==========
+    "ramp.vendor.list": {
+        "handler": ramp_connector.list_vendors,
+        "tool_name": "ramp.list_vendors",
+        "description": "List accounting vendors in Ramp",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "ramp.vendor.get": {
+        "handler": ramp_connector.get_vendor,
+        "tool_name": "ramp.get_vendor",
+        "description": "Get accounting vendor details by ID",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    # ========== BILLS ==========
+    "ramp.bill.list": {
+        "handler": ramp_connector.list_bills,
+        "tool_name": "ramp.list_bills",
+        "description": "List bills in Ramp",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "ramp.bill.get": {
+        "handler": ramp_connector.get_bill,
+        "tool_name": "ramp.get_bill",
+        "description": "Get bill details by ID",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    # ========== LIMITS ==========
+    "ramp.limit.list": {
+        "handler": ramp_connector.list_limits,
+        "tool_name": "ramp.list_limits",
+        "description": "List spending limits",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    # ========== BANK ACCOUNTS ==========
+    "ramp.bank_account.get": {
+        "handler": ramp_connector.get_bank_account,
+        "tool_name": "ramp.get_bank_account",
+        "description": "Get bank account details by ID",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    # ========== ACCOUNTING ==========
+    "ramp.accounting.connection": {
+        "handler": ramp_connector.get_accounting_connection,
+        "tool_name": "ramp.get_accounting_connection",
+        "description": "Get active accounting connection",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "ramp.accounting.gl_accounts": {
+        "handler": ramp_connector.list_accounting_gl_accounts,
+        "tool_name": "ramp.list_accounting_gl_accounts",
+        "description": "List GL accounts from connected accounting provider",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    # ========== CASHBACKS ==========
+    "ramp.cashback.list": {
+        "handler": ramp_connector.list_cashbacks,
+        "tool_name": "ramp.list_cashbacks",
+        "description": "List cashback earnings",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    # ========== ENTITIES ==========
+    "ramp.entity.list": {
+        "handler": ramp_connector.list_entities,
+        "tool_name": "ramp.list_entities",
+        "description": "List business entities",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "ramp.entity.get": {
+        "handler": ramp_connector.get_entity,
+        "tool_name": "ramp.get_entity",
+        "description": "Get entity details by ID",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    # ========== BUSINESS ==========
+    "ramp.business.get": {
+        "handler": ramp_connector.get_business,
+        "tool_name": "ramp.get_business",
+        "description": "Get company/business info",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "ramp.business.balance": {
+        "handler": ramp_connector.get_business_balance,
+        "tool_name": "ramp.get_business_balance",
+        "description": "Get business balance",
+        "requires_oauth": True,
+        "service": "ramp",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+}

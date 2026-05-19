@@ -11,7 +11,7 @@ Aggregates AP aging data from connected accounting systems:
 Returns total AP with aging buckets, change tracking, and trend data.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 from app.logging_config import get_logger
@@ -136,8 +136,12 @@ class APMixin:
             days_90=ap_data["days_90"],
             over_90=ap_data["over_90"],
             count=ap_data["count"],
-            as_of=as_of_date or datetime.utcnow().strftime("%Y-%m-%d"),
+            as_of=as_of_date or datetime.now(UTC).strftime("%Y-%m-%d"),
             source=preferred_service,
+            data_quality={
+                "historical_comparison": "unavailable",
+                "trend_mode": "snapshot_only",
+            },
         )
 
     def _parse_ap_aging(
@@ -227,7 +231,7 @@ class APMixin:
             bills = result.get("bills", result.get("response_data", []))
 
             if isinstance(bills, list):
-                today = datetime.utcnow().date()
+                today = datetime.now(UTC).date()
 
                 for bill in bills:
                     amount = float(bill.get("amount", bill.get("amountDue", 0)))
@@ -349,10 +353,13 @@ class APMixin:
         current_total: float,
         period: str,
     ) -> float:
-        """Get prior period AP balance for comparison."""
-        estimated_change_rate = 0.02  # 2% typical AP change
-        prior_total = current_total / (1 + estimated_change_rate)
-        return prior_total
+        """Get prior period AP balance for comparison.
+
+        Historical snapshots are not yet wired for AP. Return current value so
+        delta metrics remain truthful instead of inferred.
+        """
+        _ = (org_id, user_id, period)
+        return current_total
 
     def _generate_ap_trend(
         self,
@@ -360,22 +367,9 @@ class APMixin:
         change_percent: float,
     ) -> list[dict[str, Any]]:
         """Generate trend data points for AP sparkline."""
-        trend: list[dict[str, Any]] = []
-        today = datetime.utcnow()
-
-        for i in range(5, -1, -1):
-            point_date = today - timedelta(days=30 * i)
-            factor = 1 - (change_percent / 100) * (i / 5)
-            value = current_total * max(0.5, min(1.5, factor))
-
-            trend.append(
-                {
-                    "date": point_date.strftime("%Y-%m"),
-                    "value": round(value, 2),
-                }
-            )
-
-        return trend
+        _ = change_percent  # reserved for future historical mode
+        today = datetime.now(UTC)
+        return [{"date": today.strftime("%Y-%m"), "value": round(current_total, 2)}]
 
     def _generate_ap_insight(
         self,

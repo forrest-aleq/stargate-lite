@@ -121,7 +121,7 @@ USER_LIST = CapabilitySchema(
     category="users",
     description="List all users in the workspace",
     description_detailed=(
-        "Lists all active users in the Slack workspace. " "Excludes deleted/deactivated users."
+        "Lists all active users in the Slack workspace. Excludes deleted/deactivated users."
     ),
     parameters={
         "limit": ParameterSchema(

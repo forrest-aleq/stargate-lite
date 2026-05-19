@@ -12,6 +12,7 @@ from typing import Any
 from app.errors import ValidationError
 from app.logging_config import get_logger
 
+from . import deep_links
 from .bills import BillsMixin
 
 logger = get_logger(__name__)
@@ -48,10 +49,10 @@ class PaymentsMixin(BillsMixin):
             where_clauses.append(f'PaymentType=="{args["payment_type"]}"')
 
         if args.get("date_from"):
-            where_clauses.append(f'Date>=DateTime({args["date_from"].replace("-", ",")})')
+            where_clauses.append(f"Date>=DateTime({args['date_from'].replace('-', ',')})")
 
         if args.get("date_to"):
-            where_clauses.append(f'Date<=DateTime({args["date_to"].replace("-", ",")})')
+            where_clauses.append(f"Date<=DateTime({args['date_to'].replace('-', ',')})")
 
         if where_clauses:
             params["where"] = " AND ".join(where_clauses)
@@ -343,4 +344,5 @@ class PaymentsMixin(BillsMixin):
                 "name": account.get("Name"),
             },
             "updated_date": payment.get("UpdatedDateUTC"),
+            "deep_link": deep_links.payment_link(invoice.get("InvoiceID"), invoice.get("Type")),
         }

@@ -8,7 +8,7 @@ from typing import Any
 
 import stripe
 
-from app.connectors.stripe.base import requires_stripe_init
+from app.connectors.stripe.base import requires_stripe_config
 from app.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -17,8 +17,14 @@ logger = get_logger(__name__)
 class StripeProductsMixin:
     """Stripe product and price operations mixin"""
 
-    @requires_stripe_init
-    def create_product(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    @requires_stripe_config
+    def create_product(
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Create a product"""
         name = args.get("name")
         description = args.get("description")
@@ -27,9 +33,16 @@ class StripeProductsMixin:
 
         metadata.update({"org_id": org_id, "user_id": user_id})
 
-        product = stripe.Product.create(
-            name=name, description=description, metadata=metadata, active=active
-        )
+        create_kwargs: dict[str, Any] = {
+            "name": name,
+            "description": description,
+            "metadata": metadata,
+            "active": active,
+        }
+        if stripe_config and stripe_config.get("stripe_account"):
+            create_kwargs["stripe_account"] = stripe_config["stripe_account"]
+
+        product = stripe.Product.create(**create_kwargs)
         return {
             "product_id": product.id,
             "name": product.name,
@@ -37,11 +50,22 @@ class StripeProductsMixin:
             "active": product.active,
         }
 
-    @requires_stripe_init
-    def retrieve_product(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    @requires_stripe_config
+    def retrieve_product(
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Retrieve a product"""
         product_id = args.get("product_id")
-        product = stripe.Product.retrieve(product_id)
+
+        retrieve_kwargs: dict[str, Any] = {}
+        if stripe_config and stripe_config.get("stripe_account"):
+            retrieve_kwargs["stripe_account"] = stripe_config["stripe_account"]
+
+        product = stripe.Product.retrieve(product_id, **retrieve_kwargs)
         return {
             "product_id": product.id,
             "name": product.name,
@@ -50,8 +74,14 @@ class StripeProductsMixin:
             "default_price": product.default_price,
         }
 
-    @requires_stripe_init
-    def update_product(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    @requires_stripe_config
+    def update_product(
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Update a product"""
         product_id = args.get("product_id")
         name = args.get("name")
@@ -65,6 +95,8 @@ class StripeProductsMixin:
             update_params["description"] = description
         if active is not None:
             update_params["active"] = active
+        if stripe_config and stripe_config.get("stripe_account"):
+            update_params["stripe_account"] = stripe_config["stripe_account"]
 
         product = stripe.Product.modify(product_id, **update_params)
         return {
@@ -74,8 +106,14 @@ class StripeProductsMixin:
             "active": product.active,
         }
 
-    @requires_stripe_init
-    def list_products(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    @requires_stripe_config
+    def list_products(
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """List products"""
         limit = args.get("limit", 10)
         active = args.get("active")
@@ -83,6 +121,8 @@ class StripeProductsMixin:
         params: dict[str, Any] = {"limit": limit}
         if active is not None:
             params["active"] = active
+        if stripe_config and stripe_config.get("stripe_account"):
+            params["stripe_account"] = stripe_config["stripe_account"]
 
         products = stripe.Product.list(**params)
         return {
@@ -98,20 +138,41 @@ class StripeProductsMixin:
             "has_more": products.has_more,
         }
 
-    @requires_stripe_init
-    def delete_product(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    @requires_stripe_config
+    def delete_product(
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Delete a product"""
         product_id = args.get("product_id")
-        deleted = stripe.Product.delete(product_id)
+
+        delete_kwargs: dict[str, Any] = {}
+        if stripe_config and stripe_config.get("stripe_account"):
+            delete_kwargs["stripe_account"] = stripe_config["stripe_account"]
+
+        deleted = stripe.Product.delete(product_id, **delete_kwargs)
         return {"product_id": deleted.id, "deleted": deleted.deleted}
 
-    @requires_stripe_init
-    def search_products(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    @requires_stripe_config
+    def search_products(
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Search for products"""
         query = args.get("query")  # e.g., "name:'Premium'" or "active:'true'"
         limit = args.get("limit", 10)
 
-        products = stripe.Product.search(query=query, limit=limit)
+        search_kwargs: dict[str, Any] = {"query": query, "limit": limit}
+        if stripe_config and stripe_config.get("stripe_account"):
+            search_kwargs["stripe_account"] = stripe_config["stripe_account"]
+
+        products = stripe.Product.search(**search_kwargs)
         return {
             "products": [
                 {
@@ -125,8 +186,14 @@ class StripeProductsMixin:
             "has_more": products.has_more,
         }
 
-    @requires_stripe_init
-    def create_price(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    @requires_stripe_config
+    def create_price(
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Create a price for a product"""
         product_id = args.get("product_id")
         unit_amount = args.get("unit_amount")  # Amount in cents
@@ -144,6 +211,8 @@ class StripeProductsMixin:
         }
         if recurring:
             price_params["recurring"] = recurring
+        if stripe_config and stripe_config.get("stripe_account"):
+            price_params["stripe_account"] = stripe_config["stripe_account"]
 
         price = stripe.Price.create(**price_params)
         return {
@@ -154,11 +223,22 @@ class StripeProductsMixin:
             "type": price.type,
         }
 
-    @requires_stripe_init
-    def retrieve_price(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    @requires_stripe_config
+    def retrieve_price(
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Retrieve a price"""
         price_id = args.get("price_id")
-        price = stripe.Price.retrieve(price_id)
+
+        retrieve_kwargs: dict[str, Any] = {}
+        if stripe_config and stripe_config.get("stripe_account"):
+            retrieve_kwargs["stripe_account"] = stripe_config["stripe_account"]
+
+        price = stripe.Price.retrieve(price_id, **retrieve_kwargs)
         return {
             "price_id": price.id,
             "product": price.product,
@@ -168,8 +248,14 @@ class StripeProductsMixin:
             "type": price.type,
         }
 
-    @requires_stripe_init
-    def update_price(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    @requires_stripe_config
+    def update_price(
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Update a price"""
         price_id = args.get("price_id")
         active = args.get("active")
@@ -180,6 +266,8 @@ class StripeProductsMixin:
             update_params["active"] = active
         if metadata:
             update_params["metadata"] = metadata
+        if stripe_config and stripe_config.get("stripe_account"):
+            update_params["stripe_account"] = stripe_config["stripe_account"]
 
         price = stripe.Price.modify(price_id, **update_params)
         return {
@@ -188,8 +276,14 @@ class StripeProductsMixin:
             "metadata": price.metadata,
         }
 
-    @requires_stripe_init
-    def list_prices(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    @requires_stripe_config
+    def list_prices(
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """List prices"""
         limit = args.get("limit", 10)
         product = args.get("product_id")
@@ -200,6 +294,8 @@ class StripeProductsMixin:
             params["product"] = product
         if active is not None:
             params["active"] = active
+        if stripe_config and stripe_config.get("stripe_account"):
+            params["stripe_account"] = stripe_config["stripe_account"]
 
         prices = stripe.Price.list(**params)
         return {
@@ -216,13 +312,23 @@ class StripeProductsMixin:
             "has_more": prices.has_more,
         }
 
-    @requires_stripe_init
-    def search_prices(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    @requires_stripe_config
+    def search_prices(
+        self,
+        org_id: str,
+        user_id: str,
+        args: dict[str, Any],
+        stripe_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Search for prices"""
         query = args.get("query")  # e.g., "product:'prod_xxx'" or "active:'true'"
         limit = args.get("limit", 10)
 
-        prices = stripe.Price.search(query=query, limit=limit)
+        search_kwargs: dict[str, Any] = {"query": query, "limit": limit}
+        if stripe_config and stripe_config.get("stripe_account"):
+            search_kwargs["stripe_account"] = stripe_config["stripe_account"]
+
+        prices = stripe.Price.search(**search_kwargs)
         return {
             "prices": [
                 {

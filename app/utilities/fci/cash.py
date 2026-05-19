@@ -13,7 +13,7 @@ Aggregates cash position across all connected bank accounts:
 Returns total cash with account breakdown, change tracking, and trend data.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 from app.logging_config import get_logger
@@ -77,17 +77,15 @@ class CashMixin:
         # Calculate total
         total = sum(a.get("balance", 0) for a in accounts)
 
-        # Get prior period for change calculation
-        # For cash, we'll simulate prior balance (in real implementation,
-        # this would query historical data or cached values)
+        # Historical snapshots are not available here; only return snapshot-derived deltas.
         prior_total = self._get_prior_cash_balance(org_id, user_id, accounts, period)
         change, change_percent = self._calculate_change(total, prior_total)
 
-        # Generate trend data (last 6 data points)
+        # Trend is snapshot-only until historical series is wired.
         trend = self._generate_cash_trend(total, change_percent)
 
-        # Generate insight
-        insight = self._generate_insight("Cash", total, change_percent, "last month")
+        # Keep insight explicit about data quality.
+        insight = f"Cash snapshot at ${total:,.0f} across {len(accounts)} account(s)"
 
         return self._format_response(
             total=total,
@@ -100,6 +98,10 @@ class CashMixin:
             currency=currency,
             accounts=accounts,
             account_count=len(accounts),
+            data_quality={
+                "historical_comparison": "unavailable",
+                "trend_mode": "snapshot_only",
+            },
         )
 
     def _parse_cash_result(
@@ -250,55 +252,20 @@ class CashMixin:
         current_accounts: list[dict[str, Any]],
         period: str,
     ) -> float:
-        """
-        Get prior period cash balance for comparison.
+        """Get prior period cash balance for comparison.
 
-        In a full implementation, this would:
-        1. Check cache for historical snapshots
-        2. Query services for historical data
-        3. Fall back to estimated prior balance
-
-        For now, we estimate based on typical cash flow patterns.
+        Until historical snapshots are available, return current total so
+        change metrics stay truthful (0 delta vs fabricated estimates).
         """
-        # Calculate current total
         current_total = sum(a.get("balance", 0) for a in current_accounts)
-
-        # Estimate prior balance (this would be replaced with actual historical query)
-        # Assume modest month-over-month change for estimation
-        estimated_change_rate = 0.05  # 5% change assumption
-
-        # Return slightly lower prior balance to show positive growth
-        # In production, this should query actual historical data
-        prior_total = current_total / (1 + estimated_change_rate)
-
-        return prior_total
+        return current_total
 
     def _generate_cash_trend(
         self,
         current_total: float,
         change_percent: float,
     ) -> list[dict[str, Any]]:
-        """
-        Generate trend data points for sparkline visualization.
-
-        In production, this would query historical snapshots.
-        For now, we generate synthetic trend based on current and change.
-        """
-        trend: list[dict[str, Any]] = []
-        today = datetime.utcnow()
-
-        # Generate 6 monthly data points
-        for i in range(5, -1, -1):
-            point_date = today - timedelta(days=30 * i)
-            # Estimate value based on change rate
-            factor = 1 - (change_percent / 100) * (i / 5)
-            value = current_total * max(0.5, min(1.5, factor))  # Clamp to reasonable range
-
-            trend.append(
-                {
-                    "date": point_date.strftime("%Y-%m"),
-                    "value": round(value, 2),
-                }
-            )
-
-        return trend
+        """Generate trend data points for sparkline visualization."""
+        _ = change_percent  # reserved for future historical mode
+        today = datetime.now(UTC)
+        return [{"date": today.strftime("%Y-%m"), "value": round(current_total, 2)}]

@@ -1,40 +1,51 @@
-#!/bin/bash
-# Stargate Rollback Script
-# Usage: ./scripts/rollback.sh <environment> <commit-sha>
-# Example: ./scripts/rollback.sh production abc123
+#!/usr/bin/env bash
+# Safe Stargate rollback script
+# Usage: ./scripts/rollback.sh <environment> <git-ref> [service]
+# Example: ./scripts/rollback.sh production a1b2c3d stargate-lite
 
-set -e
+set -euo pipefail
 
-ENV=${1:-staging}
-COMMIT=${2}
+ENVIRONMENT="${1:-}"
+GIT_REF="${2:-}"
+SERVICE_NAME="${3:-${RAILWAY_SERVICE_NAME:-stargate-lite}}"
 
-if [ -z "$COMMIT" ]; then
-    echo "Usage: $0 <environment> <commit-sha>"
+if [[ -z "${ENVIRONMENT}" || -z "${GIT_REF}" ]]; then
+    echo "Usage: $0 <environment> <git-ref> [service]"
     echo "  environment: staging or production"
-    echo "  commit-sha: git commit to rollback to"
+    echo "  git-ref: commit SHA / tag / branch to deploy"
+    echo "  service: optional Railway service name (default: stargate-lite)"
     exit 1
 fi
 
-echo "🔄 Rolling back $ENV to commit $COMMIT"
+if [[ "${ENVIRONMENT}" != "staging" && "${ENVIRONMENT}" != "production" ]]; then
+    echo "Invalid environment '${ENVIRONMENT}'. Expected 'staging' or 'production'."
+    exit 1
+fi
 
-# Checkout the specific commit
-git checkout $COMMIT
-
-# Deploy based on environment
-if [ "$ENV" == "production" ]; then
-    echo "⚠️  PRODUCTION ROLLBACK"
-    read -p "Type 'rollback' to confirm: " confirm
-    if [ "$confirm" != "rollback" ]; then
+if [[ "${ENVIRONMENT}" == "production" ]]; then
+    echo "Production rollback requested"
+    read -r -p "Type 'rollback-production' to continue: " confirm
+    if [[ "${confirm}" != "rollback-production" ]]; then
         echo "Aborted"
         exit 1
     fi
-    railway up --service stargate
-else
-    railway up --service stargate-staging
 fi
 
-# Return to main branch
-git checkout main
+TMP_DIR="$(mktemp -d)"
+cleanup() {
+    git worktree remove --force "${TMP_DIR}" >/dev/null 2>&1 || true
+    rm -rf "${TMP_DIR}" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
 
-echo "✅ Rollback complete"
-echo "Run health check: curl https://$ENV.stargate.up.railway.app/health"
+echo "Preparing rollback source at ref '${GIT_REF}'"
+git worktree add --detach "${TMP_DIR}" "${GIT_REF}"
+
+echo "Deploying ref '${GIT_REF}' to ${ENVIRONMENT} (${SERVICE_NAME})"
+railway deployment up "${TMP_DIR}" \
+    --path-as-root \
+    --ci \
+    --service "${SERVICE_NAME}" \
+    --environment "${ENVIRONMENT}"
+
+echo "Rollback deployment submitted successfully"

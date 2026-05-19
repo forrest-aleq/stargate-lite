@@ -44,8 +44,11 @@ class StargateHTTPClient:
         self.session: requests.Session = requests.Session()
 
         # Configure retry strategy for transient failures
-        # IMPORTANT: Only retry idempotent methods to avoid duplicate operations
-        # POST/PUT/DELETE are excluded to prevent duplicate payments, resource creation, etc.
+        # IMPORTANT: Only retry idempotent GET/HEAD/OPTIONS methods.
+        # POST/PUT/DELETE are intentionally excluded to prevent duplicate
+        # payments, resource creation, or state mutations. Baby MARS handles
+        # retry for mutating operations via the retry_strategy response field.
+        # See docs/design/RETRY_DESIGN.md for full rationale.
         retry_strategy = Retry(
             total=3,  # 3 retry attempts
             backoff_factor=0.5,  # Wait 0.5s, 1s, 2s between retries

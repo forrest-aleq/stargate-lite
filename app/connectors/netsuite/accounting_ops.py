@@ -32,23 +32,34 @@ class AccountingMixin(VendorBillMixin):
         cred = self._get_credentials(org_id, user_id)
 
         account_ids = args.get("account_ids", [])
-        from_date = args.get("from_date")
-        to_date = args.get("to_date")
+        from_date = str(args.get("from_date", ""))
+        to_date = str(args.get("to_date", ""))
 
         if not from_date or not to_date:
             raise ValueError("from_date and to_date are required")
 
-        # Build account filter
+        # Validate date format (YYYY-MM-DD)
+        import re
+
+        date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+        if not date_pattern.match(from_date) or not date_pattern.match(to_date):
+            raise ValueError("Dates must be in YYYY-MM-DD format")
+
+        # Build account filter - validate account_ids as integers
         account_filter = "1=1"
         if account_ids:
-            account_filter = f"account IN ({','.join(str(a) for a in account_ids)})"
+            # nosec B608: Account IDs validated as integers before concatenation
+            safe_ids = ",".join(str(int(a)) for a in account_ids)
+            account_filter = f"account IN ({safe_ids})"
 
         query = self._build_gl_query(from_date, to_date, account_filter)
 
         if args.get("subsidiary_id"):
+            # nosec B608: Subsidiary ID validated as integer
+            subsidiary_id = int(args["subsidiary_id"])
             query = query.replace(
                 "ORDER BY",
-                f"AND t.subsidiary = {args['subsidiary_id']} ORDER BY",
+                f"AND t.subsidiary = {subsidiary_id} ORDER BY",
             )
 
         limit = min(int(args.get("limit", 1000)), 1000)
@@ -64,6 +75,7 @@ class AccountingMixin(VendorBillMixin):
 
     def _build_gl_query(self, from_date: str, to_date: str, account_filter: str) -> str:
         """Build SuiteQL query for GL transactions."""
+        # nosec B608: Dates validated via regex, account_filter built from validated integers
         return f"""
             SELECT
                 tl.id,
@@ -140,10 +152,13 @@ class AccountingMixin(VendorBillMixin):
         conditions = ["isinactive = 'F'"]
 
         if args.get("account_type"):
-            conditions.append(f"accttype = '{args['account_type']}'")
+            # Sanitize account_type: escape single quotes for SuiteQL
+            account_type_safe = str(args["account_type"]).replace("'", "''")
+            conditions.append(f"accttype = '{account_type_safe}'")
 
         where_clause = " AND ".join(conditions)
 
+        # nosec B608: Account type sanitized via quote escaping
         query = f"""
             SELECT id, acctnumber, accountsearchdisplayname, accttype, balance
             FROM account
@@ -178,15 +193,26 @@ class AccountingMixin(VendorBillMixin):
         cred = self._get_credentials(org_id, user_id)
 
         account_id = args.get("account_id")
-        statement_date = args.get("statement_date")
+        statement_date = str(args.get("statement_date", ""))
         ending_balance = args.get("ending_balance")
 
+        # Validate statement date format
+        import re
+
+        date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+        if not date_pattern.match(statement_date):
+            raise ValueError("statement_date must be in YYYY-MM-DD format")
+
+        # Validate account_id as integer (strip ns: prefix if present)
+        account_id_int = int(str(account_id).replace("ns:", ""))
+
         # Get GL balance for comparison
+        # nosec B608: Date validated via regex, account_id validated as integer
         gl_query = f"""
             SELECT SUM(debit) - SUM(credit) AS balance
             FROM transactionline tl
             INNER JOIN transaction t ON tl.transaction = t.id
-            WHERE tl.account = {str(account_id).replace('ns:', '')}
+            WHERE tl.account = {account_id_int}
               AND t.trandate <= TO_DATE('{statement_date}', 'YYYY-MM-DD')
         """
 

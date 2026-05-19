@@ -138,7 +138,7 @@ class AsanaConnector:
         task_gid = args.get("task_gid")
 
         default_opt_fields = (
-            "name,notes,completed,assignee,due_on,custom_fields," "projects,tags,permalink_url"
+            "name,notes,completed,assignee,due_on,custom_fields,projects,tags,permalink_url"
         )
         params = {"opt_fields": args.get("opt_fields", default_opt_fields)}
 

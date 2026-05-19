@@ -165,4 +165,23 @@ SHOPIFY_CAPABILITIES = {
         "credential_type": "customer",
         "supports_delegation": False,
     },
+    # ========== TRANSACTIONS & REFUNDS ==========
+    "shopify.transactions.list": {
+        "handler": shopify_connector.list_transactions,
+        "tool_name": "shopify.list_transactions",
+        "description": "List transactions for an order",
+        "requires_oauth": True,
+        "service": "shopify",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "shopify.refund.create": {
+        "handler": shopify_connector.create_refund,
+        "tool_name": "shopify.create_refund",
+        "description": "Create a refund for an order",
+        "requires_oauth": True,
+        "service": "shopify",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
 }

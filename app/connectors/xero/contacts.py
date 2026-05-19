@@ -11,6 +11,7 @@ from typing import Any
 
 from app.logging_config import get_logger
 
+from . import deep_links
 from .base import XeroBase
 
 logger = get_logger(__name__)
@@ -395,6 +396,7 @@ class ContactsMixin(XeroBase):
             "mobile": mobile.get("PhoneNumber"),
             "bank_account_details": contact.get("BankAccountDetails"),
             "updated_date": contact.get("UpdatedDateUTC"),
+            "deep_link": deep_links.contact_link(contact.get("ContactID")),
         }
 
     def _format_address(self, address: dict[str, Any]) -> dict[str, Any] | None:

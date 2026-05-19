@@ -109,4 +109,32 @@ DOCUSIGN_CAPABILITIES = {
         "credential_type": "customer",
         "supports_delegation": False,
     },
+    # ========== ENVELOPE UTILITIES ==========
+    "docusign.envelope.status": {
+        "handler": docusign_connector.get_envelope_status,
+        "tool_name": "docusign.get_envelope_status",
+        "description": "Get envelope status details",
+        "requires_oauth": True,
+        "service": "docusign",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "docusign.envelope.audit": {
+        "handler": docusign_connector.get_envelope_audit,
+        "tool_name": "docusign.get_envelope_audit",
+        "description": "Get audit events for an envelope",
+        "requires_oauth": True,
+        "service": "docusign",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
+    "docusign.envelope.signing_url": {
+        "handler": docusign_connector.get_signing_url,
+        "tool_name": "docusign.get_signing_url",
+        "description": "Get embedded signing URL for a recipient",
+        "requires_oauth": True,
+        "service": "docusign",
+        "credential_type": "customer",
+        "supports_delegation": False,
+    },
 }

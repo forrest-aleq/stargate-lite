@@ -6,7 +6,7 @@ Shares OAuth credentials with Gmail/Drive/Sheets (service="google")
 """
 
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, ClassVar
 
 from google.auth.transport.requests import Request
@@ -257,7 +257,7 @@ class GoogleCalendarConnector:
             service = build("calendar", "v3", credentials=creds)
 
             calendar_id = args.get("calendar_id", "primary")
-            time_min = args.get("time_min", datetime.utcnow().isoformat() + "Z")
+            time_min = args.get("time_min", datetime.now(UTC).isoformat() + "Z")
             time_max = args.get("time_max")  # Optional
             max_results = args.get("max_results", 50)
 
@@ -322,6 +322,64 @@ class GoogleCalendarConnector:
             ).execute()
 
             return {"event_id": event_id, "status": "cancelled"}
+
+        except HttpError as error:
+            raise Exception(f"Google Calendar API error: {error}") from error
+
+    def get_event(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Get a single calendar event"""
+        creds = self._get_credentials(org_id, user_id)
+
+        try:
+            service = build("calendar", "v3", credentials=creds)
+
+            event_id = args.get("event_id")
+            calendar_id = args.get("calendar_id", "primary")
+
+            event = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
+
+            return {
+                "event_id": event.get("id"),
+                "summary": event.get("summary"),
+                "description": event.get("description", ""),
+                "start": event.get("start"),
+                "end": event.get("end"),
+                "status": event.get("status"),
+                "attendees": [
+                    {
+                        "email": att.get("email"),
+                        "response_status": att.get("responseStatus"),
+                    }
+                    for att in event.get("attendees", [])
+                ],
+            }
+
+        except HttpError as error:
+            raise Exception(f"Google Calendar API error: {error}") from error
+
+    def list_calendars(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """List user's calendars"""
+        creds = self._get_credentials(org_id, user_id)
+
+        try:
+            service = build("calendar", "v3", credentials=creds)
+
+            calendar_list = service.calendarList().list().execute()
+
+            calendars = calendar_list.get("items", [])
+
+            return {
+                "calendars": [
+                    {
+                        "calendar_id": cal.get("id"),
+                        "summary": cal.get("summary"),
+                        "primary": cal.get("primary", False),
+                        "timezone": cal.get("timeZone"),
+                    }
+                    for cal in calendars
+                ],
+                "count": len(calendars),
+            }
 
         except HttpError as error:
             raise Exception(f"Google Calendar API error: {error}") from error

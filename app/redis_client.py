@@ -14,6 +14,22 @@ from app.logging_config import get_logger
 # Initialize logger
 logger = get_logger(__name__)
 
+# Cache TTL constants (seconds)
+CACHE_TTL_SUCCESS = 86400  # 24 hours — success responses are safe to cache long
+CACHE_TTL_TRANSIENT = 300  # 5 minutes — transient errors (rate limits, timeouts)
+CACHE_TTL_PERMANENT = 86400  # 24 hours — permanent errors (not found, auth)
+
+
+def get_cache_ttl(response: dict[str, Any]) -> int:
+    """Return appropriate cache TTL based on response retry_strategy.
+
+    Transient errors (retry_strategy == "backoff") get a short TTL so the client
+    can retry after the backoff period.  Everything else caches for 24 hours.
+    """
+    if response.get("retry_strategy") == "backoff":
+        return CACHE_TTL_TRANSIENT
+    return CACHE_TTL_SUCCESS
+
 
 class RedisClient:
     """Redis client singleton for idempotency caching"""
@@ -77,20 +93,14 @@ class RedisClient:
                 "Redis connected successfully",
                 log_event="redis_init_success",
             )
-        except (redis.ConnectionError, redis.TimeoutError) as e:
-            # CRITICAL: Redis is REQUIRED for idempotency (Stargate Command Contract v1.0)
-            # Cannot silently continue - would violate contract and risk duplicate executions
+        except redis.RedisError as e:
+            self._redis_client = None
             logger.error(
-                "Redis connection FAILED - CRITICAL for idempotency",
+                "Redis connection unavailable; continuing without idempotency cache",
                 error_type=type(e).__name__,
                 log_event="redis_init_error",
                 exc_info=True,
             )
-            raise RuntimeError(
-                f"Redis connection REQUIRED but failed: {e}\n"
-                f"Idempotency caching is mandatory per Stargate Command Contract.\n"
-                "Fix: Set REDIS_URL (Upstash) or REDIS_HOST/REDIS_PORT environment variables."
-            ) from e
 
     def get_cached_response(self, turn_id: str, capability_key: str) -> dict[str, Any] | None:
         """
@@ -179,6 +189,61 @@ class RedisClient:
                 capability_key=capability_key,
                 error_type=type(e).__name__,
                 log_event="cache_set_error",
+                exc_info=True,
+            )
+            return False
+
+    def xadd_event(self, stream_key: str, fields: dict[str, Any]) -> str | None:
+        """Write event to Redis stream for durability.
+
+        Returns the stream entry ID on success, None on failure.
+        """
+        if not self._redis_client:
+            return None
+
+        try:
+            # Serialize any non-string values to JSON strings for Redis streams
+            serialized: dict[str, str] = {
+                k: v if isinstance(v, str) else json.dumps(v) for k, v in fields.items()
+            }
+            entry_id: str = self._redis_client.xadd(stream_key, serialized)
+            logger.debug(
+                "Event written to stream",
+                stream_key=stream_key,
+                entry_id=entry_id,
+                log_event="stream_xadd_success",
+            )
+            return entry_id
+        except Exception as e:
+            logger.error(
+                "Redis stream write failed",
+                stream_key=stream_key,
+                error_type=type(e).__name__,
+                log_event="stream_xadd_error",
+                exc_info=True,
+            )
+            return None
+
+    def lpush_event(self, list_key: str, data: dict[str, Any]) -> bool:
+        """Push event to a Redis list (used for dead letter queue)."""
+        if not self._redis_client:
+            return False
+
+        try:
+            serialized = json.dumps(data)
+            self._redis_client.lpush(list_key, serialized)
+            logger.debug(
+                "Event pushed to list",
+                list_key=list_key,
+                log_event="list_lpush_success",
+            )
+            return True
+        except Exception as e:
+            logger.error(
+                "Redis list push failed",
+                list_key=list_key,
+                error_type=type(e).__name__,
+                log_event="list_lpush_error",
                 exc_info=True,
             )
             return False

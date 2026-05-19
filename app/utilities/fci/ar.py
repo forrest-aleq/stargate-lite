@@ -10,7 +10,7 @@ Aggregates AR aging data from connected accounting systems:
 Returns total AR with aging buckets, change tracking, and trend data.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 from app.logging_config import get_logger
@@ -135,8 +135,12 @@ class ARMixin:
             days_90=ar_data["days_90"],
             over_90=ar_data["over_90"],
             count=ar_data["count"],
-            as_of=as_of_date or datetime.utcnow().strftime("%Y-%m-%d"),
+            as_of=as_of_date or datetime.now(UTC).strftime("%Y-%m-%d"),
             source=preferred_service,
+            data_quality={
+                "historical_comparison": "unavailable",
+                "trend_mode": "snapshot_only",
+            },
         )
 
     def _parse_ar_aging(
@@ -325,14 +329,13 @@ class ARMixin:
         current_total: float,
         period: str,
     ) -> float:
+        """Get prior period AR balance for comparison.
+
+        Historical snapshots are not yet wired for AR. Return current value so
+        delta metrics remain truthful instead of inferred.
         """
-        Get prior period AR balance for comparison.
-        In production, this would query historical data.
-        """
-        # Estimate based on typical AR patterns
-        estimated_change_rate = 0.03  # 3% typical AR change
-        prior_total = current_total / (1 + estimated_change_rate)
-        return prior_total
+        _ = (org_id, user_id, period)
+        return current_total
 
     def _generate_ar_trend(
         self,
@@ -340,22 +343,9 @@ class ARMixin:
         change_percent: float,
     ) -> list[dict[str, Any]]:
         """Generate trend data points for AR sparkline."""
-        trend: list[dict[str, Any]] = []
-        today = datetime.utcnow()
-
-        for i in range(5, -1, -1):
-            point_date = today - timedelta(days=30 * i)
-            factor = 1 - (change_percent / 100) * (i / 5)
-            value = current_total * max(0.5, min(1.5, factor))
-
-            trend.append(
-                {
-                    "date": point_date.strftime("%Y-%m"),
-                    "value": round(value, 2),
-                }
-            )
-
-        return trend
+        _ = change_percent  # reserved for future historical mode
+        today = datetime.now(UTC)
+        return [{"date": today.strftime("%Y-%m"), "value": round(current_total, 2)}]
 
     def _generate_ar_insight(
         self,

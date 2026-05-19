@@ -35,6 +35,37 @@ repos:
         pass_filenames: false
         always_run: true
 
+      - id: openapi-check
+        name: OpenAPI spec sync
+        entry: bash -c 'source venv/bin/activate && python scripts/generate_openapi.py --check'
+        language: system
+        pass_filenames: false
+        files: ^(app/models\.py|app/routers/.*\.py|openapi\.json)$
+
+      - id: api-contracts
+        name: API contract validation
+        entry: python scripts/check_api_contracts.py
+        language: python
+        pass_filenames: false
+        files: ^app/models\.py$
+        additional_dependencies:
+          - pydantic
+
+      - id: provider-contracts
+        name: Provider contract validation
+        entry: python scripts/check_provider_contracts.py
+        language: python
+        pass_filenames: false
+        files: ^app/(contracts/|models\.py|errors\.py)
+        additional_dependencies:
+          - pydantic>=2.0
+          - sqlalchemy>=2.0
+          - cryptography
+          - python-dotenv
+          - structlog
+          - requests
+          - httpx
+
   # Ruff - lint + format
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.4
@@ -58,6 +89,17 @@ repos:
           - types-python-dateutil
           - fastapi
           - starlette
+
+  # Pre-push test gate
+  - repo: local
+    hooks:
+      - id: pre-push-tests
+        name: Run test suite before push
+        entry: bash -c 'source venv/bin/activate && python -m pytest tests/ -x -q'
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true
 
   # Basic hygiene
   - repo: https://github.com/pre-commit/pre-commit-hooks

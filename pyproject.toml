@@ -40,8 +40,14 @@ module = [
     "ddtrace.*",
     "redis.*",
     "stripe.*",
+    "sentry_sdk.*",
 ]
 follow_imports = "skip"
+
+# Sentry config uses SDK types that don't match stubs exactly
+[[tool.mypy.overrides]]
+module = "app.sentry_config"
+disable_error_code = ["arg-type", "redundant-cast"]
 
 # FCI utilities use mixin pattern and complex data transformations
 [[tool.mypy.overrides]]
@@ -68,6 +74,8 @@ disable_error_code = ["attr-defined", "arg-type", "no-untyped-call"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = ["-v", "--tb=short"]
+# Exclude manual test scripts directory
+norecursedirs = ["tests/scripts"]
 
 [tool.coverage.run]
 source = ["src"]

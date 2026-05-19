@@ -7,7 +7,7 @@ Enforces release engineering rules:
 2. If VERSION changed, CHANGELOG.md must also be updated
 3. CHANGELOG.md must have an entry for the current version
 
-See docs/RELEASE_GUIDE.md for full release process.
+See docs/operations/RELEASE_GUIDE.md for full release process.
 """
 
 import re
@@ -98,7 +98,7 @@ def main() -> int:
         if "CHANGELOG.md" not in staged:
             errors.append("ERROR: Version changed but CHANGELOG.md not updated")
             errors.append("  When bumping VERSION, you MUST update CHANGELOG.md")
-            errors.append("  See docs/RELEASE_GUIDE.md for changelog format")
+            errors.append("  See docs/operations/RELEASE_GUIDE.md for changelog format")
 
     # Check if CHANGELOG has entry for current version
     if not version_in_changelog(version):
@@ -116,7 +116,7 @@ def main() -> int:
         print("  [ ] CHANGELOG.md updated")
         print("  [ ] Tests pass (make test)")
         print("  [ ] No new Sentry errors in staging")
-        print("  [ ] See docs/RELEASE_GUIDE.md for full process")
+        print("  [ ] See docs/operations/RELEASE_GUIDE.md for full process")
 
     # Print results
     if warnings:

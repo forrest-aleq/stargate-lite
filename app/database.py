@@ -5,22 +5,25 @@ Handles secure credential storage with encryption
 
 import os
 from collections.abc import Generator
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from cryptography.fernet import Fernet
-from dotenv import load_dotenv
 from sqlalchemy import JSON, Column, DateTime, String, Text, create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
+from app.credential_queries import (
+    get_services_for_org as _query_services_for_org,
+    resolve_credential_owner as _resolve_credential_owner,
+)
+from app.env import load_env_files
 from app.logging_config import get_logger
 
 # Initialize logger
 logger = get_logger(__name__)
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables from .env.local / .env when present.
+load_env_files()
 
 # Database configuration
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./stargate_lite.db")
@@ -46,20 +49,73 @@ else:
     # PostgreSQL/MySQL: Production pooling configuration
     engine = create_engine(
         DATABASE_URL,
-        pool_size=20,  # Base connection pool size
-        max_overflow=10,  # Extra connections when pool exhausted
+        pool_size=5,  # Supabase-friendly pool size
+        max_overflow=5,  # Extra connections when pool exhausted
         pool_pre_ping=True,  # Test connections before use (detect stale connections)
-        pool_recycle=3600,  # Recycle connections after 1 hour
+        pool_recycle=300,  # Recycle connections every 5 min (Supabase timeouts)
         pool_timeout=30,  # Wait 30s for connection before raising error
     )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+_utcnow = lambda: datetime.now(UTC)  # noqa: E731
+
+_CREDENTIAL_HEALTH_KEY = "_aleq_credential_health"
+_INVALID_AUTH_STATUSES = frozenset({"expired", "invalid", "revoked", "reauthorization_required"})
+
+
+def _coerce_extra_data(value: dict[str, Any] | None) -> dict[str, Any]:
+    """Normalize stored extra_data to a mutable dictionary."""
+    return dict(value) if isinstance(value, dict) else {}
+
+
+def extract_credential_auth_status(extra_data: dict[str, Any] | None) -> str | None:
+    """Read Aleq's auth-health status from connector metadata."""
+    health = _coerce_extra_data(_coerce_extra_data(extra_data).get(_CREDENTIAL_HEALTH_KEY))
+    raw_status = str(health.get("auth_status") or "").strip().lower()
+    return raw_status or None
+
+
+def credential_auth_status_is_invalid(extra_data: dict[str, Any] | None) -> bool:
+    """Whether the credential metadata says auth is no longer usable."""
+    status = extract_credential_auth_status(extra_data)
+    return status in _INVALID_AUTH_STATUSES
+
+
+def _merge_credential_extra_data(
+    existing: dict[str, Any] | None,
+    incoming: dict[str, Any] | None,
+    *,
+    auth_status: str,
+    error_code: str | None = None,
+    failure_reason: str | None = None,
+) -> dict[str, Any]:
+    """Merge service metadata while maintaining credential auth-health state."""
+    merged = _coerce_extra_data(existing)
+    merged.update(_coerce_extra_data(incoming))
+
+    health = _coerce_extra_data(merged.get(_CREDENTIAL_HEALTH_KEY))
+    health["auth_status"] = auth_status
+    health["auth_checked_at"] = datetime.now(UTC).isoformat()
+
+    if auth_status == "connected":
+        health.pop("last_error_code", None)
+        health.pop("last_failure_reason", None)
+        health.pop("last_invalidated_at", None)
+    else:
+        if error_code:
+            health["last_error_code"] = error_code
+        if failure_reason:
+            health["last_failure_reason"] = failure_reason
+        health["last_invalidated_at"] = datetime.now(UTC).isoformat()
+
+    merged[_CREDENTIAL_HEALTH_KEY] = health
+    return merged
 
 
 class CredentialStore(Base):
     """Table for storing encrypted OAuth credentials with dual credential system"""
 
-    __tablename__ = "credentials"
+    __tablename__ = "stargate_credentials"
 
     # Composite primary key: org_id:user_id:service:credential_type
     id = Column(String, primary_key=True)
@@ -83,20 +139,40 @@ class CredentialStore(Base):
     token_expiry = Column(DateTime, nullable=True)
     realm_id = Column(String, nullable=True)  # QuickBooks specific
     extra_data = Column(JSON, nullable=True)  # Store additional service-specific data
-
-    # NEW: Track who created this credential
     created_by = Column(String, nullable=True)  # User who set up this credential
 
     # Audit fields
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+
+
+def _ensure_minimum_schema() -> None:
+    """Create the credential table when external migration orchestration is skipped."""
+    Base.metadata.create_all(bind=engine, tables=[CredentialStore.__table__], checkfirst=True)
 
 
 def init_db() -> None:
-    """Initialize the database"""
-    Base.metadata.create_all(bind=engine)
+    """Initialize the database.
+
+    When SKIP_ALEMBIC=true (Supabase), migrations are managed by Supabase CLI
+    so we skip Alembic entirely.  For local SQLite dev, Alembic runs as before.
+    """
+    if os.getenv("SKIP_ALEMBIC", "").lower() == "true":
+        _ensure_minimum_schema()
+        logger.info(
+            "Skipping Alembic migrations (SKIP_ALEMBIC=true); verified minimum schema",
+            database_type="postgresql",
+            log_event="database_init",
+        )
+        return
+
+    from alembic import command
+    from alembic.config import Config
+
+    alembic_cfg = Config("alembic.ini")
+    command.upgrade(alembic_cfg, "head")
     logger.info(
-        "Database initialized successfully",
+        "Database migrations applied",
         database_type="sqlite" if "sqlite" in DATABASE_URL else "postgresql",
         log_event="database_init",
     )
@@ -151,8 +227,12 @@ class CredentialManager:
         existing.token_expiry = token_expiry
         existing.realm_id = realm_id
         existing.access_pattern = access_pattern
-        existing.extra_data = extra_data or {}
-        existing.updated_at = datetime.utcnow()
+        existing.extra_data = _merge_credential_extra_data(
+            existing.extra_data,
+            extra_data,
+            auth_status="connected",
+        )
+        existing.updated_at = datetime.now(UTC)
 
     @staticmethod
     def _create_new_credential(
@@ -190,7 +270,11 @@ class CredentialManager:
             ),
             token_expiry=token_expiry,
             realm_id=realm_id,
-            extra_data=extra_data or {},
+            extra_data=_merge_credential_extra_data(
+                None,
+                extra_data,
+                auth_status="connected",
+            ),
             created_by=created_by,
         )
 
@@ -321,7 +405,7 @@ class CredentialManager:
                 )
                 return None
 
-            is_expired = cred.token_expiry and cred.token_expiry < datetime.utcnow()
+            is_expired = cred.token_expiry and cred.token_expiry < datetime.now(UTC)
 
             logger.debug(
                 "Credential retrieved",
@@ -492,6 +576,7 @@ class CredentialManager:
                     "access_pattern": cred.access_pattern,
                     "token_expiry": cred.token_expiry,
                     "updated_at": cred.updated_at,
+                    "extra_data": cred.extra_data or {},
                 }
                 for cred in credentials
             ]
@@ -504,32 +589,126 @@ class CredentialManager:
         user_id: str,
         credential_type: str = "customer",
     ) -> list[str]:
-        """
-        Return list of services with active credentials for org/user.
+        """Return list of services with active credentials for org/user."""
+        return _query_services_for_org(
+            SessionLocal,
+            CredentialStore,
+            org_id=org_id,
+            user_id=user_id,
+            credential_type=credential_type,
+        )
 
-        Used by FCI utilities to discover which connectors are available
-        for aggregation without needing to know in advance.
-        """
+    @staticmethod
+    def get_credentials_for_org_user(
+        org_id: str,
+        user_id: str,
+    ) -> list[dict[str, Any]]:
+        """Return undecrypted credential metadata for a specific org/user principal."""
         db = SessionLocal()
         try:
-            credentials = (
-                db.query(CredentialStore.service)
+            rows = (
+                db.query(
+                    CredentialStore.service,
+                    CredentialStore.credential_type,
+                    CredentialStore.token_expiry,
+                    CredentialStore.updated_at,
+                    CredentialStore.extra_data,
+                )
                 .filter(
                     CredentialStore.org_id == org_id,
                     CredentialStore.user_id == user_id,
-                    CredentialStore.credential_type == credential_type,
                 )
-                .distinct()
                 .all()
             )
-            services = [cred.service for cred in credentials]
-            logger.debug(
-                "Retrieved services for org",
-                org_id=org_id,
-                user_id=user_id,
-                services=services,
-                log_event="get_services_for_org",
-            )
-            return services
+            return [
+                {
+                    "service": service,
+                    "credential_type": credential_type,
+                    "token_expiry": token_expiry,
+                    "updated_at": updated_at,
+                    "extra_data": extra_data or {},
+                }
+                for service, credential_type, token_expiry, updated_at, extra_data in rows
+            ]
         finally:
             db.close()
+
+    @staticmethod
+    def update_credential_auth_state(
+        org_id: str,
+        user_id: str,
+        service: str,
+        credential_type: str = "customer",
+        *,
+        auth_status: str,
+        error_code: str | None = None,
+        failure_reason: str | None = None,
+    ) -> bool:
+        """Update credential auth-health metadata without rotating the tokens."""
+        credential_id = f"{org_id}:{user_id}:{service}:{credential_type}"
+        db = SessionLocal()
+        try:
+            cred = db.query(CredentialStore).filter_by(id=credential_id).first()
+            if not cred:
+                logger.warning(
+                    "Credential not found for auth-state update",
+                    service=service,
+                    org_id=org_id,
+                    user_id=user_id,
+                    credential_type=credential_type,
+                    log_event="credential_auth_state_missing",
+                )
+                return False
+
+            cred.extra_data = _merge_credential_extra_data(
+                cred.extra_data,
+                None,
+                auth_status=auth_status,
+                error_code=error_code,
+                failure_reason=failure_reason,
+            )
+            cred.updated_at = datetime.now(UTC)
+            db.commit()
+            logger.info(
+                "Credential auth state updated",
+                service=service,
+                org_id=org_id,
+                user_id=user_id,
+                credential_type=credential_type,
+                auth_status=auth_status,
+                log_event="credential_auth_state_updated",
+            )
+            return True
+        except Exception:
+            db.rollback()
+            logger.error(
+                "Failed to update credential auth state",
+                service=service,
+                org_id=org_id,
+                user_id=user_id,
+                credential_type=credential_type,
+                auth_status=auth_status,
+                log_event="credential_auth_state_error",
+                exc_info=True,
+            )
+            raise
+        finally:
+            db.close()
+
+    @staticmethod
+    def resolve_credential_owner(
+        service: str,
+        *,
+        realm_id: str | None = None,
+        extra_data_matches: dict[str, str] | None = None,
+        credential_type: str | None = None,
+    ) -> dict[str, str] | None:
+        """Resolve internal org/user identity from provider metadata."""
+        return _resolve_credential_owner(
+            SessionLocal,
+            CredentialStore,
+            service,
+            realm_id=realm_id,
+            extra_data_matches=extra_data_matches,
+            credential_type=credential_type,
+        )

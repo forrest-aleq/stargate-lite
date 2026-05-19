@@ -19,6 +19,7 @@ from typing import Any
 from app.errors import ValidationError
 from app.logging_config import get_logger
 
+from . import deep_links
 from .credit_notes import CreditNotesMixin
 
 logger = get_logger(__name__)
@@ -118,10 +119,10 @@ class BankMixin(CreditNotesMixin):
             where_clauses.append(f'Status=="{args["status"]}"')
 
         if args.get("date_from"):
-            where_clauses.append(f'Date>=DateTime({args["date_from"].replace("-", ",")})')
+            where_clauses.append(f"Date>=DateTime({args['date_from'].replace('-', ',')})")
 
         if args.get("date_to"):
-            where_clauses.append(f'Date<=DateTime({args["date_to"].replace("-", ",")})')
+            where_clauses.append(f"Date<=DateTime({args['date_to'].replace('-', ',')})")
 
         if where_clauses:
             params["where"] = " AND ".join(where_clauses)
@@ -381,9 +382,9 @@ class BankMixin(CreditNotesMixin):
         where_clauses: list[str] = []
 
         if args.get("date_from"):
-            where_clauses.append(f'Date>=DateTime({args["date_from"].replace("-", ",")})')
+            where_clauses.append(f"Date>=DateTime({args['date_from'].replace('-', ',')})")
         if args.get("date_to"):
-            where_clauses.append(f'Date<=DateTime({args["date_to"].replace("-", ",")})')
+            where_clauses.append(f"Date<=DateTime({args['date_to'].replace('-', ',')})")
 
         if where_clauses:
             params["where"] = " AND ".join(where_clauses)
@@ -412,6 +413,7 @@ class BankMixin(CreditNotesMixin):
                         "account_id": t.get("ToBankAccount", {}).get("AccountID"),
                         "name": t.get("ToBankAccount", {}).get("Name"),
                     },
+                    "deep_link": deep_links.bank_transfer_link(t.get("BankTransferID")),
                 }
                 for t in transfers
             ],
@@ -480,6 +482,7 @@ class BankMixin(CreditNotesMixin):
                     "account_id": created.get("ToBankAccount", {}).get("AccountID"),
                     "name": created.get("ToBankAccount", {}).get("Name"),
                 },
+                "deep_link": deep_links.bank_transfer_link(created.get("BankTransferID")),
             },
             "status": "success",
         }
@@ -496,6 +499,7 @@ class BankMixin(CreditNotesMixin):
             "currency_code": account.get("CurrencyCode"),
             "description": account.get("Description"),
             "updated_date": account.get("UpdatedDateUTC"),
+            "deep_link": deep_links.bank_account_link(account.get("AccountID")),
         }
 
     def _format_bank_transaction(self, txn: dict[str, Any]) -> dict[str, Any]:
@@ -541,6 +545,7 @@ class BankMixin(CreditNotesMixin):
                 for li in line_items
             ],
             "updated_date": txn.get("UpdatedDateUTC"),
+            "deep_link": deep_links.bank_transaction_link(txn.get("BankTransactionID")),
         }
 
     def _format_bank_txn_line_items(self, line_items: list[dict[str, Any]]) -> list[dict[str, Any]]:

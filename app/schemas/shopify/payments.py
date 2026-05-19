@@ -65,8 +65,7 @@ SHOPIFY_PAYOUTS_LIST = CapabilitySchema(
     category="payments",
     description="List Shopify Payments payouts",
     description_detailed=(
-        "Lists payouts from Shopify Payments to your bank account. "
-        "Useful for reconciling deposits."
+        "Lists payouts from Shopify Payments to your bank account. Useful for reconciling deposits."
     ),
     parameters={
         "status": ParameterSchema(

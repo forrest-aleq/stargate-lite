@@ -5,6 +5,7 @@ QuickBooks Online connector - Bills and Payables module
 from datetime import datetime
 from typing import Any
 
+from app.connectors.quickbooks import deep_links
 from app.http_client import http_client
 
 
@@ -43,12 +44,66 @@ class QuickBooksBillsMixin:
         )
 
         bill = result.get("Bill", {})
+        bill_id = bill.get("Id")
         return {
-            "bill_id": f"qb:{bill.get('Id')}",
+            "bill_id": f"qb:{bill_id}",
             "doc_number": bill.get("DocNumber"),
             "total_amount": bill.get("TotalAmt"),
             "due_date": bill.get("DueDate"),
             "status": "open",
+            "deep_link": deep_links.bill_link(bill_id),
+        }
+
+    def update_bill(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Update a bill in QuickBooks (sparse update)"""
+        cred = self._get_access_token(org_id, user_id)
+        realm_id = cred["realm_id"]
+        bill_id = args.get("bill_id", "").replace("qb:", "")
+
+        # Fetch current bill to get SyncToken
+        url = f"{self.base_url}/{realm_id}/bill/{bill_id}"
+        current = http_client.get(
+            url=url,
+            service="quickbooks",
+            headers={
+                "Authorization": f"Bearer {cred['access_token']}",
+                "Accept": "application/json",
+            },
+        )
+        current_bill = current.get("Bill", {})
+
+        update_data: dict[str, Any] = {
+            "Id": bill_id,
+            "SyncToken": current_bill.get("SyncToken"),
+            "sparse": True,
+        }
+        if args.get("line_items"):
+            update_data["Line"] = args["line_items"]
+        if args.get("due_date"):
+            update_data["DueDate"] = args["due_date"]
+        if args.get("private_note"):
+            update_data["PrivateNote"] = args["private_note"]
+
+        url = f"{self.base_url}/{realm_id}/bill"
+        result = http_client.post(
+            url=url,
+            service="quickbooks",
+            headers={
+                "Authorization": f"Bearer {cred['access_token']}",
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            },
+            json=update_data,
+        )
+        bill = result.get("Bill", {})
+        bid = bill.get("Id")
+        return {
+            "bill_id": f"qb:{bid}",
+            "doc_number": bill.get("DocNumber"),
+            "total_amount": bill.get("TotalAmt"),
+            "balance": bill.get("Balance"),
+            "status": "updated",
+            "deep_link": deep_links.bill_link(bid),
         }
 
     def get_bill(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -68,13 +123,15 @@ class QuickBooksBillsMixin:
         )
 
         bill = result.get("Bill", {})
+        bid = bill.get("Id")
         return {
-            "bill_id": f"qb:{bill.get('Id')}",
+            "bill_id": f"qb:{bid}",
             "doc_number": bill.get("DocNumber"),
             "total_amount": bill.get("TotalAmt"),
             "due_date": bill.get("DueDate"),
             "balance": bill.get("Balance"),
             "vendor_id": f"qb:{bill.get('VendorRef', {}).get('value')}",
+            "deep_link": deep_links.bill_link(bid),
         }
 
     def list_bills(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -114,6 +171,7 @@ class QuickBooksBillsMixin:
                     "balance": b.get("Balance"),
                     "due_date": b.get("DueDate"),
                     "vendor": b.get("VendorRef", {}).get("name"),
+                    "deep_link": deep_links.bill_link(b.get("Id")),
                 }
                 for b in bills
             ],
@@ -160,11 +218,13 @@ class QuickBooksBillsMixin:
         )
 
         payment = result.get("BillPayment", {})
+        payment_id = payment.get("Id")
         return {
-            "payment_id": f"qb:{payment.get('Id')}",
+            "payment_id": f"qb:{payment_id}",
             "amount": payment.get("TotalAmt"),
             "pay_type": payment.get("PayType"),
             "txn_date": payment.get("TxnDate"),
+            "deep_link": deep_links.bill_payment_link(payment_id),
         }
 
     def list_bill_payments(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -197,6 +257,7 @@ class QuickBooksBillsMixin:
                     "pay_type": p.get("PayType"),
                     "txn_date": p.get("TxnDate"),
                     "vendor": p.get("VendorRef", {}).get("name"),
+                    "deep_link": deep_links.bill_payment_link(p.get("Id")),
                 }
                 for p in payments
             ],
@@ -235,10 +296,12 @@ class QuickBooksBillsMixin:
         )
 
         expense = result.get("Purchase", {})
+        expense_id = expense.get("Id")
         return {
-            "expense_id": f"qb:{expense.get('Id')}",
+            "expense_id": f"qb:{expense_id}",
             "total_amount": expense.get("TotalAmt"),
             "payment_type": expense.get("PaymentType"),
+            "deep_link": deep_links.expense_link(expense_id),
         }
 
     def create_purchase_order(
@@ -271,11 +334,13 @@ class QuickBooksBillsMixin:
         )
 
         po = result.get("PurchaseOrder", {})
+        po_id = po.get("Id")
         return {
-            "purchase_order_id": f"qb:{po.get('Id')}",
+            "purchase_order_id": f"qb:{po_id}",
             "doc_number": po.get("DocNumber"),
             "total_amount": po.get("TotalAmt"),
             "vendor_id": f"qb:{vendor_id}",
+            "deep_link": deep_links.purchase_order_link(po_id),
         }
 
     def get_purchase_order(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -295,8 +360,9 @@ class QuickBooksBillsMixin:
         )
 
         po = result.get("PurchaseOrder", {})
+        po_id = po.get("Id")
         return {
-            "purchase_order_id": f"qb:{po.get('Id')}",
+            "purchase_order_id": f"qb:{po_id}",
             "doc_number": po.get("DocNumber"),
             "total_amount": po.get("TotalAmt"),
             "due_date": po.get("DueDate"),
@@ -317,6 +383,7 @@ class QuickBooksBillsMixin:
                 for line in po.get("Line", [])
                 if line.get("DetailType") in ("ItemBasedExpenseLineDetail", None)
             ],
+            "deep_link": deep_links.purchase_order_link(po_id),
         }
 
     def list_purchase_orders(
@@ -360,6 +427,7 @@ class QuickBooksBillsMixin:
                     "vendor_id": f"qb:{p.get('VendorRef', {}).get('value')}",
                     "vendor_name": p.get("VendorRef", {}).get("name"),
                     "status": p.get("POStatus", "Open"),
+                    "deep_link": deep_links.purchase_order_link(p.get("Id")),
                 }
                 for p in pos
             ],

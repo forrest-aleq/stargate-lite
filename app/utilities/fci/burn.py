@@ -10,7 +10,7 @@ Calculates monthly burn rate from P&L expense data:
 This is a derived primitive - it uses expense data to calculate burn.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.logging_config import get_logger
@@ -73,7 +73,7 @@ class BurnMixin:
             )
 
         # Calculate date ranges for multi-month data
-        today = datetime.utcnow()
+        today = datetime.now(UTC)
         periods = self._get_monthly_periods(today, months)
 
         monthly_burns: list[float] = []

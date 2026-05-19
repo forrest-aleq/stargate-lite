@@ -147,7 +147,7 @@ class CashManagementMixin(ARMixin):
         if args.get("date_to"):
             filters.append(f'transactionDate le "{args["date_to"]}"')
         if args.get("cleared") is not None:
-            filters.append(f'cleared eq {str(args["cleared"]).lower()}')
+            filters.append(f"cleared eq {str(args['cleared']).lower()}")
 
         if filters:
             params["filter"] = " and ".join(filters)

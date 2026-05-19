@@ -263,8 +263,7 @@ MERCURY_RECIPIENT_LIST = CapabilitySchema(
     category="recipients",
     description="List payment recipients",
     description_detailed=(
-        "List all payment recipients configured in Mercury. "
-        "Use to find recipient_id for payments."
+        "List all payment recipients configured in Mercury. Use to find recipient_id for payments."
     ),
     parameters={},
     returns={

@@ -3,11 +3,12 @@ Base class for Linear connector with authentication and GraphQL helpers.
 """
 
 import os
-from datetime import datetime, timedelta
+import time
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 from app.database import CredentialManager
-from app.errors import CredentialMissingError, ExecutionError
+from app.errors import CredentialMissingError, ExecutionError, NetworkError
 from app.http_client import http_client
 from app.logging_config import get_logger
 
@@ -42,7 +43,7 @@ class LinearBase:
 
         # Check if token needs refresh (within 5 minutes of expiry)
         expiry_threshold = cred["token_expiry"] - timedelta(minutes=5)
-        if cred["token_expiry"] and datetime.utcnow() >= expiry_threshold:
+        if cred["token_expiry"] and datetime.now(UTC) >= expiry_threshold:
             if cred["refresh_token"]:
                 logger.info(
                     "Token expired or expiring soon, refreshing",
@@ -51,66 +52,77 @@ class LinearBase:
                     user_id=user_id,
                     log_event="token_refresh_needed",
                 )
-                try:
-                    # Refresh the token
-                    token_data = http_client.post(
-                        url="https://api.linear.app/oauth/token",
-                        service="linear",
-                        data={
-                            "grant_type": "refresh_token",
-                            "refresh_token": cred["refresh_token"],
-                            "client_id": self.client_id,
-                            "client_secret": self.client_secret,
-                        },
-                    )
-
-                    # Calculate new credential values
-                    new_refresh_token = token_data.get("refresh_token", cred["refresh_token"])
-                    expires_in = token_data.get("expires_in")
-                    if expires_in is None:
-                        logger.warning(
-                            "Token refresh response missing expires_in, using default 1 hour",
+                for attempt in range(2):
+                    try:
+                        token_data = http_client.post(
+                            url="https://api.linear.app/oauth/token",
+                            service="linear",
+                            data={
+                                "grant_type": "refresh_token",
+                                "refresh_token": cred["refresh_token"],
+                                "client_id": self.client_id,
+                                "client_secret": self.client_secret,
+                            },
+                        )
+                        break  # Success, exit retry loop
+                    except NetworkError:
+                        if attempt == 0:
+                            logger.warning(
+                                "Token refresh transient failure, retrying",
+                                service="linear",
+                                log_event="token_refresh_retry",
+                            )
+                            time.sleep(1.0)
+                            continue
+                        raise
+                    except Exception as e:
+                        logger.error(
+                            "Linear token refresh failed",
                             service="linear",
                             org_id=org_id,
                             user_id=user_id,
+                            error_type=type(e).__name__,
+                            log_event="token_refresh_error",
+                            exc_info=True,
                         )
-                        expires_in = 3600
-                    new_token_expiry = datetime.utcnow() + timedelta(seconds=expires_in)
+                        raise
 
-                    # Update stored credentials
-                    CredentialManager.store_credential(
-                        org_id=org_id,
-                        user_id=user_id,
-                        service="linear",
-                        access_token=token_data["access_token"],
-                        refresh_token=new_refresh_token,
-                        token_expiry=new_token_expiry,
-                    )
-
-                    # Update ALL credential fields in-memory to prevent stale data
-                    cred["access_token"] = token_data["access_token"]
-                    cred["refresh_token"] = new_refresh_token
-                    cred["token_expiry"] = new_token_expiry
-
-                    logger.info(
-                        "Linear token refreshed successfully",
+                # Calculate new credential values
+                new_refresh_token = token_data.get("refresh_token", cred["refresh_token"])
+                expires_in = token_data.get("expires_in")
+                if expires_in is None:
+                    logger.warning(
+                        "Token refresh response missing expires_in, using default 1 hour",
                         service="linear",
                         org_id=org_id,
                         user_id=user_id,
-                        expires_in_seconds=token_data["expires_in"],
-                        log_event="token_refresh_success",
                     )
-                except Exception as e:
-                    logger.error(
-                        "Linear token refresh failed",
-                        service="linear",
-                        org_id=org_id,
-                        user_id=user_id,
-                        error_type=type(e).__name__,
-                        log_event="token_refresh_error",
-                        exc_info=True,
-                    )
-                    raise
+                    expires_in = 3600
+                new_token_expiry = datetime.now(UTC) + timedelta(seconds=expires_in)
+
+                # Update stored credentials
+                CredentialManager.store_credential(
+                    org_id=org_id,
+                    user_id=user_id,
+                    service="linear",
+                    access_token=token_data["access_token"],
+                    refresh_token=new_refresh_token,
+                    token_expiry=new_token_expiry,
+                )
+
+                # Update ALL credential fields in-memory to prevent stale data
+                cred["access_token"] = token_data["access_token"]
+                cred["refresh_token"] = new_refresh_token
+                cred["token_expiry"] = new_token_expiry
+
+                logger.info(
+                    "Linear token refreshed successfully",
+                    service="linear",
+                    org_id=org_id,
+                    user_id=user_id,
+                    expires_in_seconds=token_data["expires_in"],
+                    log_event="token_refresh_success",
+                )
 
         return cred
 

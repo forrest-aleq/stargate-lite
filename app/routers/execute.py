@@ -2,6 +2,7 @@
 Tool execution routes for Stargate Lite.
 """
 
+import asyncio
 import time
 from typing import Any
 
@@ -10,9 +11,9 @@ from fastapi import APIRouter, Depends, Header, Response
 from app.auth import verify_api_key
 from app.errors import StargateError
 from app.logging_config import bind_request_context, clear_request_context, get_logger
-from app.models import ToolExecutionRequest
+from app.models import ErrorResponse, ToolExecutionRequest, ToolExecutionResponse
 from app.rate_limiter import rate_limiter
-from app.redis_client import redis_client
+from app.redis_client import get_cache_ttl, redis_client
 from app.registry import get_capability
 from app.services.execution import (
     build_success_response,
@@ -21,13 +22,27 @@ from app.services.execution import (
     handle_capability_not_found,
     handle_stargate_error,
     handle_unexpected_error,
+    maybe_emit_delivery_event,
 )
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["execute"])
 
+# Response models for OpenAPI documentation
+# Note: We include both models explicitly so FastAPI registers them in the schema
+EXECUTE_RESPONSES: dict[int | str, dict[str, Any]] = {
+    200: {
+        "description": "Successful execution or business error (rate-limit returns 429)",
+        "model": ToolExecutionResponse | ErrorResponse,
+    },
+    429: {
+        "description": "Rate limit exceeded",
+        "model": ErrorResponse,
+    },
+}
 
-@router.post("/execute")
+
+@router.post("/execute", responses=EXECUTE_RESPONSES)
 async def execute_tool(
     request: ToolExecutionRequest,
     response: Response,
@@ -40,6 +55,10 @@ async def execute_tool(
     This is the MAIN endpoint that the Brain (MARS) calls.
     Supports idempotency via turn_id with 24-hour cache.
     Session ID can be passed via X-Session-ID header or session_id body field.
+
+    **Response Format (Contract v1.0):**
+    - Success: `{"status": "success", "capability_key": "...", "outputs": {...}}`
+    - Error: `{"status": "error", "error_code": "...", "error_message": "..."}`
 
     Rate limited: 100 requests per minute per org_id (configurable via env vars).
     """
@@ -57,12 +76,25 @@ async def execute_tool(
         turn_id=request.turn_id,
         session_id=session_id,
     )
-    logger.info("Execute request received", log_event="execute_start")
+    verb_tier = (request.metadata or {}).get("verb_tier")
+    logger.info(
+        "Execute request received",
+        verb_tier=verb_tier,
+        proactive=(request.metadata or {}).get("proactive", False),
+        log_event="execute_start",
+    )
 
     # Rate limiting check
-    is_allowed, rate_info = rate_limiter.check_rate_limit(request.org_id)
+    is_allowed, rate_info = await asyncio.to_thread(
+        rate_limiter.check_rate_limit,
+        request.org_id,
+        request.capability_key,
+        request.metadata,
+    )
 
     # Add rate limit headers to response
+    rate_limit_bucket = str(rate_info.get("bucket", "default"))
+    response.headers["X-RateLimit-Bucket"] = rate_limit_bucket
     response.headers["X-RateLimit-Limit"] = str(rate_info["limit"])
     response.headers["X-RateLimit-Remaining"] = str(rate_info["remaining"])
     response.headers["X-RateLimit-Reset"] = str(rate_info["reset_at"])
@@ -74,6 +106,8 @@ async def execute_tool(
         logger.warning(
             "Rate limit exceeded",
             org_id=request.org_id,
+            capability_key=request.capability_key,
+            bucket=rate_limit_bucket,
             log_event="rate_limit_rejected",
         )
         return {
@@ -90,23 +124,32 @@ async def execute_tool(
         }
 
     try:
-        cached = check_idempotency_cache(request.turn_id, request.capability_key)
+        cached = await check_idempotency_cache(request.turn_id, request.capability_key)
         if cached:
             return cached
 
         capability = get_capability(request.capability_key)
         if not capability:
-            return handle_capability_not_found(request)
+            return await handle_capability_not_found(request)
 
         logs.append(
             f"Resolved capability '{request.capability_key}' to tool '{capability['tool_name']}'"
         )
 
-        outputs, _duration = execute_handler(capability, request, logs, session_id)
+        outputs, handler_duration = await execute_handler(capability, request, logs, session_id)
         response_data = build_success_response(request, capability, outputs, logs)
 
-        redis_client.cache_response(request.turn_id, request.capability_key, response_data)
+        await asyncio.to_thread(
+            redis_client.cache_response,
+            request.turn_id,
+            request.capability_key,
+            response_data,
+            ttl_seconds=get_cache_ttl(response_data),
+        )
         total_duration_ms = (time.time() - start_time) * 1000
+
+        # Emit delivery event for Tier 3 success
+        await maybe_emit_delivery_event(request, "sent", handler_duration)
         logger.info(
             "Execute request completed successfully",
             tool_name=capability["tool_name"],
@@ -117,8 +160,8 @@ async def execute_tool(
         return response_data
 
     except StargateError as e:
-        return handle_stargate_error(e, request, capability, logs, start_time, session_id)
+        return await handle_stargate_error(e, request, capability, logs, start_time, session_id)
     except Exception as e:
-        return handle_unexpected_error(e, request, capability, logs, start_time, session_id)
+        return await handle_unexpected_error(e, request, capability, logs, start_time, session_id)
     finally:
         clear_request_context()

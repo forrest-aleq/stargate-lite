@@ -28,7 +28,9 @@ def test_schema_registry_count():
         from app.schemas import SCHEMA_REGISTRY
 
         # Minimum expected schemas - can grow as services are added
-        assert len(SCHEMA_REGISTRY) >= 500, f"Expected at least 500 schemas, got {len(SCHEMA_REGISTRY)}"
+        assert (
+            len(SCHEMA_REGISTRY) >= 500
+        ), f"Expected at least 500 schemas, got {len(SCHEMA_REGISTRY)}"
     except ImportError:
         pytest.skip("Dependencies not installed")
 
@@ -260,28 +262,32 @@ def test_schema_errors_are_valid():
 def test_workflow_hints_reference_valid_capabilities():
     """Verify most workflow hints reference capabilities that exist in registry"""
     try:
-        from app.registry import CAPABILITY_REGISTRY
+        from app.registry import ALL_CAPABILITIES
         from app.schemas import SCHEMA_REGISTRY
 
-        valid_keys = set(CAPABILITY_REGISTRY.keys())
+        valid_keys = set(ALL_CAPABILITIES.keys())
         invalid_refs = []
 
         for key, schema in SCHEMA_REGISTRY.items():
             if schema.workflow:
-                for ref in schema.workflow.typically_preceded_by:
-                    if ref not in valid_keys:
-                        invalid_refs.append(f"{key} -> {ref}")
-                for ref in schema.workflow.typically_followed_by:
-                    if ref not in valid_keys:
-                        invalid_refs.append(f"{key} -> {ref}")
-                for ref in schema.workflow.related_capabilities:
-                    if ref not in valid_keys:
-                        invalid_refs.append(f"{key} -> {ref}")
+                invalid_refs.extend(
+                    f"{key} -> {ref}"
+                    for ref in schema.workflow.typically_preceded_by
+                    if ref not in valid_keys
+                )
+                invalid_refs.extend(
+                    f"{key} -> {ref}"
+                    for ref in schema.workflow.typically_followed_by
+                    if ref not in valid_keys
+                )
+                invalid_refs.extend(
+                    f"{key} -> {ref}"
+                    for ref in schema.workflow.related_capabilities
+                    if ref not in valid_keys
+                )
 
         # Allow up to 25% invalid refs (data quality threshold during schema migration)
-        total_schemas_with_workflow = sum(
-            1 for s in SCHEMA_REGISTRY.values() if s.workflow
-        )
+        total_schemas_with_workflow = sum(1 for s in SCHEMA_REGISTRY.values() if s.workflow)
         max_allowed = max(100, int(total_schemas_with_workflow * 0.25))
         assert len(invalid_refs) <= max_allowed, (
             f"Too many invalid workflow refs ({len(invalid_refs)} > {max_allowed}): "
@@ -294,10 +300,10 @@ def test_workflow_hints_reference_valid_capabilities():
 def test_schemas_match_registry_capabilities():
     """Verify most schemas correspond to valid registry capabilities"""
     try:
-        from app.registry import CAPABILITY_REGISTRY
+        from app.registry import ALL_CAPABILITIES
         from app.schemas import SCHEMA_REGISTRY
 
-        mismatched = [key for key in SCHEMA_REGISTRY if key not in CAPABILITY_REGISTRY]
+        mismatched = [key for key in SCHEMA_REGISTRY if key not in ALL_CAPABILITIES]
 
         # Allow up to 40% mismatch during schema migration
         # (schemas may be ahead of or behind capability naming)
@@ -321,12 +327,9 @@ def test_registry_list_capabilities_includes_schema_available():
             assert "schema_available" in info, f"'{key}' missing schema_available"
             assert isinstance(info["schema_available"], bool)
 
-        # Verify QuickBooks capabilities have schemas
-        assert capabilities["vendor.create"]["schema_available"] is True
-        assert capabilities["bill.create"]["schema_available"] is True
-
-        # Verify Stripe capabilities (using actual capability names)
-        assert capabilities["stripe.customer.create"]["schema_available"] is True
+        # Verify always-available capabilities have schemas
+        assert capabilities["ocr.text.extract"]["schema_available"] is False  # OCR has no schema
+        assert capabilities["calc.npv"]["schema_available"] is False  # Calculator has no schema
     except ImportError:
         pytest.skip("Dependencies not installed")
 

@@ -15,7 +15,7 @@ LINEAR_CAPABILITIES = {
         "handler": linear_connector.create_issue,
         "tool_name": "linear.create_issue",
         "description": (
-            "Create issue in Linear as Aleq AI agent - " "supports @mentions and assignments"
+            "Create issue in Linear as Aleq AI agent - supports @mentions and assignments"
         ),
         "requires_oauth": True,
         "service": "linear",

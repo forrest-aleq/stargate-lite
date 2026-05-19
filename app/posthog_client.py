@@ -48,6 +48,9 @@ def init_posthog() -> bool:
         )
         return False
 
+    # posthog-python v7 requires `api_key` for capture/identify. Keep
+    # `project_api_key` in sync as well for any legacy/internal access.
+    posthog.api_key = POSTHOG_API_KEY
     posthog.project_api_key = POSTHOG_API_KEY
     posthog.host = POSTHOG_HOST
 

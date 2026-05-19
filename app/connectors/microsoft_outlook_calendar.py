@@ -342,3 +342,60 @@ class MicrosoftOutlookCalendarConnector:
         self._make_request("POST", endpoint, token, data)
 
         return {"event_id": event_id, "status": "cancelled"}
+
+    def get_event(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Get a single calendar event"""
+        token = self._get_access_token(org_id, user_id)
+
+        event_id = args.get("event_id")
+        calendar_id = args.get("calendar_id")
+
+        if calendar_id:
+            endpoint = f"me/calendars/{calendar_id}/events/{event_id}"
+        else:
+            endpoint = f"me/events/{event_id}"
+
+        result = self._make_request("GET", endpoint, token)
+
+        return {
+            "event_id": result.get("id"),
+            "subject": result.get("subject"),
+            "body": result.get("body", {}).get("content", ""),
+            "start_time": result.get("start", {}).get("dateTime"),
+            "end_time": result.get("end", {}).get("dateTime"),
+            "location": result.get("location", {}).get("displayName", ""),
+            "web_link": result.get("webLink"),
+            "organizer": result.get("organizer", {}).get("emailAddress", {}).get("address"),
+            "is_online_meeting": result.get("isOnlineMeeting", False),
+            "teams_link": result.get("onlineMeeting", {}).get("joinUrl"),
+            "attendees": [
+                {
+                    "email": att["emailAddress"].get("address"),
+                    "response_status": att.get("status", {}).get("response"),
+                }
+                for att in result.get("attendees", [])
+            ],
+        }
+
+    def list_calendars(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """List user's calendars"""
+        token = self._get_access_token(org_id, user_id)
+
+        endpoint = "me/calendars"
+
+        result = self._make_request("GET", endpoint, token)
+
+        calendars = result.get("value", [])
+
+        return {
+            "calendars": [
+                {
+                    "id": calendar.get("id"),
+                    "name": calendar.get("name"),
+                    "color": calendar.get("color"),
+                    "is_default": calendar.get("isDefaultCalendar", False),
+                }
+                for calendar in calendars
+            ],
+            "count": len(calendars),
+        }

@@ -317,3 +317,70 @@ class GoogleSheetsConnector:
 
         except HttpError as error:
             raise Exception(f"Google Sheets API error: {error}") from error
+
+    def batch_get_ranges(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Get values from multiple ranges in a Google Sheet"""
+        creds = self._get_credentials(org_id, user_id)
+
+        try:
+            service = build("sheets", "v4", credentials=creds)
+
+            spreadsheet_id = args.get("spreadsheet_id")
+            ranges = args.get("ranges", [])  # e.g., ["Sheet1!A1:B5", "Sheet2!C1:D10"]
+
+            result = (
+                service.spreadsheets()
+                .values()
+                .batchGet(spreadsheetId=spreadsheet_id, ranges=ranges)
+                .execute()
+            )
+
+            value_ranges = result.get("valueRanges", [])
+            return {
+                "spreadsheet_id": spreadsheet_id,
+                "ranges": [
+                    {
+                        "range": vr.get("range"),
+                        "values": vr.get("values", []),
+                    }
+                    for vr in value_ranges
+                ],
+                "count": len(value_ranges),
+            }
+
+        except HttpError as error:
+            raise Exception(f"Google Sheets API error: {error}") from error
+
+    def create_spreadsheet(self, org_id: str, user_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """Create a new Google Spreadsheet"""
+        creds = self._get_credentials(org_id, user_id)
+
+        try:
+            service = build("sheets", "v4", credentials=creds)
+
+            spreadsheet_body: dict[str, Any] = {
+                "properties": {"title": args.get("title", "Untitled Spreadsheet")},
+            }
+
+            if args.get("sheet_titles"):
+                spreadsheet_body["sheets"] = [
+                    {"properties": {"title": title}} for title in args["sheet_titles"]
+                ]
+
+            result = service.spreadsheets().create(body=spreadsheet_body).execute()
+
+            return {
+                "spreadsheet_id": result.get("spreadsheetId"),
+                "title": result.get("properties", {}).get("title"),
+                "url": result.get("spreadsheetUrl"),
+                "sheets": [
+                    {
+                        "sheet_id": sheet["properties"]["sheetId"],
+                        "title": sheet["properties"]["title"],
+                    }
+                    for sheet in result.get("sheets", [])
+                ],
+            }
+
+        except HttpError as error:
+            raise Exception(f"Google Sheets API error: {error}") from error

@@ -6,7 +6,7 @@ Captures connector errors, token refresh failures, timeouts, and unexpected exce
 """
 
 import os
-from typing import Any
+from typing import Any, cast
 
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
@@ -66,7 +66,7 @@ def init_sentry() -> bool:
         # Add tags to all events
         default_integrations=True,
         # Before send hook for additional scrubbing
-        before_send=_before_send,  # type: ignore[arg-type]
+        before_send=_before_send,
         # Before breadcrumb hook
         before_breadcrumb=_before_breadcrumb,
     )
@@ -196,7 +196,7 @@ def capture_connector_error(
         # Fingerprint by service + error type for grouping
         scope.fingerprint = [service, type(error).__name__, operation]
 
-        return sentry_sdk.capture_exception(error)
+        return cast(str | None, sentry_sdk.capture_exception(error))
 
 
 def capture_api_error(
@@ -231,7 +231,7 @@ def capture_api_error(
         # Fingerprint by service + status code for grouping
         scope.fingerprint = [service, str(status_code), type(error).__name__]
 
-        return sentry_sdk.capture_exception(error)
+        return cast(str | None, sentry_sdk.capture_exception(error))
 
 
 def add_breadcrumb(
