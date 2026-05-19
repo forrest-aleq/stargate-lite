@@ -112,7 +112,10 @@ These are Aleq runtime tools. Customers do not connect these through the integra
 
 ## Notes
 
-- `stargate-lite` staging currently exposes the full connector catalog in Aleq because `ENABLED_SERVICES` already includes the broad set.
-- Some connectors are visible but intentionally fail cleanly until the missing envs above are added.
-- Stripe is the most obvious example of a connector that is partly ready today.
+- `stargate-lite` staging currently exposes the credential-backed connector subset in Aleq:
+  `quickbooks`, `xero`, `stripe`, `hubspot`, `google`, `slack`, `plaid`, and `ramp`.
+- Connectors with missing app credentials stay out of `ENABLED_SERVICES` until their
+  provider env vars are present, so the staging deploy preflight remains a hard gate.
+- Stripe is partly ready today because API-key functionality is configured; customer
+  OAuth still needs `STRIPE_CLIENT_ID` and `STRIPE_REDIRECT_URI`.
 - `E2B` and `Hyperbrowser` are infrastructure. They power runtime execution and browsing, but they should not be presented as customer integrations.
