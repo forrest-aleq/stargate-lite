@@ -34,6 +34,52 @@ def test_payload_fails_when_any_check_fails() -> None:
     assert payload["railway_services"]["staging"] == "stargate-lite"
 
 
+def test_branch_protection_accepts_zero_approval_release_lock(monkeypatch) -> None:
+    payload = {
+        "enforce_admins": {"enabled": True},
+        "required_pull_request_reviews": {
+            "dismiss_stale_reviews": True,
+            "required_approving_review_count": 0,
+        },
+        "required_status_checks": {
+            "contexts": ["Lint & Type Check", "Tests", "Security Scan", "Build Check"]
+        },
+        "required_linear_history": {"enabled": True},
+        "allow_force_pushes": {"enabled": False},
+        "allow_deletions": {"enabled": False},
+        "required_conversation_resolution": {"enabled": True},
+    }
+    monkeypatch.setattr(infra, "_run", lambda _: json.dumps(payload))
+
+    result = infra._branch_protection("forrest-aleq/stargate-lite", "main")
+
+    assert result.status == "pass"
+    assert result.details["missing"] == []
+
+
+def test_branch_protection_rejects_human_approval_requirement(monkeypatch) -> None:
+    payload = {
+        "enforce_admins": {"enabled": True},
+        "required_pull_request_reviews": {
+            "dismiss_stale_reviews": True,
+            "required_approving_review_count": 1,
+        },
+        "required_status_checks": {
+            "contexts": ["Lint & Type Check", "Tests", "Security Scan", "Build Check"]
+        },
+        "required_linear_history": {"enabled": True},
+        "allow_force_pushes": {"enabled": False},
+        "allow_deletions": {"enabled": False},
+        "required_conversation_resolution": {"enabled": True},
+    }
+    monkeypatch.setattr(infra, "_run", lambda _: json.dumps(payload))
+
+    result = infra._branch_protection("forrest-aleq/stargate-lite", "main")
+
+    assert result.status == "fail"
+    assert result.details["missing"] == ["required_approving_review_count=0"]
+
+
 def test_environment_protection_accepts_protected_branches_without_admin_bypass(
     monkeypatch,
 ) -> None:

@@ -73,6 +73,7 @@ python3 scripts/verify_release_infra.py
 - branch deletion disabled
 - admins included
 - PRs required before merge
+- zero required approving reviews
 - stale approvals dismissed
 - required checks enabled: `Lint & Type Check`, `Tests`, `Security Scan`, and
   `Build Check`
