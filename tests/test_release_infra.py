@@ -47,7 +47,7 @@ def test_branch_protection_accepts_zero_approval_release_lock(monkeypatch) -> No
         "required_linear_history": {"enabled": True},
         "allow_force_pushes": {"enabled": False},
         "allow_deletions": {"enabled": False},
-        "required_conversation_resolution": {"enabled": True},
+        "required_conversation_resolution": {"enabled": False},
     }
     monkeypatch.setattr(infra, "_run", lambda _: json.dumps(payload))
 
@@ -70,7 +70,7 @@ def test_branch_protection_rejects_human_approval_requirement(monkeypatch) -> No
         "required_linear_history": {"enabled": True},
         "allow_force_pushes": {"enabled": False},
         "allow_deletions": {"enabled": False},
-        "required_conversation_resolution": {"enabled": True},
+        "required_conversation_resolution": {"enabled": False},
     }
     monkeypatch.setattr(infra, "_run", lambda _: json.dumps(payload))
 
