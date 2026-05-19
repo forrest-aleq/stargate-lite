@@ -179,8 +179,8 @@ def _branch_protection(repo: str, branch: str) -> CheckResult:
         missing.append("force_pushes_disabled")
     if payload.get("allow_deletions", {}).get("enabled"):
         missing.append("deletions_disabled")
-    if not payload.get("required_conversation_resolution", {}).get("enabled"):
-        missing.append("required_conversation_resolution")
+    if payload.get("required_conversation_resolution", {}).get("enabled"):
+        missing.append("required_conversation_resolution_disabled")
 
     return CheckResult(
         name=f"github.branch.{branch}.protection",

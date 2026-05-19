@@ -78,7 +78,7 @@ python3 scripts/verify_release_infra.py
 - required checks enabled: `Lint & Type Check`, `Tests`, `Security Scan`, and
   `Build Check`
 - required linear history enabled
-- required conversation resolution enabled
+- required conversation resolution disabled
 
 ## Required Deployment Configuration
 
