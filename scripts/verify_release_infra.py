@@ -111,6 +111,30 @@ def _github_variable_names(environment: str) -> set[str]:
     return _parse_names_table(_run(["gh", "variable", "list", "--env", environment]))
 
 
+def _github_environment_protection(repo: str, environment: str) -> CheckResult:
+    payload = json.loads(_run(["gh", "api", f"repos/{repo}/environments/{environment}"]))
+    policy = payload.get("deployment_branch_policy") or {}
+    protection_rules = payload.get("protection_rules") or []
+    missing: list[str] = []
+    if payload.get("can_admins_bypass") is not False:
+        missing.append("admins_cannot_bypass")
+    if not policy.get("protected_branches"):
+        missing.append("protected_branch_deployments")
+    if policy.get("custom_branch_policies"):
+        missing.append("custom_branch_policies_disabled")
+    if not any(rule.get("type") == "branch_policy" for rule in protection_rules):
+        missing.append("branch_policy_rule")
+    return CheckResult(
+        name=f"github.env.{environment}.protection",
+        status="pass" if not missing else "fail",
+        details={
+            "missing": missing,
+            "can_admins_bypass": payload.get("can_admins_bypass"),
+            "deployment_branch_policy": policy,
+        },
+    )
+
+
 def _railway_variables(service: str, environment: str) -> dict[str, Any]:
     raw = _run(
         [
@@ -185,6 +209,7 @@ def _github_checks(repo: str) -> list[CheckResult]:
                 len(variables),
             )
         )
+        results.append(_github_environment_protection(repo, environment))
     for branch in sorted(PROTECTED_BRANCHES):
         results.append(_branch_protection(repo, branch))
     return results
