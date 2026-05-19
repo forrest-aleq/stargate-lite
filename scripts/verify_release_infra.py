@@ -16,6 +16,7 @@ REQUIRED_STATUS_CHECKS = {
     "Security Scan",
     "Build Check",
 }
+REQUIRED_APPROVING_REVIEW_COUNT = 0
 
 REQUIRED_GITHUB = {
     "staging": {
@@ -164,8 +165,10 @@ def _branch_protection(repo: str, branch: str) -> CheckResult:
         missing.append("enforce_admins")
     if not reviews:
         missing.append("required_pull_request_reviews")
-    elif int(reviews.get("required_approving_review_count") or 0) < 1:
-        missing.append("required_approving_review_count>=1")
+    else:
+        review_count = int(reviews.get("required_approving_review_count") or 0)
+        if review_count != REQUIRED_APPROVING_REVIEW_COUNT:
+            missing.append("required_approving_review_count=0")
     if not reviews.get("dismiss_stale_reviews"):
         missing.append("dismiss_stale_reviews")
     if not REQUIRED_STATUS_CHECKS.issubset(contexts):
@@ -185,6 +188,9 @@ def _branch_protection(repo: str, branch: str) -> CheckResult:
         details={
             "missing": missing,
             "pull_request_reviews": bool(reviews),
+            "required_approving_review_count": int(
+                reviews.get("required_approving_review_count") or 0
+            ),
             "required_status_checks": sorted(contexts),
         },
     )
