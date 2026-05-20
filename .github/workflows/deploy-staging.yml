@@ -62,7 +62,15 @@ jobs:
         run: |
           SERVICE_NAME="${RAILWAY_SERVICE_NAME:-stargate-lite}"
           STAGING_ENV="${RAILWAY_STAGING_ENVIRONMENT:-staging}"
-          railway up --ci --service "$SERVICE_NAME" --environment "$STAGING_ENV"
+          for attempt in 1 2 3; do
+            if railway up --ci --service "$SERVICE_NAME" --environment "$STAGING_ENV"; then
+              exit 0
+            fi
+            echo "Railway staging deploy attempt $attempt failed, retrying..."
+            sleep $((attempt * 20))
+          done
+          echo "Railway staging deploy failed after retries"
+          exit 1
 
       - name: Verify staging API
         env:
