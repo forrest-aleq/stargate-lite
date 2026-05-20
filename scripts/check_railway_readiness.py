@@ -18,6 +18,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 CORE_REQUIRED_VARS = (
@@ -34,23 +35,37 @@ def _is_missing(value: str | None) -> bool:
     return value is None or value.strip() == ""
 
 
-def _fetch_railway_vars(environment: str, service: str) -> dict[str, str]:
+def _fetch_railway_vars(environment: str, service: str, attempts: int = 3) -> dict[str, str]:
     cmd = ["railway", "variables", "--environment", environment, "--json"]
     if service:
         cmd.extend(["--service", service])
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
+    last_error = ""
+    for attempt in range(1, attempts + 1):
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            last_error = result.stderr.strip() or result.stdout.strip()
+        else:
+            try:
+                payload = json.loads(result.stdout)
+            except json.JSONDecodeError:
+                last_error = "Railway variables output was not valid JSON"
+            else:
+                break
+
+        if attempt < attempts:
+            print(
+                "Railway variables read failed; retrying "
+                f"({attempt}/{attempts}): {last_error}",
+                file=sys.stderr,
+            )
+            time.sleep(min(10, attempt * 2))
+    else:
         raise RuntimeError(
             "Failed to read Railway variables.\n"
             f"Command: {' '.join(cmd)}\n"
-            f"stderr: {result.stderr.strip()}"
+            f"stderr: {last_error}"
         )
-
-    try:
-        payload = json.loads(result.stdout)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError("Railway variables output was not valid JSON") from exc
 
     if not isinstance(payload, dict):
         raise RuntimeError("Railway variables JSON must be an object")

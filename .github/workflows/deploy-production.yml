@@ -176,7 +176,15 @@ jobs:
         run: |
           SERVICE_NAME="${RAILWAY_SERVICE_NAME:-stargate-lite}"
           PROD_ENV="${RAILWAY_PRODUCTION_ENVIRONMENT:-production}"
-          railway up --ci --service "$SERVICE_NAME" --environment "$PROD_ENV"
+          for attempt in 1 2 3; do
+            if railway up --ci --service "$SERVICE_NAME" --environment "$PROD_ENV"; then
+              exit 0
+            fi
+            echo "Railway production deploy attempt $attempt failed, retrying..."
+            sleep $((attempt * 20))
+          done
+          echo "Railway production deploy failed after retries"
+          exit 1
 
       - name: Verify production API after deploy (with retries)
         env:
