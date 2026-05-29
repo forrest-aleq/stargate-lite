@@ -43,3 +43,8 @@ Run the infra verifier before cutover:
 ```bash
 python3 scripts/verify_release_infra.py
 ```
+
+The verifier also fails if legacy Railway deploy secrets or variables remain in
+GitHub environments, or if `STAGING_URL` / `PRODUCTION_URL` still points at a
+`*.railway.app` host. Runtime URL variables must target Cloud Run or the
+production custom domain before `ENABLE_CLOUD_RUN_DEPLOY=true`.

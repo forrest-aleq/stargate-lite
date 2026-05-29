@@ -9,6 +9,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlparse
 
 REQUIRED_STATUS_CHECKS = {
     "Lint & Type Check",
@@ -36,6 +37,17 @@ REQUIRED_GITHUB = {
             "STAGING_MIN_CAPABILITIES",
             "STAGING_URL",
         },
+        "forbidden_secrets": {
+            "RAILWAY_TOKEN",
+            "RAILWAY_TOKEN_STAGING",
+        },
+        "forbidden_variables": {
+            "RAILWAY_SERVICE_NAME",
+            "RAILWAY_STAGING_ENVIRONMENT",
+        },
+        "forbidden_railway_url_variables": {
+            "STAGING_URL",
+        },
     },
     "production": {
         "secrets": {
@@ -51,6 +63,17 @@ REQUIRED_GITHUB = {
             "GCP_REGION",
             "GCP_SERVICE_ACCOUNT",
             "GCP_WORKLOAD_IDENTITY_PROVIDER",
+            "PRODUCTION_URL",
+        },
+        "forbidden_secrets": {
+            "RAILWAY_TOKEN",
+            "RAILWAY_TOKEN_PRODUCTION",
+        },
+        "forbidden_variables": {
+            "RAILWAY_PRODUCTION_ENVIRONMENT",
+            "RAILWAY_SERVICE_NAME",
+        },
+        "forbidden_railway_url_variables": {
             "PRODUCTION_URL",
         },
     },
@@ -92,6 +115,10 @@ def _missing(required: set[str], present: set[str]) -> list[str]:
     return sorted(required - present)
 
 
+def _present(forbidden: set[str], present: set[str]) -> list[str]:
+    return sorted(forbidden & present)
+
+
 def _result(name: str, missing: list[str], present_count: int) -> CheckResult:
     return CheckResult(
         name=name,
@@ -107,8 +134,70 @@ def _github_secret_names(environment: str) -> set[str]:
     return _parse_names_table(_run(["gh", "secret", "list", "--env", environment]))
 
 
-def _github_variable_names(environment: str) -> set[str]:
-    return _parse_names_table(_run(["gh", "variable", "list", "--env", environment]))
+def _github_variables(environment: str) -> dict[str, str]:
+    output = _run(
+        ["gh", "variable", "list", "--env", environment, "--json", "name,value"]
+    )
+    variables = json.loads(output)
+    return {
+        str(variable.get("name") or ""): str(variable.get("value") or "")
+        for variable in variables
+        if variable.get("name")
+    }
+
+
+def _is_railway_url(value: str) -> bool:
+    parsed = urlparse(value)
+    host = parsed.netloc.lower()
+    if not host:
+        host = value.lower()
+    return host.endswith(".railway.app") or ".railway.app/" in value.lower()
+
+
+def _railway_url_variables(
+    required_cloud_run_urls: set[str], variables: dict[str, str]
+) -> list[str]:
+    return sorted(
+        name
+        for name in required_cloud_run_urls
+        if name in variables and _is_railway_url(variables[name])
+    )
+
+
+def _forbidden_result(
+    environment: str,
+    requirements: dict[str, set[str]],
+    secrets: set[str],
+    variables: dict[str, str],
+) -> CheckResult:
+    variable_names = set(variables)
+    forbidden = [
+        *[
+            f"secret:{name}"
+            for name in _present(requirements.get("forbidden_secrets", set()), secrets)
+        ],
+        *[
+            f"variable:{name}"
+            for name in _present(
+                requirements.get("forbidden_variables", set()), variable_names
+            )
+        ],
+        *[
+            f"railway_url:{name}"
+            for name in _railway_url_variables(
+                requirements.get("forbidden_railway_url_variables", set()),
+                variables,
+            )
+        ],
+    ]
+    return CheckResult(
+        name=f"github.env.{environment}.legacy_railway",
+        status="pass" if not forbidden else "fail",
+        details={
+            "forbidden": sorted(forbidden),
+            "missing": sorted(forbidden),
+        },
+    )
 
 
 def _github_environment_protection(repo: str, environment: str) -> CheckResult:
@@ -181,7 +270,8 @@ def _github_checks(repo: str) -> list[CheckResult]:
     results: list[CheckResult] = []
     for environment, requirements in REQUIRED_GITHUB.items():
         secrets = _github_secret_names(environment)
-        variables = _github_variable_names(environment)
+        variables = _github_variables(environment)
+        variable_names = set(variables)
         results.append(
             _result(
                 f"github.env.{environment}.secrets",
@@ -192,10 +282,11 @@ def _github_checks(repo: str) -> list[CheckResult]:
         results.append(
             _result(
                 f"github.env.{environment}.variables",
-                _missing(requirements["variables"], variables),
-                len(variables),
+                _missing(requirements["variables"], variable_names),
+                len(variable_names),
             )
         )
+        results.append(_forbidden_result(environment, requirements, secrets, variables))
         results.append(_github_environment_protection(repo, environment))
     for branch in sorted(PROTECTED_BRANCHES):
         results.append(_branch_protection(repo, branch))
