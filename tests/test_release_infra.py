@@ -16,22 +16,22 @@ def test_missing_is_sorted() -> None:
 
 
 def test_result_marks_missing_as_failure() -> None:
-    result = infra._result("github.env.production.secrets", ["RAILWAY_TOKEN_PRODUCTION"], 1)
+    result = infra._result("github.env.production.variables", ["GCP_PROJECT_ID"], 1)
 
     assert result.status == "fail"
-    assert result.details["missing"] == ["RAILWAY_TOKEN_PRODUCTION"]
+    assert result.details["missing"] == ["GCP_PROJECT_ID"]
 
 
 def test_payload_fails_when_any_check_fails() -> None:
     checks = [
         infra.CheckResult("ok", "pass", {"missing": []}),
-        infra.CheckResult("bad", "fail", {"missing": ["RAILWAY_TOKEN_STAGING"]}),
+        infra.CheckResult("bad", "fail", {"missing": ["GCP_CLOUD_RUN_SERVICE"]}),
     ]
 
-    payload = infra._payload("forrest-aleq/stargate-lite", checks, "stargate-lite", "Stargate Lite")
+    payload = infra._payload("forrest-aleq/stargate-lite", checks)
 
     assert payload["status"] == "fail"
-    assert payload["railway_services"]["staging"] == "stargate-lite"
+    assert payload["runtime"] == "gcp-cloud-run"
 
 
 def test_branch_protection_accepts_zero_approval_release_lock(monkeypatch) -> None:

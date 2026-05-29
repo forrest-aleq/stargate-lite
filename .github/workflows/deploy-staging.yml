@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: stargate-staging-deploy
@@ -15,10 +16,10 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy to Railway Staging
+    name: Deploy to Cloud Run Staging
     runs-on: ubuntu-latest
     environment: staging
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && vars.ENABLE_CLOUD_RUN_DEPLOY == 'true' }}
     steps:
       - name: Verify CI passed
         if: ${{ github.event.workflow_run.conclusion != 'success' }}
@@ -38,39 +39,70 @@ jobs:
       - name: Install verification dependencies
         run: pip install requests
 
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
-      - name: Preflight staging environment
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
-          RAILWAY_SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
-          RAILWAY_STAGING_ENVIRONMENT: ${{ vars.RAILWAY_STAGING_ENVIRONMENT }}
-        run: |
-          SERVICE_NAME="${RAILWAY_SERVICE_NAME:-stargate-lite}"
-          STAGING_ENV="${RAILWAY_STAGING_ENVIRONMENT:-staging}"
-          python scripts/check_railway_readiness.py \
-            --environment "$STAGING_ENV" \
-            --service "$SERVICE_NAME" \
-            --expect-env-value staging
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v3
 
-      - name: Deploy to staging
+      - id: image
+        name: Build and push image
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
-          RAILWAY_SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
-          RAILWAY_STAGING_ENVIRONMENT: ${{ vars.RAILWAY_STAGING_ENVIRONMENT }}
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          REGISTRY_LOCATION: ${{ vars.GCP_ARTIFACT_REGISTRY_LOCATION }}
+          REPOSITORY: ${{ vars.GCP_ARTIFACT_REGISTRY_REPOSITORY }}
         run: |
-          SERVICE_NAME="${RAILWAY_SERVICE_NAME:-stargate-lite}"
-          STAGING_ENV="${RAILWAY_STAGING_ENVIRONMENT:-staging}"
-          for attempt in 1 2 3; do
-            if railway up --ci --service "$SERVICE_NAME" --environment "$STAGING_ENV"; then
-              exit 0
+          set -euo pipefail
+          for name in PROJECT_ID REGISTRY_LOCATION REPOSITORY; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is required for Cloud Run deploys."
+              exit 1
             fi
-            echo "Railway staging deploy attempt $attempt failed, retrying..."
-            sleep $((attempt * 20))
           done
-          echo "Railway staging deploy failed after retries"
-          exit 1
+          SOURCE_SHA="${{ github.event.workflow_run.head_sha }}"
+          REGISTRY_HOST="${REGISTRY_LOCATION}-docker.pkg.dev"
+          IMAGE_URI="${REGISTRY_HOST}/${PROJECT_ID}/${REPOSITORY}/stargate-lite:${SOURCE_SHA}"
+          gcloud auth configure-docker "$REGISTRY_HOST" --quiet
+          docker build --tag "$IMAGE_URI" .
+          docker push "$IMAGE_URI"
+          echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to Cloud Run
+        env:
+          IMAGE_URI: ${{ steps.image.outputs.image_uri }}
+          SOURCE_SHA: ${{ steps.image.outputs.source_sha }}
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          REGION: ${{ vars.GCP_REGION }}
+          SERVICE_NAME: ${{ vars.GCP_CLOUD_RUN_SERVICE }}
+          EXTRA_ENV_VARS: ${{ vars.GCP_CLOUD_RUN_ENV_VARS }}
+          SECRET_MAPPINGS: ${{ vars.GCP_CLOUD_RUN_SECRETS }}
+        run: |
+          set -euo pipefail
+          for name in IMAGE_URI SOURCE_SHA PROJECT_ID REGION SERVICE_NAME SECRET_MAPPINGS; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is required for Cloud Run deploys."
+              exit 1
+            fi
+          done
+          BUILD_TIME="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          RUNTIME_ENV="STARGATE_BUILD_SHA=${SOURCE_SHA},STARGATE_BUILD_TIME=${BUILD_TIME},STARGATE_DEPLOYMENT_ID=${GITHUB_RUN_ID},STARGATE_ENVIRONMENT=staging,ENVIRONMENT=staging"
+          if [ -n "${EXTRA_ENV_VARS:-}" ]; then
+            RUNTIME_ENV="${RUNTIME_ENV},${EXTRA_ENV_VARS}"
+          fi
+          gcloud run deploy "$SERVICE_NAME" \
+            --project "$PROJECT_ID" \
+            --region "$REGION" \
+            --platform managed \
+            --image "$IMAGE_URI" \
+            --allow-unauthenticated \
+            --update-env-vars "$RUNTIME_ENV" \
+            --set-secrets "$SECRET_MAPPINGS" \
+            --quiet
 
       - name: Verify staging API
         env:
@@ -83,6 +115,7 @@ jobs:
             if python scripts/verify_remote_api.py \
               --base-url "$STAGING_URL" \
               --api-key "$STAGING_API_KEY" \
+              --expected-sha "${{ github.event.workflow_run.head_sha }}" \
               --min-capabilities "$MIN_CAPS"; then
               exit 0
             fi

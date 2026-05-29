@@ -476,6 +476,28 @@
           "version": "0.9.0"
         },
         "properties": {
+          "build": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Runtime build provenance for deployed instances",
+            "title": "Build"
+          },
           "capabilities_count": {
             "anyOf": [
               {
@@ -4969,6 +4991,29 @@
         "tags": [
           "oauth",
           "oauth"
+        ]
+      }
+    },
+    "/version": {
+      "get": {
+        "description": "Deployment provenance for release verification and admin visibility.",
+        "operationId": "version_version_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Version Version Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Version",
+        "tags": [
+          "health"
         ]
       }
     },
