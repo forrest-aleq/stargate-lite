@@ -16,6 +16,9 @@ Configure these in both `staging` and `production` GitHub environments:
 - `GCP_CLOUD_RUN_SERVICE`
 - `GCP_CLOUD_RUN_SECRETS`
 - `GCP_CLOUD_RUN_ENV_VARS` optional
+- `ENABLE_CLOUD_RUN_DEPLOY`, set to `true` only after the GCP project,
+  Artifact Registry repository, service account, Workload Identity provider,
+  Cloud Run service, and Secret Manager mappings exist
 - `STAGING_URL` or `PRODUCTION_URL`
 
 `GCP_CLOUD_RUN_SECRETS` is passed directly to `gcloud run deploy --set-secrets`.

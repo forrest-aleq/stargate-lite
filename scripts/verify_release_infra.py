@@ -24,6 +24,7 @@ REQUIRED_GITHUB = {
             "STAGING_API_KEY",
         },
         "variables": {
+            "ENABLE_CLOUD_RUN_DEPLOY",
             "GCP_ARTIFACT_REGISTRY_LOCATION",
             "GCP_ARTIFACT_REGISTRY_REPOSITORY",
             "GCP_CLOUD_RUN_SECRETS",
@@ -41,6 +42,7 @@ REQUIRED_GITHUB = {
             "PRODUCTION_API_KEY",
         },
         "variables": {
+            "ENABLE_CLOUD_RUN_DEPLOY",
             "GCP_ARTIFACT_REGISTRY_LOCATION",
             "GCP_ARTIFACT_REGISTRY_REPOSITORY",
             "GCP_CLOUD_RUN_SECRETS",
