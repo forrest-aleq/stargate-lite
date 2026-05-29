@@ -102,3 +102,8 @@ The `production` GitHub environment must contain:
 `GCP_CLOUD_RUN_SECRETS` is passed to `gcloud run deploy --set-secrets`; it must
 include the runtime values Stargate needs, including `API_SECRET_KEY`,
 `DATABASE_URL`, `ENABLED_SERVICES`, `ENCRYPTION_KEY`, and `REDIS_URL`.
+
+The release-infra verifier must also show no legacy Railway controls. GitHub
+environment secrets such as `RAILWAY_TOKEN*`, variables such as
+`RAILWAY_SERVICE_NAME` / `RAILWAY_*_ENVIRONMENT`, and runtime URL variables that
+still point at `*.railway.app` are release blockers for Cloud Run.

@@ -1,19 +1,21 @@
 #!/usr/bin/env bash
-# Safe Stargate rollback script
-# Usage: ./scripts/rollback.sh <environment> <git-ref> [service]
-# Example: ./scripts/rollback.sh production a1b2c3d stargate-lite
+# Roll Stargate Lite Cloud Run traffic back to an existing revision.
+# Usage: ./scripts/rollback.sh <environment> <revision> [service]
+# Example: ./scripts/rollback.sh production stargate-lite-00042-ab3 stargate-lite
 
 set -euo pipefail
 
 ENVIRONMENT="${1:-}"
-GIT_REF="${2:-}"
-SERVICE_NAME="${3:-${RAILWAY_SERVICE_NAME:-stargate-lite}}"
+REVISION="${2:-}"
+SERVICE_NAME="${3:-${GCP_CLOUD_RUN_SERVICE:-stargate-lite}}"
+PROJECT_ID="${GCP_PROJECT_ID:-}"
+REGION="${GCP_REGION:-}"
 
-if [[ -z "${ENVIRONMENT}" || -z "${GIT_REF}" ]]; then
-    echo "Usage: $0 <environment> <git-ref> [service]"
+if [[ -z "${ENVIRONMENT}" || -z "${REVISION}" ]]; then
+    echo "Usage: $0 <environment> <revision> [service]"
     echo "  environment: staging or production"
-    echo "  git-ref: commit SHA / tag / branch to deploy"
-    echo "  service: optional Railway service name (default: stargate-lite)"
+    echo "  revision: existing Cloud Run revision name"
+    echo "  service: optional Cloud Run service name (default: GCP_CLOUD_RUN_SERVICE or stargate-lite)"
     exit 1
 fi
 
@@ -22,8 +24,13 @@ if [[ "${ENVIRONMENT}" != "staging" && "${ENVIRONMENT}" != "production" ]]; then
     exit 1
 fi
 
+if [[ -z "${PROJECT_ID}" || -z "${REGION}" ]]; then
+    echo "GCP_PROJECT_ID and GCP_REGION must be exported before rollback."
+    exit 1
+fi
+
 if [[ "${ENVIRONMENT}" == "production" ]]; then
-    echo "Production rollback requested"
+    echo "Production rollback requested for ${SERVICE_NAME} to revision ${REVISION}"
     read -r -p "Type 'rollback-production' to continue: " confirm
     if [[ "${confirm}" != "rollback-production" ]]; then
         echo "Aborted"
@@ -31,21 +38,21 @@ if [[ "${ENVIRONMENT}" == "production" ]]; then
     fi
 fi
 
-TMP_DIR="$(mktemp -d)"
-cleanup() {
-    git worktree remove --force "${TMP_DIR}" >/dev/null 2>&1 || true
-    rm -rf "${TMP_DIR}" >/dev/null 2>&1 || true
-}
-trap cleanup EXIT
+echo "Sending 100% ${ENVIRONMENT} traffic for ${SERVICE_NAME} to ${REVISION}"
+gcloud run services update-traffic "${SERVICE_NAME}" \
+    --project "${PROJECT_ID}" \
+    --region "${REGION}" \
+    --to-revisions "${REVISION}=100"
 
-echo "Preparing rollback source at ref '${GIT_REF}'"
-git worktree add --detach "${TMP_DIR}" "${GIT_REF}"
+if [[ "${ENVIRONMENT}" == "production" ]]; then
+    HEALTH_URL="${PRODUCTION_URL:-}"
+else
+    HEALTH_URL="${STAGING_URL:-}"
+fi
 
-echo "Deploying ref '${GIT_REF}' to ${ENVIRONMENT} (${SERVICE_NAME})"
-railway deployment up "${TMP_DIR}" \
-    --path-as-root \
-    --ci \
-    --service "${SERVICE_NAME}" \
-    --environment "${ENVIRONMENT}"
+if [[ -n "${HEALTH_URL}" ]]; then
+    echo "Checking ${HEALTH_URL%/}/health"
+    curl -fsS "${HEALTH_URL%/}/health" >/dev/null
+fi
 
-echo "Rollback deployment submitted successfully"
+echo "Rollback traffic update completed"
