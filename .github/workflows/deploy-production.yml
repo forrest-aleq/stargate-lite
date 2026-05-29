@@ -17,6 +17,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: stargate-production-deploy
@@ -77,22 +78,6 @@ jobs:
       - name: Install verification dependencies
         run: pip install requests
 
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Verify staging Railway readiness
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
-          RAILWAY_SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
-          RAILWAY_STAGING_ENVIRONMENT: ${{ vars.RAILWAY_STAGING_ENVIRONMENT }}
-        run: |
-          SERVICE_NAME="${RAILWAY_SERVICE_NAME:-stargate-lite}"
-          STAGING_ENV="${RAILWAY_STAGING_ENVIRONMENT:-staging}"
-          python scripts/check_railway_readiness.py \
-            --environment "$STAGING_ENV" \
-            --service "$SERVICE_NAME" \
-            --expect-env-value staging
-
       - name: Verify staging API health and smoke tests
         env:
           STAGING_URL: ${{ vars.STAGING_URL }}
@@ -121,23 +106,8 @@ jobs:
       - name: Install verification dependencies
         run: pip install requests
 
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Verify production Railway readiness
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
-          RAILWAY_SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
-          RAILWAY_PRODUCTION_ENVIRONMENT: ${{ vars.RAILWAY_PRODUCTION_ENVIRONMENT }}
-        run: |
-          SERVICE_NAME="${RAILWAY_SERVICE_NAME:-stargate-lite}"
-          PROD_ENV="${RAILWAY_PRODUCTION_ENVIRONMENT:-production}"
-          python scripts/check_railway_readiness.py \
-            --environment "$PROD_ENV" \
-            --service "$SERVICE_NAME" \
-            --expect-env-value production
-
       - name: Verify current production health before deploy
+        if: vars.REQUIRE_CURRENT_PRODUCTION_HEALTH == 'true'
         run: |
           response=$(curl -s "${{ vars.PRODUCTION_URL }}/health")
           status=$(python -c 'import json,sys; print(json.loads(sys.argv[1]).get("status",""))' "$response")
@@ -147,7 +117,7 @@ jobs:
           fi
 
   deploy:
-    name: Deploy to Railway Production
+    name: Deploy to Cloud Run Production
     needs: [provenance, staging-preflight, production-preflight]
     runs-on: ubuntu-latest
     environment: production
@@ -165,36 +135,82 @@ jobs:
       - name: Install verification dependencies
         run: pip install requests
 
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v3
+
+      - id: image
+        name: Build and push image
+        env:
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          REGISTRY_LOCATION: ${{ vars.GCP_ARTIFACT_REGISTRY_LOCATION }}
+          REPOSITORY: ${{ vars.GCP_ARTIFACT_REGISTRY_REPOSITORY }}
+        run: |
+          set -euo pipefail
+          for name in PROJECT_ID REGISTRY_LOCATION REPOSITORY; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is required for Cloud Run deploys."
+              exit 1
+            fi
+          done
+          SOURCE_SHA="$(git rev-parse HEAD)"
+          REGISTRY_HOST="${REGISTRY_LOCATION}-docker.pkg.dev"
+          IMAGE_URI="${REGISTRY_HOST}/${PROJECT_ID}/${REPOSITORY}/stargate-lite:${SOURCE_SHA}"
+          gcloud auth configure-docker "$REGISTRY_HOST" --quiet
+          docker build --tag "$IMAGE_URI" .
+          docker push "$IMAGE_URI"
+          echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Deploy to Production
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
-          RAILWAY_SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
-          RAILWAY_PRODUCTION_ENVIRONMENT: ${{ vars.RAILWAY_PRODUCTION_ENVIRONMENT }}
+          IMAGE_URI: ${{ steps.image.outputs.image_uri }}
+          SOURCE_SHA: ${{ steps.image.outputs.source_sha }}
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          REGION: ${{ vars.GCP_REGION }}
+          SERVICE_NAME: ${{ vars.GCP_CLOUD_RUN_SERVICE }}
+          EXTRA_ENV_VARS: ${{ vars.GCP_CLOUD_RUN_ENV_VARS }}
+          SECRET_MAPPINGS: ${{ vars.GCP_CLOUD_RUN_SECRETS }}
         run: |
-          SERVICE_NAME="${RAILWAY_SERVICE_NAME:-stargate-lite}"
-          PROD_ENV="${RAILWAY_PRODUCTION_ENVIRONMENT:-production}"
-          for attempt in 1 2 3; do
-            if railway up --ci --service "$SERVICE_NAME" --environment "$PROD_ENV"; then
-              exit 0
+          set -euo pipefail
+          for name in IMAGE_URI SOURCE_SHA PROJECT_ID REGION SERVICE_NAME SECRET_MAPPINGS; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is required for Cloud Run deploys."
+              exit 1
             fi
-            echo "Railway production deploy attempt $attempt failed, retrying..."
-            sleep $((attempt * 20))
           done
-          echo "Railway production deploy failed after retries"
-          exit 1
+          BUILD_TIME="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          RUNTIME_ENV="STARGATE_BUILD_SHA=${SOURCE_SHA},STARGATE_BUILD_TIME=${BUILD_TIME},STARGATE_DEPLOYMENT_ID=${GITHUB_RUN_ID},STARGATE_ENVIRONMENT=production,ENVIRONMENT=production"
+          if [ -n "${EXTRA_ENV_VARS:-}" ]; then
+            RUNTIME_ENV="${RUNTIME_ENV},${EXTRA_ENV_VARS}"
+          fi
+          gcloud run deploy "$SERVICE_NAME" \
+            --project "$PROJECT_ID" \
+            --region "$REGION" \
+            --platform managed \
+            --image "$IMAGE_URI" \
+            --allow-unauthenticated \
+            --update-env-vars "$RUNTIME_ENV" \
+            --set-secrets "$SECRET_MAPPINGS" \
+            --quiet
 
       - name: Verify production API after deploy (with retries)
         env:
           PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
           PRODUCTION_API_KEY: ${{ secrets.PRODUCTION_API_KEY }}
+          SOURCE_SHA: ${{ steps.image.outputs.source_sha }}
         run: |
           for attempt in 1 2 3 4 5; do
             if python scripts/verify_remote_api.py \
               --base-url "$PRODUCTION_URL" \
               --api-key "$PRODUCTION_API_KEY" \
+              --expected-sha "$SOURCE_SHA" \
               --min-capabilities "${{ github.event.inputs.min_capabilities }}"; then
               exit 0
             fi

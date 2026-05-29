@@ -181,6 +181,9 @@ class HealthResponse(BaseModel):
     services: dict[str, str] = Field(
         default_factory=dict, description="Status of dependent services"
     )
+    build: dict[str, str | None] | None = Field(
+        None, description="Runtime build provenance for deployed instances"
+    )
 
     class Config:
         json_schema_extra: ClassVar[dict[str, Any]] = {

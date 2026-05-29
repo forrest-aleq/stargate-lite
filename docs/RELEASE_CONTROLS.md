@@ -57,9 +57,9 @@ tested unit.
   because deploy secrets and variables are environment-scoped.
 - `.github/workflows/ci.yml` runs PR checks for both `main` and `staging`, so
   both protected branches can require the same CI contexts.
-- `scripts/verify_release_infra.py` checks GitHub environment secrets/variables,
-  branch protection, and Railway runtime variables without printing secret
-  values:
+- `scripts/verify_release_infra.py` checks GitHub environment secrets/variables
+  and branch protection without printing secret values. Runtime secrets live in
+  GCP Secret Manager and are attached through `GCP_CLOUD_RUN_SECRETS`:
 
 ```bash
 python3 scripts/verify_release_infra.py
@@ -84,16 +84,20 @@ python3 scripts/verify_release_infra.py
 
 The `staging` GitHub environment must contain:
 
-- secrets: `RAILWAY_TOKEN_STAGING`, `STAGING_API_KEY`
-- variables: `RAILWAY_SERVICE_NAME`, `RAILWAY_STAGING_ENVIRONMENT`,
-  `STAGING_MIN_CAPABILITIES`, `STAGING_URL`
+- secrets: `STAGING_API_KEY`
+- variables: `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_WORKLOAD_IDENTITY_PROVIDER`,
+  `GCP_SERVICE_ACCOUNT`, `GCP_ARTIFACT_REGISTRY_LOCATION`,
+  `GCP_ARTIFACT_REGISTRY_REPOSITORY`, `GCP_CLOUD_RUN_SERVICE`,
+  `GCP_CLOUD_RUN_SECRETS`, `STAGING_MIN_CAPABILITIES`, `STAGING_URL`
 
 The `production` GitHub environment must contain:
 
-- secrets: `RAILWAY_TOKEN_PRODUCTION`, `PRODUCTION_API_KEY`
-- variables: `PRODUCTION_URL`, `RAILWAY_PRODUCTION_ENVIRONMENT`,
-  `RAILWAY_SERVICE_NAME`
+- secrets: `PRODUCTION_API_KEY`
+- variables: `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_WORKLOAD_IDENTITY_PROVIDER`,
+  `GCP_SERVICE_ACCOUNT`, `GCP_ARTIFACT_REGISTRY_LOCATION`,
+  `GCP_ARTIFACT_REGISTRY_REPOSITORY`, `GCP_CLOUD_RUN_SERVICE`,
+  `GCP_CLOUD_RUN_SECRETS`, `PRODUCTION_URL`
 
-Railway `staging` and `production` must both contain core runtime variables:
-`API_SECRET_KEY`, `DATABASE_URL`, `ENABLED_SERVICES`, `ENCRYPTION_KEY`,
-`ENVIRONMENT`, and `REDIS_URL`.
+`GCP_CLOUD_RUN_SECRETS` is passed to `gcloud run deploy --set-secrets`; it must
+include the runtime values Stargate needs, including `API_SECRET_KEY`,
+`DATABASE_URL`, `ENABLED_SERVICES`, `ENCRYPTION_KEY`, and `REDIS_URL`.
