@@ -1,7 +1,8 @@
 # Stargate Lite Cloud Run Deployment
 
-Stargate Lite deploys to Cloud Run through GitHub Actions OIDC. Do not store
-long-lived GCP JSON service account keys in GitHub.
+This is a future migration note, not the active production path. Stargate Lite
+currently deploys to Railway. If Cloud Run is revived, use GitHub Actions OIDC
+and do not store long-lived GCP JSON service account keys in GitHub.
 
 ## GitHub Environment Variables
 
@@ -28,7 +29,7 @@ Use comma-separated mappings, for example:
 API_SECRET_KEY=API_SECRET_KEY:latest,DATABASE_URL=DATABASE_URL:latest,ENABLED_SERVICES=ENABLED_SERVICES:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,REDIS_URL=REDIS_URL:latest
 ```
 
-## Deployment Gates
+## Future Deployment Gates
 
 - `deploy-staging.yml` runs after `staging` CI succeeds.
 - `deploy-production.yml` is manually dispatched and requires
@@ -38,13 +39,11 @@ API_SECRET_KEY=API_SECRET_KEY:latest,DATABASE_URL=DATABASE_URL:latest,ENABLED_SE
   verify `/health`, `/version`, `/api/v1/capabilities`, and a smoke
   `/api/v1/execute`.
 
-Run the infra verifier before cutover:
+Before making Cloud Run active again, update `scripts/verify_release_infra.py`
+and the deploy workflows to require the Cloud Run variables above, then run:
 
 ```bash
 python3 scripts/verify_release_infra.py
 ```
 
-The verifier also fails if legacy Railway deploy secrets or variables remain in
-GitHub environments, or if `STAGING_URL` / `PRODUCTION_URL` still points at a
-`*.railway.app` host. Runtime URL variables must target Cloud Run or the
-production custom domain before `ENABLE_CLOUD_RUN_DEPLOY=true`.
+The active verifier currently checks Railway configuration.
