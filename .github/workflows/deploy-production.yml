@@ -133,12 +133,6 @@ jobs:
           PRODUCTION_ENV: ${{ vars.RAILWAY_PRODUCTION_ENVIRONMENT }}
         run: |
           set -euo pipefail
-          if [ -n "${RAILWAY_PROJECT_ID:-}" ]; then
-            railway link \
-              --project "$RAILWAY_PROJECT_ID" \
-              --environment "$PRODUCTION_ENV" \
-              --service "$SERVICE_NAME"
-          fi
           python scripts/check_railway_readiness.py \
             --environment "$PRODUCTION_ENV" \
             --service "$SERVICE_NAME" \
@@ -210,13 +204,15 @@ jobs:
           done
           retry_railway() {
             local attempt
+            local status
             local delay=15
             local max_attempts=5
             for attempt in $(seq 1 "$max_attempts"); do
               if railway "$@"; then
                 return 0
+              else
+                status="$?"
               fi
-              local status="$?"
               if [ "$attempt" -eq "$max_attempts" ]; then
                 return "$status"
               fi
@@ -225,12 +221,6 @@ jobs:
               delay=$((delay * 2))
             done
           }
-          if [ -n "${RAILWAY_PROJECT_ID:-}" ]; then
-            retry_railway link \
-              --project "$RAILWAY_PROJECT_ID" \
-              --environment "$PRODUCTION_ENV" \
-              --service "$SERVICE_NAME"
-          fi
           SOURCE_SHA="$(git rev-parse HEAD)"
           BUILD_TIME="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
           retry_railway variable set \
