@@ -133,6 +133,21 @@ jobs:
             --service "$SERVICE_NAME" \
             --expect-env-value production
 
+      - name: Require production verification inputs
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+          PRODUCTION_API_KEY: ${{ secrets.PRODUCTION_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PRODUCTION_URL:-}" ]; then
+            echo "::error::PRODUCTION_URL is required before deploying Stargate production."
+            exit 1
+          fi
+          if [ -z "${PRODUCTION_API_KEY:-}" ]; then
+            echo "::error::PRODUCTION_API_KEY is required before deploying Stargate production."
+            exit 1
+          fi
+
       - name: Verify current production health before deploy
         if: vars.REQUIRE_CURRENT_PRODUCTION_HEALTH == 'true'
         run: |
