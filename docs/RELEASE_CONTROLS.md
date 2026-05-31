@@ -55,6 +55,10 @@ tested unit.
   staging preflight under the `staging` GitHub environment and production
   preflight/deploy under the `production` GitHub environment. This is required
   because deploy secrets and variables are environment-scoped.
+- `railway.json` sets a production-only watch pattern on
+  `.railway/manual-production-deploy-trigger`. Normal pushes to `main` should
+  not autodeploy production; production deploys must come from the explicit
+  GitHub workflow.
 - `.github/workflows/audit-railway-readiness.yml` runs the same Railway
   readiness checks without deploying. Use it when production is not ready and
   the team needs a current missing-variable artifact instead of starting a
