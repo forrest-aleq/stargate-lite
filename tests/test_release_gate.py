@@ -17,6 +17,7 @@ def _run_gate(
     staging_sha: str,
     is_ancestor: Callable[[str, str], bool],
     tree: Callable[[str], str] | None = None,
+    branch_contains_tree: Callable[[str, str], bool] | None = None,
 ) -> int:
     monkeypatch.setattr(release_gate, "_fetch_refs", lambda *_args: None)
     monkeypatch.setattr(
@@ -31,6 +32,8 @@ def _run_gate(
     monkeypatch.setattr(release_gate, "_is_ancestor", is_ancestor)
     if tree is not None:
         monkeypatch.setattr(release_gate, "_tree", tree)
+    if branch_contains_tree is not None:
+        monkeypatch.setattr(release_gate, "_branch_contains_tree", branch_contains_tree)
     monkeypatch.setattr(
         sys,
         "argv",
@@ -49,9 +52,29 @@ def test_promotion_requires_main_to_be_contained_in_staging(
         main_sha="main",
         staging_sha="staging",
         is_ancestor=lambda ancestor, descendant: ancestor == descendant,
+        branch_contains_tree=lambda _ref, _tree_sha: False,
     )
 
     assert result == 1
+
+
+def test_promotion_accepts_squash_merged_main_content_in_staging_history(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = _run_gate(
+        monkeypatch,
+        mode="promotion",
+        target_sha="staging",
+        main_sha="main",
+        staging_sha="staging",
+        is_ancestor=lambda ancestor, descendant: ancestor == descendant,
+        tree=lambda ref: "main-tree" if ref == "main" else ref,
+        branch_contains_tree=lambda ref, tree_sha: (
+            ref == "origin/staging" and tree_sha == "main-tree"
+        ),
+    )
+
+    assert result == 0
 
 
 def test_production_accepts_main_merge_commit_with_staging_tree(

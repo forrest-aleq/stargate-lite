@@ -100,7 +100,7 @@ jobs:
 
           ### Verification
           - Release provenance gate passed
-          - origin/main is contained in origin/staging
+          - origin/main content is represented in origin/staging history
           - target commit is contained in origin/staging
           - staging API smoke passed or was explicitly skipped
 
