@@ -14,6 +14,7 @@ It does not print secret values. It only reports presence/absence.
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import re
 import subprocess
@@ -55,16 +56,13 @@ def _fetch_railway_vars(environment: str, service: str, attempts: int = 3) -> di
 
         if attempt < attempts:
             print(
-                "Railway variables read failed; retrying "
-                f"({attempt}/{attempts}): {last_error}",
+                f"Railway variables read failed; retrying ({attempt}/{attempts}): {last_error}",
                 file=sys.stderr,
             )
             time.sleep(min(10, attempt * 2))
     else:
         raise RuntimeError(
-            "Failed to read Railway variables.\n"
-            f"Command: {' '.join(cmd)}\n"
-            f"stderr: {last_error}"
+            f"Failed to read Railway variables.\nCommand: {' '.join(cmd)}\nstderr: {last_error}"
         )
 
     if not isinstance(payload, dict):
@@ -97,8 +95,52 @@ def _load_key_gate_map(registry_path: Path) -> dict[str, str]:
     return dict(pairs)
 
 
+def _load_customer_connect_requirements(constants_path: Path) -> dict[str, tuple[str, ...]]:
+    tree = ast.parse(constants_path.read_text(), filename=str(constants_path))
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            is_target = any(
+                isinstance(target, ast.Name) and target.id == "CUSTOMER_CONNECT_ENV_REQUIREMENTS"
+                for target in node.targets
+            )
+            value = node.value
+        elif isinstance(node, ast.AnnAssign):
+            is_target = (
+                isinstance(node.target, ast.Name)
+                and node.target.id == "CUSTOMER_CONNECT_ENV_REQUIREMENTS"
+            )
+            value = node.value
+        else:
+            continue
+        if not is_target or value is None:
+            continue
+        value = ast.literal_eval(value)
+        if not isinstance(value, dict):
+            raise RuntimeError(
+                f"CUSTOMER_CONNECT_ENV_REQUIREMENTS in {constants_path} must be a dict"
+            )
+        return {
+            str(service): tuple(str(env_var) for env_var in env_vars)
+            for service, env_vars in value.items()
+        }
+    raise RuntimeError(f"Unable to parse CUSTOMER_CONNECT_ENV_REQUIREMENTS from {constants_path}")
+
+
 def _parse_enabled_services(value: str) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def _missing_customer_connect_vars(
+    vars_map: dict[str, str],
+    enabled_services: list[str],
+    requirements: dict[str, tuple[str, ...]],
+) -> list[str]:
+    missing: list[str] = []
+    for service in enabled_services:
+        for env_var in requirements.get(service, ()):
+            if _is_missing(vars_map.get(env_var)):
+                missing.append(f"{service}:{env_var}")
+    return missing
 
 
 def _print_list(title: str, items: list[str]) -> None:
@@ -133,6 +175,14 @@ def _build_parser() -> argparse.ArgumentParser:
         default=[],
         help="Service that must appear in ENABLED_SERVICES. Can be passed multiple times.",
     )
+    parser.add_argument(
+        "--require-customer-connectable",
+        action="store_true",
+        help=(
+            "Require every enabled customer-facing service to have its full provider "
+            "credential/OAuth env set, not only the first registry key gate."
+        ),
+    )
     return parser
 
 
@@ -142,10 +192,12 @@ def main() -> int:
 
     root = Path(__file__).resolve().parents[1]
     registry_path = root / "app" / "registry" / "__init__.py"
+    constants_path = root / "app" / "constants" / "services.py"
 
     try:
         vars_map = _fetch_railway_vars(args.environment, args.service)
         key_gate_map = _load_key_gate_map(registry_path)
+        customer_connect_requirements = _load_customer_connect_requirements(constants_path)
     except RuntimeError as exc:
         print(f"ERROR: {exc}")
         return 2
@@ -164,6 +216,15 @@ def main() -> int:
     missing_required_services = [
         service for service in args.require_service if service not in enabled_services
     ]
+    missing_customer_connect_vars = (
+        _missing_customer_connect_vars(
+            vars_map,
+            enabled_services,
+            customer_connect_requirements,
+        )
+        if args.require_customer_connectable
+        else []
+    )
 
     env_value_mismatch = ""
     if args.expect_env_value:
@@ -181,6 +242,11 @@ def main() -> int:
 
     _print_list("Missing core vars", missing_core)
     _print_list("Missing key-gated vars for enabled services", missing_enabled_key_gates)
+    if args.require_customer_connectable:
+        _print_list(
+            "Missing customer-connect vars for enabled services",
+            missing_customer_connect_vars,
+        )
     _print_list("Required services missing from ENABLED_SERVICES", missing_required_services)
 
     if env_value_mismatch:
@@ -188,7 +254,11 @@ def main() -> int:
         print(f"  - {env_value_mismatch}")
 
     has_errors = bool(
-        missing_core or missing_enabled_key_gates or missing_required_services or env_value_mismatch
+        missing_core
+        or missing_enabled_key_gates
+        or missing_customer_connect_vars
+        or missing_required_services
+        or env_value_mismatch
     )
     if has_errors:
         print("Result: FAILED")

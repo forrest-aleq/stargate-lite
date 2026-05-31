@@ -33,6 +33,10 @@ python scripts/generate_openapi.py --check
 - `Procfile` starts the web process with `uvicorn app.main:app`.
 - `scripts/generate_openapi.py` should be run any time API models or routes change.
 - Connector availability depends on environment variables that gate services in `app/registry/__init__.py`.
+- Production deploys also require every enabled customer-facing connector to
+  have its full provider env set from `app/constants/services.py`
+  `CUSTOMER_CONNECT_ENV_REQUIREMENTS`. This prevents exposing a connector that
+  appears enabled but cannot complete OAuth or credential setup.
 - Observability hooks exist for Datadog, Sentry, PostHog, and structured logs; configure them explicitly per environment.
 
 ## Documentation Policy
