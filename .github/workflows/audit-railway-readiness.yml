@@ -1,0 +1,113 @@
+name: Audit Railway Readiness
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: "Railway environment to audit"
+        required: true
+        default: "production"
+        type: choice
+        options:
+          - staging
+          - production
+          - all
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stargate-railway-readiness-audit-${{ github.event.inputs.target_environment }}
+  cancel-in-progress: false
+
+jobs:
+  audit-staging:
+    name: Audit Railway staging readiness
+    if: github.event.inputs.target_environment == 'staging' || github.event.inputs.target_environment == 'all'
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli@4.58.0
+
+      - name: Check Railway staging readiness
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+          SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
+          RAILWAY_ENV: ${{ vars.RAILWAY_STAGING_ENVIRONMENT }}
+        run: |
+          set -euo pipefail
+          for name in RAILWAY_TOKEN SERVICE_NAME RAILWAY_ENV; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is required for a read-only Railway readiness audit."
+              exit 1
+            fi
+          done
+          mkdir -p release-proof
+          python scripts/check_railway_readiness.py \
+            --environment "$RAILWAY_ENV" \
+            --service "$SERVICE_NAME" \
+            --expect-env-value staging \
+            2>&1 | tee release-proof/stargate-staging-railway-readiness.txt
+
+      - name: Upload staging audit proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stargate-staging-railway-readiness-${{ github.run_id }}
+          path: release-proof/
+          if-no-files-found: ignore
+
+  audit-production:
+    name: Audit Railway production readiness
+    if: github.event.inputs.target_environment == 'production' || github.event.inputs.target_environment == 'all'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli@4.58.0
+
+      - name: Check Railway production readiness
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
+          SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
+          RAILWAY_ENV: ${{ vars.RAILWAY_PRODUCTION_ENVIRONMENT }}
+        run: |
+          set -euo pipefail
+          for name in RAILWAY_TOKEN SERVICE_NAME RAILWAY_ENV; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is required for a read-only Railway readiness audit."
+              exit 1
+            fi
+          done
+          mkdir -p release-proof
+          python scripts/check_railway_readiness.py \
+            --environment "$RAILWAY_ENV" \
+            --service "$SERVICE_NAME" \
+            --expect-env-value production \
+            --require-customer-connectable \
+            2>&1 | tee release-proof/stargate-production-railway-readiness.txt
+
+      - name: Upload production audit proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stargate-production-railway-readiness-${{ github.run_id }}
+          path: release-proof/
+          if-no-files-found: ignore
