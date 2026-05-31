@@ -84,9 +84,16 @@ jobs:
             exit 0
           fi
 
-          HEAD_BRANCH="${{ github.repository_owner }}:staging"
-          if gh pr view --head "$HEAD_BRANCH" --base main --json number --jq .number >/tmp/pr-number; then
-            echo "Promotion PR already exists: #$(cat /tmp/pr-number)"
+          PR_NUMBER=$(
+            gh pr list \
+              --base main \
+              --head staging \
+              --state open \
+              --json number \
+              --jq '.[0].number // empty'
+          )
+          if [ -n "$PR_NUMBER" ]; then
+            echo "Promotion PR already exists: #${PR_NUMBER}"
             exit 0
           fi
 
