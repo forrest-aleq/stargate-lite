@@ -39,6 +39,19 @@ python scripts/generate_openapi.py --check
   appears enabled but cannot complete OAuth or credential setup.
 - Observability hooks exist for Datadog, Sentry, PostHog, and structured logs; configure them explicitly per environment.
 
+## Railway Readiness Audit
+
+Use the `Audit Railway Readiness` GitHub Actions workflow for a read-only
+environment audit. It validates the Railway service variables without deploying
+or mutating runtime state, then uploads the missing-variable report as a run
+artifact.
+
+Production audits are intentionally stricter than staging: every connector in
+`ENABLED_SERVICES` must also satisfy its full
+`CUSTOMER_CONNECT_ENV_REQUIREMENTS` provider env set. If production is not ready,
+run this workflow first and fix the reported Railway variables before attempting
+`Deploy to Production`.
+
 ## Documentation Policy
 
 This repository intentionally keeps a small doc surface.

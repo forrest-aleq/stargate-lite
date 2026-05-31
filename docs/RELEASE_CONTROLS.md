@@ -55,6 +55,10 @@ tested unit.
   staging preflight under the `staging` GitHub environment and production
   preflight/deploy under the `production` GitHub environment. This is required
   because deploy secrets and variables are environment-scoped.
+- `.github/workflows/audit-railway-readiness.yml` runs the same Railway
+  readiness checks without deploying. Use it when production is not ready and
+  the team needs a current missing-variable artifact instead of starting a
+  deploy run just to reach preflight.
 - `.github/workflows/ci.yml` runs PR checks for both `main` and `staging`, so
   both protected branches can require the same CI contexts.
 - `scripts/verify_release_infra.py` checks GitHub environment secrets/variables,
