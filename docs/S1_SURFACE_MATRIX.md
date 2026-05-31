@@ -66,7 +66,8 @@ This is the core execution surface.
 
 It should preserve the current guarantees around:
 
-- idempotency by `turn_id + capability_key`
+- idempotency by `org_id + turn_id + capability_key`
+- duplicate in-flight execution is rejected with a retryable error instead of running a second handler
 - normalized success and error payloads
 - rate limiting
 - tenant isolation via credential lookup

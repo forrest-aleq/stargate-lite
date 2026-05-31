@@ -123,7 +123,7 @@ class TestIdempotency:
     """Test idempotency behavior using turn_id + capability_key."""
 
     @patch("app.routers.execute.get_capability")
-    @patch("app.services.execution.redis_client")
+    @patch("app.services.idempotency.redis_client")
     def test_same_turn_id_returns_cached_response(
         self,
         mock_redis: MagicMock,
@@ -140,7 +140,7 @@ class TestIdempotency:
             "logs": ["Cached execution"],
             "credential_type": "customer",
         }
-        mock_redis.get_cached_response.return_value = cached_response
+        mock_redis.get_cached_execution_response.return_value = cached_response
 
         # Execute request
         response = client.post(
@@ -163,7 +163,7 @@ class TestIdempotency:
         mock_get_cap.assert_not_called()
 
     @patch("app.routers.execute.get_capability")
-    @patch("app.services.execution.redis_client")
+    @patch("app.services.idempotency.redis_client")
     def test_different_turn_id_executes_new_request(
         self,
         mock_redis: MagicMock,
@@ -172,8 +172,9 @@ class TestIdempotency:
     ) -> None:
         """Different turn_id executes new request (not cached)."""
         # Mock Redis: no cached response
-        mock_redis.get_cached_response.return_value = None
-        mock_redis.cache_response.return_value = True
+        mock_redis.get_cached_execution_response.return_value = None
+        mock_redis.acquire_execution_lock.return_value = True
+        mock_redis.cache_execution_response.return_value = True
 
         # Mock capability
         mock_handler = MagicMock(return_value={"vendor_id": "new_456"})

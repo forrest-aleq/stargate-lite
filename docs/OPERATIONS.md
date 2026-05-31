@@ -7,7 +7,9 @@
 - A reachable Redis instance for idempotency and rate limiting
 - `ENCRYPTION_KEY` and `API_SECRET_KEY`
 
-The app will not start cleanly without those basics in place.
+The app will not start cleanly without those basics in place. If Redis becomes
+unavailable after startup, `/api/v1/execute` refuses execution with a retryable
+error rather than risking duplicate side effects.
 
 ## Local Run
 
