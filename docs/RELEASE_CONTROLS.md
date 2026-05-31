@@ -98,3 +98,10 @@ The `production` GitHub environment must contain:
 Each Railway environment must include the runtime values Stargate needs,
 including `API_SECRET_KEY`, `DATABASE_URL`, `ENABLED_SERVICES`,
 `ENCRYPTION_KEY`, `ENVIRONMENT`, and `REDIS_URL`.
+
+Production preflight is stricter than staging for enabled customer connectors:
+every service listed in `ENABLED_SERVICES` must also have the full provider
+credential/OAuth env set from `app/constants/services.py`
+`CUSTOMER_CONNECT_ENV_REQUIREMENTS`. A service with only its first registry
+key-gate present is not production-ready if customers cannot complete the
+connection flow.
