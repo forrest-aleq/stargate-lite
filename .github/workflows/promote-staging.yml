@@ -135,7 +135,8 @@ jobs:
           )
           if [ -n "$PR_NUMBER" ]; then
             echo "Promotion PR already exists: #${PR_NUMBER}"
-            gh workflow run ci.yml --ref "$PROMOTION_BRANCH"
+            gh workflow run ci.yml --ref "$PROMOTION_BRANCH" || \
+              echo "::warning::ci.yml does not support workflow_dispatch; relying on pull_request checks."
             exit 0
           fi
 
@@ -156,4 +157,5 @@ jobs:
 
           ### Release Control
           Production deploys are separately blocked unless the deploy target is contained in origin/main and matches staged content."
-          gh workflow run ci.yml --ref "$PROMOTION_BRANCH"
+          gh workflow run ci.yml --ref "$PROMOTION_BRANCH" || \
+            echo "::warning::ci.yml does not support workflow_dispatch; relying on pull_request checks."
