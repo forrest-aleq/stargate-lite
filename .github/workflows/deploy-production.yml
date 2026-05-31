@@ -142,12 +142,11 @@ jobs:
       - name: Require production verification inputs
         env:
           PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
-          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
           PRODUCTION_API_KEY: ${{ secrets.PRODUCTION_API_KEY }}
         run: |
           set -euo pipefail
-          if [ -z "${PRODUCTION_URL:-}" ] && [ -z "${RAILWAY_PROJECT_ID:-}" ]; then
-            echo "::error::Set PRODUCTION_URL, or set RAILWAY_PROJECT_ID so the workflow can resolve a Railway production domain."
+          if [ -z "${PRODUCTION_URL:-}" ]; then
+            echo "::error::PRODUCTION_URL is required so production health can be verified before deploy."
             exit 1
           fi
           if [ -z "${PRODUCTION_API_KEY:-}" ]; then
@@ -156,12 +155,14 @@ jobs:
           fi
 
       - name: Verify current production health before deploy
-        if: vars.REQUIRE_CURRENT_PRODUCTION_HEALTH == 'true' && vars.PRODUCTION_URL != ''
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
         run: |
-          response=$(curl -s "${{ vars.PRODUCTION_URL }}/health")
+          set -euo pipefail
+          response=$(curl -fsS "${PRODUCTION_URL%/}/health")
           status=$(python -c 'import json,sys; print(json.loads(sys.argv[1]).get("status",""))' "$response")
           if [ "$status" != "healthy" ]; then
-            echo "Production is not healthy before deploy. Aborting."
+            echo "::error::Stargate production is not healthy before deploy: ${status:-unavailable}"
             exit 1
           fi
 
