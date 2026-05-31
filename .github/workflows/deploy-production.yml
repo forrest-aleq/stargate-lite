@@ -26,6 +26,7 @@ jobs:
   provenance:
     name: Release Provenance Gate
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
         with:
@@ -64,6 +65,7 @@ jobs:
     needs: provenance
     runs-on: ubuntu-latest
     environment: staging
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
         with:
@@ -106,6 +108,7 @@ jobs:
     needs: provenance
     runs-on: ubuntu-latest
     environment: production
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
         with:
@@ -125,9 +128,17 @@ jobs:
       - name: Check Railway production readiness
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
           SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
           PRODUCTION_ENV: ${{ vars.RAILWAY_PRODUCTION_ENVIRONMENT }}
         run: |
+          set -euo pipefail
+          if [ -n "${RAILWAY_PROJECT_ID:-}" ]; then
+            railway link \
+              --project "$RAILWAY_PROJECT_ID" \
+              --environment "$PRODUCTION_ENV" \
+              --service "$SERVICE_NAME"
+          fi
           python scripts/check_railway_readiness.py \
             --environment "$PRODUCTION_ENV" \
             --service "$SERVICE_NAME" \
@@ -136,11 +147,12 @@ jobs:
       - name: Require production verification inputs
         env:
           PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
           PRODUCTION_API_KEY: ${{ secrets.PRODUCTION_API_KEY }}
         run: |
           set -euo pipefail
-          if [ -z "${PRODUCTION_URL:-}" ]; then
-            echo "::error::PRODUCTION_URL is required before deploying Stargate production."
+          if [ -z "${PRODUCTION_URL:-}" ] && [ -z "${RAILWAY_PROJECT_ID:-}" ]; then
+            echo "::error::Set PRODUCTION_URL, or set RAILWAY_PROJECT_ID so the workflow can resolve a Railway production domain."
             exit 1
           fi
           if [ -z "${PRODUCTION_API_KEY:-}" ]; then
@@ -149,7 +161,7 @@ jobs:
           fi
 
       - name: Verify current production health before deploy
-        if: vars.REQUIRE_CURRENT_PRODUCTION_HEALTH == 'true'
+        if: vars.REQUIRE_CURRENT_PRODUCTION_HEALTH == 'true' && vars.PRODUCTION_URL != ''
         run: |
           response=$(curl -s "${{ vars.PRODUCTION_URL }}/health")
           status=$(python -c 'import json,sys; print(json.loads(sys.argv[1]).get("status",""))' "$response")
@@ -163,6 +175,7 @@ jobs:
     needs: [provenance, staging-preflight, production-preflight]
     runs-on: ubuntu-latest
     environment: production
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
         with:
@@ -183,8 +196,10 @@ jobs:
       - name: Deploy to Railway production
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
           SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
           PRODUCTION_ENV: ${{ vars.RAILWAY_PRODUCTION_ENVIRONMENT }}
+          CONFIGURED_PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
         run: |
           set -euo pipefail
           for name in RAILWAY_TOKEN SERVICE_NAME PRODUCTION_ENV; do
@@ -210,6 +225,12 @@ jobs:
               delay=$((delay * 2))
             done
           }
+          if [ -n "${RAILWAY_PROJECT_ID:-}" ]; then
+            retry_railway link \
+              --project "$RAILWAY_PROJECT_ID" \
+              --environment "$PRODUCTION_ENV" \
+              --service "$SERVICE_NAME"
+          fi
           SOURCE_SHA="$(git rev-parse HEAD)"
           BUILD_TIME="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
           retry_railway variable set \
@@ -222,13 +243,31 @@ jobs:
             "STARGATE_ENVIRONMENT=production" \
             "ENVIRONMENT=production"
           retry_railway up --ci --service "$SERVICE_NAME" --environment "$PRODUCTION_ENV"
+          mkdir -p release-proof
+          PRODUCTION_URL="${CONFIGURED_PRODUCTION_URL:-}"
+          if [ -z "$PRODUCTION_URL" ]; then
+            if [ -z "${RAILWAY_PROJECT_ID:-}" ]; then
+              echo "::error::Set PRODUCTION_URL, or set RAILWAY_PROJECT_ID so the workflow can resolve a Railway production domain."
+              exit 1
+            fi
+            DOMAIN_OUTPUT="$(retry_railway domain --service "$SERVICE_NAME" --json)"
+            printf '%s\n' "$DOMAIN_OUTPUT" > release-proof/railway-production-domain.json
+            PRODUCTION_URL="$(node -e 'const raw = process.argv[1] ?? ""; const values = []; function visit(value) { if (typeof value === "string") values.push(value); else if (Array.isArray(value)) value.forEach(visit); else if (value && typeof value === "object") Object.values(value).forEach(visit); } try { visit(JSON.parse(raw)); } catch { values.push(raw); } const match = values.flatMap((value) => value.match(/https?:\/\/[a-z0-9.-]+\.up\.railway\.app\b/gi) ?? []).at(0); if (!match) process.exit(1); console.log(match.replace(/\/$/, ""));' "$DOMAIN_OUTPUT")"
+          else
+            printf '{"source":"github-env","url":"%s"}\n' "$PRODUCTION_URL" > release-proof/railway-production-domain.json
+          fi
+          echo "PRODUCTION_URL=${PRODUCTION_URL%/}" >> "$GITHUB_ENV"
           echo "SOURCE_SHA=$SOURCE_SHA" >> "$GITHUB_ENV"
+          echo "Resolved Stargate production URL: ${PRODUCTION_URL%/}"
 
       - name: Verify production API after deploy
         env:
-          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
           PRODUCTION_API_KEY: ${{ secrets.PRODUCTION_API_KEY }}
         run: |
+          if [ -z "${PRODUCTION_URL:-}" ]; then
+            echo "::error::PRODUCTION_URL is required for production verification."
+            exit 1
+          fi
           for attempt in 1 2 3 4 5; do
             if python scripts/verify_remote_api.py \
               --base-url "$PRODUCTION_URL" \
@@ -242,3 +281,11 @@ jobs:
           done
           echo "Production verification failed after retries"
           exit 1
+
+      - name: Upload deployed production proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stargate-production-deployed-proof-${{ github.run_id }}
+          path: release-proof/
+          if-no-files-found: ignore

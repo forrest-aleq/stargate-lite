@@ -38,10 +38,10 @@ REQUIRED_GITHUB = {
             "RAILWAY_TOKEN_PRODUCTION",
         },
         "variables": {
-            "PRODUCTION_URL",
             "RAILWAY_PRODUCTION_ENVIRONMENT",
             "RAILWAY_SERVICE_NAME",
         },
+        "variable_alias_groups": (("PRODUCTION_URL", "RAILWAY_PROJECT_ID"),),
     },
 }
 
@@ -98,7 +98,7 @@ def _json_names(payload: Any) -> set[str]:
     if isinstance(payload, dict):
         if isinstance(payload.get("variables"), list):
             return _json_names(payload["variables"])
-        return {str(key) for key in payload.keys()}
+        return {str(key) for key in payload}
     return set()
 
 
@@ -212,6 +212,10 @@ def _github_checks(repo: str) -> list[CheckResult]:
     for environment, requirements in REQUIRED_GITHUB.items():
         secrets = _github_secret_names(environment)
         variables = _github_variable_names(environment)
+        missing_variables = _missing(requirements["variables"], variables)
+        for group in requirements.get("variable_alias_groups", ()):
+            if not any(name in variables for name in group):
+                missing_variables.append("one_of(" + ",".join(group) + ")")
         results.append(
             _result(
                 f"github.env.{environment}.secrets",
@@ -222,7 +226,7 @@ def _github_checks(repo: str) -> list[CheckResult]:
         results.append(
             _result(
                 f"github.env.{environment}.variables",
-                _missing(requirements["variables"], variables),
+                sorted(missing_variables),
                 len(variables),
             )
         )
