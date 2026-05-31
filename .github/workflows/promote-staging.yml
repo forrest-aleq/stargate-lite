@@ -13,7 +13,8 @@ on:
           - "true"
 
 permissions:
-  contents: read
+  actions: write
+  contents: write
   pull-requests: write
 
 concurrency:
@@ -77,32 +78,57 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          PROMOTION_BRANCH="promotion/staging-to-main"
           git fetch origin main staging
-          COMMITS=$(git rev-list origin/main..origin/staging --count)
-          if [ "$COMMITS" -eq "0" ]; then
-            echo "origin/staging is already contained in origin/main"
+          git fetch origin "+refs/heads/${PROMOTION_BRANCH}:refs/remotes/origin/${PROMOTION_BRANCH}" || true
+          MAIN_TREE=$(git rev-parse origin/main^{tree})
+          STAGING_TREE=$(git rev-parse origin/staging^{tree})
+          if [ "$MAIN_TREE" = "$STAGING_TREE" ]; then
+            echo "origin/main already has the origin/staging tree"
             exit 0
           fi
 
-          HEAD_BRANCH="${{ github.repository_owner }}:staging"
-          if gh pr view --head "$HEAD_BRANCH" --base main --json number --jq .number >/tmp/pr-number; then
-            echo "Promotion PR already exists: #$(cat /tmp/pr-number)"
+          STAGING_SHA=$(git rev-parse origin/staging)
+          MAIN_SHA=$(git rev-parse origin/main)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$PROMOTION_BRANCH" origin/main
+          git read-tree --reset -u origin/staging
+          git commit \
+            -m "Promote Stargate Lite staging to main" \
+            -m "Staging-SHA: ${STAGING_SHA}" \
+            -m "Main-SHA: ${MAIN_SHA}"
+          git push --force-with-lease origin "$PROMOTION_BRANCH:$PROMOTION_BRANCH"
+
+          PR_NUMBER=$(
+            gh pr list \
+              --base main \
+              --head "$PROMOTION_BRANCH" \
+              --state open \
+              --json number \
+              --jq '.[0].number // empty'
+          )
+          if [ -n "$PR_NUMBER" ]; then
+            echo "Promotion PR already exists: #${PR_NUMBER}"
+            gh workflow run ci.yml --ref "$PROMOTION_BRANCH"
             exit 0
           fi
 
           gh pr create \
             --base main \
-            --head staging \
+            --head "$PROMOTION_BRANCH" \
             --title "Promote Stargate Lite staging to main" \
             --body "## Staging to Main Promotion
 
-          This PR promotes Stargate Lite staging to main after the release provenance gate passed.
+          This PR promotes the proven Stargate Lite staging tree to main after the release provenance gate passed.
 
           ### Verification
           - Release provenance gate passed
-          - origin/main is contained in origin/staging
-          - target commit is contained in origin/staging
+          - origin/main content is represented in origin/staging history
+          - promotion branch is based on origin/main
+          - promotion commit tree matches origin/staging
           - staging API smoke passed or was explicitly skipped
 
           ### Release Control
-          Production deploys are separately blocked unless the deploy target is contained in both origin/main and origin/staging."
+          Production deploys are separately blocked unless the deploy target is contained in origin/main and matches staged content."
+          gh workflow run ci.yml --ref "$PROMOTION_BRANCH"
