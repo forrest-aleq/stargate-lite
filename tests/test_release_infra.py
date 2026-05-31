@@ -22,7 +22,7 @@ def test_result_marks_missing_as_failure() -> None:
     assert result.details["missing"] == ["RAILWAY_SERVICE_NAME"]
 
 
-def test_production_project_id_can_satisfy_url_alias(monkeypatch) -> None:
+def test_production_url_is_required_for_health_preflight(monkeypatch) -> None:
     calls: list[list[str]] = []
 
     def fake_run(args: list[str]) -> str:
@@ -34,6 +34,42 @@ def test_production_project_id_can_satisfy_url_alias(monkeypatch) -> None:
                 "RAILWAY_PROJECT_ID\tproject\tdate\n"
                 "RAILWAY_PRODUCTION_ENVIRONMENT\tproduction\tdate\n"
                 "RAILWAY_SERVICE_NAME\tstargate-lite\tdate\n"
+            )
+        if args[:2] == ["gh", "api"]:
+            return json.dumps(
+                {
+                    "can_admins_bypass": False,
+                    "deployment_branch_policy": {
+                        "protected_branches": True,
+                        "custom_branch_policies": False,
+                    },
+                    "protection_rules": [{"type": "branch_policy"}],
+                }
+            )
+        raise AssertionError(args)
+
+    monkeypatch.setattr(infra, "_run", fake_run)
+
+    result = next(
+        check
+        for check in infra._github_checks("forrest-aleq/stargate-lite")
+        if check.name == "github.env.production.variables"
+    )
+
+    assert result.status == "fail"
+    assert result.details["missing"] == ["PRODUCTION_URL"]
+
+
+def test_production_url_satisfies_health_preflight_requirement(monkeypatch) -> None:
+    def fake_run(args: list[str]) -> str:
+        if args[:3] == ["gh", "secret", "list"]:
+            return "PRODUCTION_API_KEY\tdate\nRAILWAY_TOKEN_PRODUCTION\tdate\n"
+        if args[:3] == ["gh", "variable", "list"]:
+            return (
+                "PRODUCTION_URL\thttps://stargate-lite-production.up.railway.app\tdate\n"
+                "RAILWAY_PROJECT_ID\tproject\tdate\n"
+                "RAILWAY_PRODUCTION_ENVIRONMENT\tproduction\tdate\n"
+                "RAILWAY_SERVICE_NAME\tStargate Lite\tdate\n"
             )
         if args[:2] == ["gh", "api"]:
             return json.dumps(

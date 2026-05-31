@@ -38,10 +38,10 @@ REQUIRED_GITHUB = {
             "RAILWAY_TOKEN_PRODUCTION",
         },
         "variables": {
+            "PRODUCTION_URL",
             "RAILWAY_PRODUCTION_ENVIRONMENT",
             "RAILWAY_SERVICE_NAME",
         },
-        "variable_alias_groups": (("PRODUCTION_URL", "RAILWAY_PROJECT_ID"),),
     },
 }
 
