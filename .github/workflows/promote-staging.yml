@@ -13,6 +13,7 @@ on:
           - "true"
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
 
@@ -77,25 +78,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          PROMOTION_BRANCH="promotion/staging-to-main"
           git fetch origin main staging
+          git fetch origin "+refs/heads/${PROMOTION_BRANCH}:refs/remotes/origin/${PROMOTION_BRANCH}" || true
           MAIN_TREE=$(git rev-parse origin/main^{tree})
           STAGING_TREE=$(git rev-parse origin/staging^{tree})
           if [ "$MAIN_TREE" = "$STAGING_TREE" ]; then
             echo "origin/main already has the origin/staging tree"
-            exit 0
-          fi
-
-          PROMOTION_BRANCH="promotion/staging-to-main"
-          PR_NUMBER=$(
-            gh pr list \
-              --base main \
-              --head "$PROMOTION_BRANCH" \
-              --state open \
-              --json number \
-              --jq '.[0].number // empty'
-          )
-          if [ -n "$PR_NUMBER" ]; then
-            echo "Promotion PR already exists: #${PR_NUMBER}"
             exit 0
           fi
 
@@ -110,6 +99,20 @@ jobs:
             -m "Staging-SHA: ${STAGING_SHA}" \
             -m "Main-SHA: ${MAIN_SHA}"
           git push --force-with-lease origin "$PROMOTION_BRANCH:$PROMOTION_BRANCH"
+
+          PR_NUMBER=$(
+            gh pr list \
+              --base main \
+              --head "$PROMOTION_BRANCH" \
+              --state open \
+              --json number \
+              --jq '.[0].number // empty'
+          )
+          if [ -n "$PR_NUMBER" ]; then
+            echo "Promotion PR already exists: #${PR_NUMBER}"
+            gh workflow run ci.yml --ref "$PROMOTION_BRANCH"
+            exit 0
+          fi
 
           gh pr create \
             --base main \
@@ -128,3 +131,4 @@ jobs:
 
           ### Release Control
           Production deploys are separately blocked unless the deploy target is contained in origin/main and matches staged content."
+          gh workflow run ci.yml --ref "$PROMOTION_BRANCH"
