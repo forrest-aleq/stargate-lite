@@ -70,13 +70,15 @@ jobs:
           done
           retry_railway() {
             local attempt
+            local status
             local delay=15
             local max_attempts=5
             for attempt in $(seq 1 "$max_attempts"); do
               if railway "$@"; then
                 return 0
+              else
+                status="$?"
               fi
-              local status="$?"
               if [ "$attempt" -eq "$max_attempts" ]; then
                 return "$status"
               fi
