@@ -18,14 +18,14 @@ Stargate Lite is a FastAPI service with a thin routing layer and a large capabil
 
 1. The caller sends `POST /api/v1/execute` with `capability_key`, tenant identity, `turn_id`, and `args`.
 2. `verify_api_key` validates the API key and optional request signature.
-3. The execute router applies rate limiting and idempotency lookup.
+3. The execute router applies rate limiting, requires Redis idempotency storage, checks the org-scoped cache, and acquires an execution lock.
 4. The capability registry resolves the abstract capability to a concrete handler.
 5. The execution service runs the handler with timeout protection, circuit-breaker checks, and telemetry hooks.
-6. Stargate returns a normalized success or error payload and caches the result by `turn_id + capability_key`.
+6. Stargate returns a normalized success or error payload and caches the result by `org_id + turn_id + capability_key`.
 
 ## Key Design Constraints
 
-- Redis is required for the idempotency contract and is also used by rate limiting and webhook durability helpers.
+- Redis is required for the idempotency contract and is also used by rate limiting and webhook durability helpers. `/execute` fails closed when Redis is unavailable so retries cannot double-run side-effecting handlers.
 - Capability availability is environment-gated. Missing service credentials can hide whole service groups from the runtime registry.
 - Credentials are multi-tenant and keyed by `org_id`, `user_id`, `service`, and `credential_type`.
 - Google and Microsoft connectors share credential stores across multiple product-specific connectors.

@@ -3,6 +3,7 @@ Redis client for idempotency caching
 Prevents duplicate tool executions on retries (critical for production safety)
 """
 
+import hashlib
 import json
 import os
 from typing import Any, cast
@@ -18,6 +19,7 @@ logger = get_logger(__name__)
 CACHE_TTL_SUCCESS = 86400  # 24 hours — success responses are safe to cache long
 CACHE_TTL_TRANSIENT = 300  # 5 minutes — transient errors (rate limits, timeouts)
 CACHE_TTL_PERMANENT = 86400  # 24 hours — permanent errors (not found, auth)
+LOCK_TTL_SECONDS = int(os.getenv("IDEMPOTENCY_LOCK_TTL_SECONDS", "60"))
 
 
 def get_cache_ttl(response: dict[str, Any]) -> int:
@@ -29,6 +31,20 @@ def get_cache_ttl(response: dict[str, Any]) -> int:
     if response.get("retry_strategy") == "backoff":
         return CACHE_TTL_TRANSIENT
     return CACHE_TTL_SUCCESS
+
+
+def build_execution_idempotency_key(org_id: str, turn_id: str, capability_key: str) -> str:
+    """Build a tenant-scoped idempotency cache key for execute requests."""
+    payload = json.dumps([org_id, turn_id, capability_key], separators=(",", ":"))
+    digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    return f"stargate:idempotency:execute:{digest}"
+
+
+def build_execution_lock_key(org_id: str, turn_id: str, capability_key: str) -> str:
+    """Build the Redis lock key paired with an execution idempotency key."""
+    return build_execution_idempotency_key(org_id, turn_id, capability_key).replace(
+        "stargate:idempotency:execute:", "stargate:idempotency-lock:execute:", 1
+    )
 
 
 class RedisClient:
@@ -145,6 +161,46 @@ class RedisClient:
             )
             return None
 
+    def get_cached_execution_response(
+        self, org_id: str, turn_id: str, capability_key: str
+    ) -> dict[str, Any] | None:
+        """Get an org-scoped cached execution response."""
+        if not self._redis_client:
+            return None
+
+        try:
+            cache_key = build_execution_idempotency_key(org_id, turn_id, capability_key)
+            cached_data = self._redis_client.get(cache_key)
+
+            if cached_data:
+                logger.info(
+                    "Execution cache hit - returning cached response",
+                    org_id=org_id,
+                    turn_id=turn_id,
+                    capability_key=capability_key,
+                    log_event="execution_cache_hit",
+                )
+                return cast(dict[str, Any], json.loads(cached_data))
+
+            logger.debug(
+                "Execution cache miss",
+                org_id=org_id,
+                turn_id=turn_id,
+                capability_key=capability_key,
+                log_event="execution_cache_miss",
+            )
+            return None
+        except Exception:
+            logger.error(
+                "Redis execution cache get error",
+                org_id=org_id,
+                turn_id=turn_id,
+                capability_key=capability_key,
+                log_event="execution_cache_get_error",
+                exc_info=True,
+            )
+            return None
+
     def cache_response(
         self,
         turn_id: str,
@@ -189,6 +245,88 @@ class RedisClient:
                 capability_key=capability_key,
                 error_type=type(e).__name__,
                 log_event="cache_set_error",
+                exc_info=True,
+            )
+            return False
+
+    def cache_execution_response(
+        self,
+        org_id: str,
+        turn_id: str,
+        capability_key: str,
+        response: dict[str, Any],
+        ttl_seconds: int = CACHE_TTL_SUCCESS,
+    ) -> bool:
+        """Cache an execute response under an org-scoped idempotency key."""
+        if not self._redis_client:
+            return False
+
+        try:
+            cache_key = build_execution_idempotency_key(org_id, turn_id, capability_key)
+            serialized = json.dumps(response)
+            self._redis_client.setex(name=cache_key, time=ttl_seconds, value=serialized)
+            logger.info(
+                "Execution response cached successfully",
+                org_id=org_id,
+                turn_id=turn_id,
+                capability_key=capability_key,
+                ttl_seconds=ttl_seconds,
+                response_size_bytes=len(serialized),
+                log_event="execution_cache_set_success",
+            )
+            return True
+        except Exception:
+            logger.error(
+                "Redis execution cache set error",
+                org_id=org_id,
+                turn_id=turn_id,
+                capability_key=capability_key,
+                log_event="execution_cache_set_error",
+                exc_info=True,
+            )
+            return False
+
+    def acquire_execution_lock(
+        self,
+        org_id: str,
+        turn_id: str,
+        capability_key: str,
+        ttl_seconds: int = LOCK_TTL_SECONDS,
+    ) -> bool:
+        """Acquire a short-lived per-org execution lock for side-effect safety."""
+        if not self._redis_client:
+            return False
+
+        lock_key = build_execution_lock_key(org_id, turn_id, capability_key)
+        try:
+            return bool(self._redis_client.set(lock_key, "1", nx=True, ex=ttl_seconds))
+        except Exception:
+            logger.error(
+                "Redis execution lock acquire error",
+                org_id=org_id,
+                turn_id=turn_id,
+                capability_key=capability_key,
+                log_event="execution_lock_acquire_error",
+                exc_info=True,
+            )
+            return False
+
+    def release_execution_lock(self, org_id: str, turn_id: str, capability_key: str) -> bool:
+        """Release a per-org execution lock."""
+        if not self._redis_client:
+            return False
+
+        lock_key = build_execution_lock_key(org_id, turn_id, capability_key)
+        try:
+            self._redis_client.delete(lock_key)
+            return True
+        except Exception:
+            logger.error(
+                "Redis execution lock release error",
+                org_id=org_id,
+                turn_id=turn_id,
+                capability_key=capability_key,
+                log_event="execution_lock_release_error",
                 exc_info=True,
             )
             return False
@@ -250,7 +388,15 @@ class RedisClient:
 
     def is_available(self) -> bool:
         """Check if Redis is available"""
-        return self._redis_client is not None
+        if self._redis_client is None:
+            return False
+        try:
+            self._redis_client.ping()
+            return True
+        except Exception:
+            logger.error("Redis availability check failed", log_event="redis_ping_failed")
+            self._redis_client = None
+            return False
 
 
 # Global singleton instance
