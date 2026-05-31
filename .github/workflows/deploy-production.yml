@@ -225,6 +225,8 @@ jobs:
           }
           SOURCE_SHA="$(git rev-parse HEAD)"
           BUILD_TIME="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          mkdir -p .railway
+          printf '%s\n' "${SOURCE_SHA}:${GITHUB_RUN_ID}:${BUILD_TIME}" > .railway/manual-production-deploy-trigger
           retry_railway variable set \
             --service "$SERVICE_NAME" \
             --environment "$PRODUCTION_ENV" \
