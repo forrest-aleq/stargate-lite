@@ -22,6 +22,44 @@ def test_result_marks_missing_as_failure() -> None:
     assert result.details["missing"] == ["RAILWAY_SERVICE_NAME"]
 
 
+def test_production_project_id_can_satisfy_url_alias(monkeypatch) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run(args: list[str]) -> str:
+        calls.append(args)
+        if args[:3] == ["gh", "secret", "list"]:
+            return "PRODUCTION_API_KEY\tdate\nRAILWAY_TOKEN_PRODUCTION\tdate\n"
+        if args[:3] == ["gh", "variable", "list"]:
+            return (
+                "RAILWAY_PROJECT_ID\tproject\tdate\n"
+                "RAILWAY_PRODUCTION_ENVIRONMENT\tproduction\tdate\n"
+                "RAILWAY_SERVICE_NAME\tstargate-lite\tdate\n"
+            )
+        if args[:2] == ["gh", "api"]:
+            return json.dumps(
+                {
+                    "can_admins_bypass": False,
+                    "deployment_branch_policy": {
+                        "protected_branches": True,
+                        "custom_branch_policies": False,
+                    },
+                    "protection_rules": [{"type": "branch_policy"}],
+                }
+            )
+        raise AssertionError(args)
+
+    monkeypatch.setattr(infra, "_run", fake_run)
+
+    result = next(
+        check
+        for check in infra._github_checks("forrest-aleq/stargate-lite")
+        if check.name == "github.env.production.variables"
+    )
+
+    assert result.status == "pass"
+    assert result.details["missing"] == []
+
+
 def test_payload_fails_when_any_check_fails() -> None:
     checks = [
         infra.CheckResult("ok", "pass", {"missing": []}),
