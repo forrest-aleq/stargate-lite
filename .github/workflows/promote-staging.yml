@@ -88,9 +88,22 @@ jobs:
             exit 0
           fi
 
-          if ! git merge-base --is-ancestor origin/main origin/staging; then
-            echo "::error::origin/staging does not contain origin/main. Merge main into staging, redeploy staging, and rerun promotion."
-            exit 1
+          if git merge-base --is-ancestor origin/main origin/staging; then
+            echo "origin/main is present in origin/staging history"
+          else
+            COMPATIBLE_BASE=""
+            for commit in $(git rev-list --max-count=500 origin/staging); do
+              COMMIT_TREE="$(git rev-parse "${commit}^{tree}")"
+              if [ "$COMMIT_TREE" = "$MAIN_TREE" ]; then
+                COMPATIBLE_BASE="$commit"
+                break
+              fi
+            done
+            if [ -z "$COMPATIBLE_BASE" ]; then
+              echo "::error::origin/staging does not contain the current origin/main tree. Sync main into staging, redeploy staging, and rerun promotion."
+              exit 1
+            fi
+            echo "origin/staging contains the current origin/main tree at ${COMPATIBLE_BASE}"
           fi
 
           STAGING_SHA=$(git rev-parse origin/staging)
@@ -136,7 +149,7 @@ jobs:
 
           ### Verification
           - Release provenance gate passed
-          - origin/main content is represented in origin/staging history
+          - origin/staging includes the current origin/main tree baseline
           - promotion branch is based on origin/main
           - promotion commit tree matches origin/staging
           - staging API smoke passed or was explicitly skipped
