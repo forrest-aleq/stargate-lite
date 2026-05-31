@@ -97,7 +97,7 @@ jobs:
             "STARGATE_DEPLOYMENT_ID=${GITHUB_RUN_ID}" \
             "STARGATE_ENVIRONMENT=staging" \
             "ENVIRONMENT=staging"
-          retry_railway up --ci --service "$SERVICE_NAME" --environment "$STAGING_ENV"
+          retry_railway up --detach --json --service "$SERVICE_NAME" --environment "$STAGING_ENV"
 
       - name: Verify staging API
         env:
@@ -106,7 +106,7 @@ jobs:
           STAGING_MIN_CAPABILITIES: ${{ vars.STAGING_MIN_CAPABILITIES }}
         run: |
           MIN_CAPS="${STAGING_MIN_CAPABILITIES:-100}"
-          for attempt in 1 2 3 4 5; do
+          for attempt in $(seq 1 28); do
             if python scripts/verify_remote_api.py \
               --base-url "$STAGING_URL" \
               --api-key "$STAGING_API_KEY" \

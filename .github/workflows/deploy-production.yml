@@ -234,7 +234,7 @@ jobs:
             "STARGATE_DEPLOYMENT_ID=${GITHUB_RUN_ID}" \
             "STARGATE_ENVIRONMENT=production" \
             "ENVIRONMENT=production"
-          retry_railway up --ci --service "$SERVICE_NAME" --environment "$PRODUCTION_ENV"
+          retry_railway up --detach --json --service "$SERVICE_NAME" --environment "$PRODUCTION_ENV"
           mkdir -p release-proof
           PRODUCTION_URL="${CONFIGURED_PRODUCTION_URL:-}"
           if [ -z "$PRODUCTION_URL" ]; then
@@ -260,7 +260,7 @@ jobs:
             echo "::error::PRODUCTION_URL is required for production verification."
             exit 1
           fi
-          for attempt in 1 2 3 4 5; do
+          for attempt in $(seq 1 28); do
             if python scripts/verify_remote_api.py \
               --base-url "$PRODUCTION_URL" \
               --api-key "$PRODUCTION_API_KEY" \
