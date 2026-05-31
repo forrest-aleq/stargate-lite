@@ -136,7 +136,8 @@ jobs:
           python scripts/check_railway_readiness.py \
             --environment "$PRODUCTION_ENV" \
             --service "$SERVICE_NAME" \
-            --expect-env-value production
+            --expect-env-value production \
+            --require-customer-connectable
 
       - name: Require production verification inputs
         env:
