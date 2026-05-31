@@ -28,7 +28,7 @@ async def test_handle_stargate_error_marks_customer_credential_invalid(monkeypat
     monkeypatch.setattr(execution, "track_connector_error", lambda *args, **kwargs: None)
     monkeypatch.setattr(execution, "increment_metric", lambda *args, **kwargs: None)
     monkeypatch.setattr(execution, "maybe_emit_delivery_event", AsyncMock())
-    monkeypatch.setattr(execution.redis_client, "cache_response", lambda *args, **kwargs: None)
+    monkeypatch.setattr(execution, "cache_idempotency_response", AsyncMock())
 
     updated: dict[str, object] = {}
 
