@@ -68,8 +68,25 @@ jobs:
               exit 1
             fi
           done
+          retry_railway() {
+            local attempt
+            local delay=15
+            local max_attempts=5
+            for attempt in $(seq 1 "$max_attempts"); do
+              if railway "$@"; then
+                return 0
+              fi
+              local status="$?"
+              if [ "$attempt" -eq "$max_attempts" ]; then
+                return "$status"
+              fi
+              echo "Railway command failed on attempt ${attempt}/${max_attempts}; retrying in ${delay}s."
+              sleep "$delay"
+              delay=$((delay * 2))
+            done
+          }
           BUILD_TIME="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-          railway variable set \
+          retry_railway variable set \
             --service "$SERVICE_NAME" \
             --environment "$STAGING_ENV" \
             --skip-deploys \
@@ -78,15 +95,7 @@ jobs:
             "STARGATE_DEPLOYMENT_ID=${GITHUB_RUN_ID}" \
             "STARGATE_ENVIRONMENT=staging" \
             "ENVIRONMENT=staging"
-          for attempt in 1 2 3; do
-            if railway up --ci --service "$SERVICE_NAME" --environment "$STAGING_ENV"; then
-              exit 0
-            fi
-            echo "Railway staging deploy attempt $attempt failed; retrying..."
-            sleep 20
-          done
-          echo "Railway staging deploy failed after retries"
-          exit 1
+          retry_railway up --ci --service "$SERVICE_NAME" --environment "$STAGING_ENV"
 
       - name: Verify staging API
         env:
