@@ -24,7 +24,6 @@ from app.models import ToolExecutionRequest
 from app.models_webhook import WebhookEvent
 from app.observability import increment_metric
 from app.posthog_client import track_capability_called, track_connector_error
-from app.redis_client import CACHE_TTL_PERMANENT, get_cache_ttl, redis_client
 from app.routers.webhooks.base import emit_delivery_event
 from app.sentry_config import (
     add_breadcrumb,
@@ -36,6 +35,7 @@ from app.services.connector_events import (
     build_connector_event_source,
     emit_connector_lifecycle_event,
 )
+from app.services.idempotency import cache_idempotency_response
 
 logger = get_logger(__name__)
 
@@ -94,16 +94,6 @@ async def maybe_emit_delivery_event(
     task.add_done_callback(_background_tasks.discard)
 
 
-async def check_idempotency_cache(turn_id: str, capability_key: str) -> dict[str, Any] | None:
-    """Check Redis cache for existing response. Returns cached response or None."""
-    cached = await asyncio.to_thread(
-        redis_client.get_cached_response, turn_id=turn_id, capability_key=capability_key
-    )
-    if cached:
-        logger.info("Returning cached response", log_event="cache_hit")
-    return cached
-
-
 async def handle_capability_not_found(request: ToolExecutionRequest) -> dict[str, Any]:
     """Build and cache error response for missing capability."""
     logger.warning("Capability not found in registry", log_event="capability_not_found")
@@ -112,13 +102,7 @@ async def handle_capability_not_found(request: ToolExecutionRequest) -> dict[str
         **error.to_dict(),
         "logs": [f"Capability '{request.capability_key}' not found in registry"],
     }
-    await asyncio.to_thread(
-        redis_client.cache_response,
-        request.turn_id,
-        request.capability_key,
-        response,
-        ttl_seconds=CACHE_TTL_PERMANENT,
-    )
+    await cache_idempotency_response(request, response)
     return response
 
 
@@ -423,13 +407,7 @@ async def handle_stargate_error(
         total_duration_ms=round(total_duration_ms, 2),
         log_event="execute_error",
     )
-    await asyncio.to_thread(
-        redis_client.cache_response,
-        request.turn_id,
-        request.capability_key,
-        error_dict,
-        ttl_seconds=get_cache_ttl(error_dict),
-    )
+    await cache_idempotency_response(request, error_dict)
 
     # Emit delivery event for Tier 3 failures
     await maybe_emit_delivery_event(request, "failed", total_duration_ms, error_code=error_code_str)
@@ -508,13 +486,7 @@ async def handle_unexpected_error(
         log_event="execute_unexpected_error",
         exc_info=True,
     )
-    await asyncio.to_thread(
-        redis_client.cache_response,
-        request.turn_id,
-        request.capability_key,
-        error_dict,
-        ttl_seconds=get_cache_ttl(error_dict),
-    )
+    await cache_idempotency_response(request, error_dict)
 
     # Emit delivery event for Tier 3 failures
     await maybe_emit_delivery_event(request, "failed", total_duration_ms, error_code=error_code_str)
