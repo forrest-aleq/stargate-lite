@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Verify Stargate Lite release infrastructure without printing secret values."""
+"""Verify Stargate Lite Railway release infrastructure without printing secret values."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -85,12 +86,24 @@ def _parse_names_table(output: str) -> set[str]:
     return names
 
 
+def _json_names(payload: Any) -> set[str]:
+    if isinstance(payload, list):
+        names: set[str] = set()
+        for item in payload:
+            if isinstance(item, dict):
+                name = item.get("name") or item.get("key")
+                if name:
+                    names.add(str(name))
+        return names
+    if isinstance(payload, dict):
+        if isinstance(payload.get("variables"), list):
+            return _json_names(payload["variables"])
+        return {str(key) for key in payload.keys()}
+    return set()
+
+
 def _missing(required: set[str], present: set[str]) -> list[str]:
     return sorted(required - present)
-
-
-def _is_missing(value: Any) -> bool:
-    return value is None or str(value).strip() == ""
 
 
 def _result(name: str, missing: list[str], present_count: int) -> CheckResult:
@@ -110,6 +123,22 @@ def _github_secret_names(environment: str) -> set[str]:
 
 def _github_variable_names(environment: str) -> set[str]:
     return _parse_names_table(_run(["gh", "variable", "list", "--env", environment]))
+
+
+def _railway_variables(service: str, environment: str) -> set[str]:
+    output = _run(
+        [
+            "railway",
+            "variable",
+            "list",
+            "--environment",
+            environment,
+            "--service",
+            service,
+            "--json",
+        ]
+    )
+    return _json_names(json.loads(output))
 
 
 def _github_environment_protection(repo: str, environment: str) -> CheckResult:
@@ -136,24 +165,6 @@ def _github_environment_protection(repo: str, environment: str) -> CheckResult:
     )
 
 
-def _railway_variables(service: str, environment: str) -> dict[str, Any]:
-    raw = _run(
-        [
-            "railway",
-            "variables",
-            "--environment",
-            environment,
-            "--service",
-            service,
-            "--json",
-        ]
-    )
-    payload = json.loads(raw)
-    if not isinstance(payload, dict):
-        raise InfraError("railway variables returned non-object JSON")
-    return payload
-
-
 def _branch_protection(repo: str, branch: str) -> CheckResult:
     payload = json.loads(_run(["gh", "api", f"repos/{repo}/branches/{branch}/protection"]))
     checks = payload.get("required_status_checks") or {}
@@ -169,8 +180,8 @@ def _branch_protection(repo: str, branch: str) -> CheckResult:
         review_count = int(reviews.get("required_approving_review_count") or 0)
         if review_count != REQUIRED_APPROVING_REVIEW_COUNT:
             missing.append("required_approving_review_count=0")
-    if not reviews.get("dismiss_stale_reviews"):
-        missing.append("dismiss_stale_reviews")
+        if not reviews.get("dismiss_stale_reviews"):
+            missing.append("dismiss_stale_reviews")
     if not REQUIRED_STATUS_CHECKS.issubset(contexts):
         missing.append("required_status_checks")
     if not payload.get("required_linear_history", {}).get("enabled"):
@@ -221,31 +232,18 @@ def _github_checks(repo: str) -> list[CheckResult]:
     return results
 
 
-def _railway_env_check(service: str, environment: str) -> CheckResult:
-    variables = _railway_variables(service, environment)
-    missing_core = sorted(
-        name for name in REQUIRED_RAILWAY_CORE if _is_missing(variables.get(name))
-    )
-    mismatches: list[str] = []
-    actual_environment = variables.get("ENVIRONMENT")
-    if not _is_missing(actual_environment) and str(actual_environment) != environment:
-        mismatches.append(f"ENVIRONMENT={actual_environment!s}")
-    missing = [*missing_core, *mismatches]
-    return CheckResult(
-        name=f"railway.{service}.{environment}.variables",
-        status="pass" if not missing else "fail",
-        details={
-            "missing": missing,
-            "present_count": len(variables),
-        },
-    )
-
-
-def _railway_checks(staging_service: str, production_service: str) -> list[CheckResult]:
-    return [
-        _railway_env_check(staging_service, "staging"),
-        _railway_env_check(production_service, "production"),
-    ]
+def _railway_checks(service: str) -> list[CheckResult]:
+    checks: list[CheckResult] = []
+    for environment in ("staging", "production"):
+        variables = _railway_variables(service, environment)
+        checks.append(
+            _result(
+                f"railway.env.{environment}.variables",
+                _missing(REQUIRED_RAILWAY_CORE, variables),
+                len(variables),
+            )
+        )
+    return checks
 
 
 def _repo(explicit: str | None) -> str:
@@ -257,26 +255,22 @@ def _repo(explicit: str | None) -> str:
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", default=None, help="GitHub repo, e.g. owner/name")
+    parser.add_argument(
+        "--railway-service",
+        default=os.environ.get("RAILWAY_SERVICE_NAME", "stargate-lite"),
+        help="Railway service name to inspect",
+    )
     parser.add_argument("--json", action="store_true", help="Print machine-readable JSON only")
-    parser.add_argument("--staging-railway-service", default="stargate-lite")
-    parser.add_argument("--production-railway-service", default="Stargate Lite")
     return parser.parse_args()
 
 
-def _payload(
-    repo: str,
-    checks: list[CheckResult],
-    staging_service: str,
-    production_service: str,
-) -> dict[str, Any]:
+def _payload(repo: str, checks: list[CheckResult], railway_service: str) -> dict[str, Any]:
     failed = [check for check in checks if check.status != "pass"]
     return {
         "checks": [{"name": c.name, "status": c.status, "details": c.details} for c in checks],
-        "railway_services": {
-            "production": production_service,
-            "staging": staging_service,
-        },
         "repo": repo,
+        "runtime": "railway",
+        "railway_service": railway_service,
         "status": "fail" if failed else "pass",
     }
 
@@ -285,20 +279,12 @@ def main() -> int:
     args = _parse_args()
     try:
         repo = _repo(args.repo)
-        checks = [
-            *_github_checks(repo),
-            *_railway_checks(args.staging_railway_service, args.production_railway_service),
-        ]
+        checks = [*_github_checks(repo), *_railway_checks(args.railway_service)]
     except (InfraError, json.JSONDecodeError) as exc:
         print(f"RELEASE INFRA CHECK FAILED: {exc}", file=sys.stderr)
         return 1
 
-    payload = _payload(
-        repo,
-        checks,
-        args.staging_railway_service,
-        args.production_railway_service,
-    )
+    payload = _payload(repo, checks, args.railway_service)
 
     if args.json:
         print(json.dumps(payload, indent=2, sort_keys=True))

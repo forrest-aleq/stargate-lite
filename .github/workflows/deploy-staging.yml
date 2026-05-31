@@ -29,9 +29,10 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -39,35 +40,50 @@ jobs:
         run: pip install requests
 
       - name: Install Railway CLI
-        run: npm install -g @railway/cli
+        run: npm install -g @railway/cli@4.58.0
 
-      - name: Preflight staging environment
+      - name: Check Railway staging readiness
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
-          RAILWAY_SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
-          RAILWAY_STAGING_ENVIRONMENT: ${{ vars.RAILWAY_STAGING_ENVIRONMENT }}
+          SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
+          STAGING_ENV: ${{ vars.RAILWAY_STAGING_ENVIRONMENT }}
         run: |
-          SERVICE_NAME="${RAILWAY_SERVICE_NAME:-stargate-lite}"
-          STAGING_ENV="${RAILWAY_STAGING_ENVIRONMENT:-staging}"
+          set -euo pipefail
           python scripts/check_railway_readiness.py \
             --environment "$STAGING_ENV" \
             --service "$SERVICE_NAME" \
             --expect-env-value staging
 
-      - name: Deploy to staging
+      - name: Deploy to Railway staging
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
-          RAILWAY_SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
-          RAILWAY_STAGING_ENVIRONMENT: ${{ vars.RAILWAY_STAGING_ENVIRONMENT }}
+          SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
+          STAGING_ENV: ${{ vars.RAILWAY_STAGING_ENVIRONMENT }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          SERVICE_NAME="${RAILWAY_SERVICE_NAME:-stargate-lite}"
-          STAGING_ENV="${RAILWAY_STAGING_ENVIRONMENT:-staging}"
+          set -euo pipefail
+          for name in RAILWAY_TOKEN SERVICE_NAME STAGING_ENV SOURCE_SHA; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is required for Railway deploys."
+              exit 1
+            fi
+          done
+          BUILD_TIME="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          railway variable set \
+            --service "$SERVICE_NAME" \
+            --environment "$STAGING_ENV" \
+            --skip-deploys \
+            "STARGATE_BUILD_SHA=${SOURCE_SHA}" \
+            "STARGATE_BUILD_TIME=${BUILD_TIME}" \
+            "STARGATE_DEPLOYMENT_ID=${GITHUB_RUN_ID}" \
+            "STARGATE_ENVIRONMENT=staging" \
+            "ENVIRONMENT=staging"
           for attempt in 1 2 3; do
             if railway up --ci --service "$SERVICE_NAME" --environment "$STAGING_ENV"; then
               exit 0
             fi
-            echo "Railway staging deploy attempt $attempt failed, retrying..."
-            sleep $((attempt * 20))
+            echo "Railway staging deploy attempt $attempt failed; retrying..."
+            sleep 20
           done
           echo "Railway staging deploy failed after retries"
           exit 1
@@ -83,6 +99,7 @@ jobs:
             if python scripts/verify_remote_api.py \
               --base-url "$STAGING_URL" \
               --api-key "$STAGING_API_KEY" \
+              --expected-sha "${{ github.event.workflow_run.head_sha }}" \
               --min-capabilities "$MIN_CAPS"; then
               exit 0
             fi

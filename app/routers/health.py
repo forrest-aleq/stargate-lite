@@ -16,6 +16,7 @@ from app.constants.services import (
 from app.database import CredentialManager, engine
 from app.models import ConnectorHealthResponse, HealthResponse
 from app.observability import increment_metric
+from app.provenance import get_build_provenance
 from app.redis_client import redis_client
 from app.registry import CAPABILITY_REGISTRY
 from app.services.connector_health import (
@@ -41,6 +42,7 @@ async def root() -> HealthResponse:
         status="operational",
         version=_get_version(),
         capabilities_count=len(CAPABILITY_REGISTRY),
+        build=get_build_provenance(),
         services={
             "quickbooks": ("configured" if os.getenv("QUICKBOOKS_CLIENT_ID") else "not_configured"),
             "zoho_books": ("configured" if os.getenv("ZOHO_BOOKS_CLIENT_ID") else "not_configured"),
@@ -97,7 +99,19 @@ async def health_check() -> HealthResponse:
         version=_get_version(),
         capabilities_count=len(CAPABILITY_REGISTRY),
         services=services,
+        build=get_build_provenance(),
     )
+
+
+@router.get("/version", response_model=dict[str, object])
+async def version() -> dict[str, object]:
+    """Deployment provenance for release verification and admin visibility."""
+    return {
+        "name": "Stargate Lite",
+        "version": _get_version(),
+        "timestamp": datetime.now(UTC).isoformat(),
+        "build": get_build_provenance(),
+    }
 
 
 @router.get("/health/connectors", response_model=ConnectorHealthResponse)

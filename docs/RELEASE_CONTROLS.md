@@ -58,8 +58,9 @@ tested unit.
 - `.github/workflows/ci.yml` runs PR checks for both `main` and `staging`, so
   both protected branches can require the same CI contexts.
 - `scripts/verify_release_infra.py` checks GitHub environment secrets/variables,
-  branch protection, and Railway runtime variables without printing secret
-  values:
+  Railway runtime variables, and branch protection without printing secret
+  values. Runtime secrets live in Railway service variables scoped to each
+  environment:
 
 ```bash
 python3 scripts/verify_release_infra.py
@@ -91,9 +92,9 @@ The `staging` GitHub environment must contain:
 The `production` GitHub environment must contain:
 
 - secrets: `RAILWAY_TOKEN_PRODUCTION`, `PRODUCTION_API_KEY`
-- variables: `PRODUCTION_URL`, `RAILWAY_PRODUCTION_ENVIRONMENT`,
-  `RAILWAY_SERVICE_NAME`
+- variables: `RAILWAY_SERVICE_NAME`, `RAILWAY_PRODUCTION_ENVIRONMENT`,
+  `PRODUCTION_URL`
 
-Railway `staging` and `production` must both contain core runtime variables:
-`API_SECRET_KEY`, `DATABASE_URL`, `ENABLED_SERVICES`, `ENCRYPTION_KEY`,
-`ENVIRONMENT`, and `REDIS_URL`.
+Each Railway environment must include the runtime values Stargate needs,
+including `API_SECRET_KEY`, `DATABASE_URL`, `ENABLED_SERVICES`,
+`ENCRYPTION_KEY`, `ENVIRONMENT`, and `REDIS_URL`.
