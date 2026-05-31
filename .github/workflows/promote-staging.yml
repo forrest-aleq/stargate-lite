@@ -88,6 +88,11 @@ jobs:
             exit 0
           fi
 
+          if ! git merge-base --is-ancestor origin/main origin/staging; then
+            echo "::error::origin/staging does not contain origin/main. Merge main into staging, redeploy staging, and rerun promotion."
+            exit 1
+          fi
+
           STAGING_SHA=$(git rev-parse origin/staging)
           MAIN_SHA=$(git rev-parse origin/main)
           git config user.name "github-actions[bot]"
@@ -98,6 +103,13 @@ jobs:
             -m "Promote Stargate Lite staging to main" \
             -m "Staging-SHA: ${STAGING_SHA}" \
             -m "Main-SHA: ${MAIN_SHA}"
+
+          PROMOTION_TREE=$(git rev-parse HEAD^{tree})
+          if [ "$PROMOTION_TREE" != "$STAGING_TREE" ]; then
+            echo "::error::promotion branch tree does not match origin/staging"
+            exit 1
+          fi
+
           git push --force-with-lease origin "$PROMOTION_BRANCH:$PROMOTION_BRANCH"
 
           PR_NUMBER=$(
