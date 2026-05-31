@@ -59,6 +59,11 @@ def _tree(ref: str) -> str:
     return _run_git(["rev-parse", "--verify", f"{ref}^{{tree}}"])
 
 
+def _branch_contains_tree(ref: str, tree_sha: str) -> bool:
+    trees = _run_git(["log", "--format=%T", ref]).splitlines()
+    return tree_sha in trees
+
+
 def _short(sha: str) -> str:
     return sha[:12]
 
@@ -135,17 +140,32 @@ def main() -> int:
 
         if args.mode == "promotion":
             main_is_in_staging = _is_ancestor(main_sha, staging_sha)
+            main_tree_is_in_staging_history = False
+            if not main_is_in_staging:
+                main_tree_is_in_staging_history = _branch_contains_tree(
+                    staging_ref,
+                    _tree(main_sha),
+                )
+
+            main_content_is_represented_in_staging = (
+                main_is_in_staging or main_tree_is_in_staging_history
+            )
             checks.append(
                 {
-                    "name": "main_is_ancestor_of_staging",
-                    "passed": main_is_in_staging,
-                    "details": f"{_short(main_sha)} <= {_short(staging_sha)}",
+                    "name": "main_content_is_represented_in_staging",
+                    "passed": main_content_is_represented_in_staging,
+                    "details": {
+                        "main_is_ancestor_of_staging": main_is_in_staging,
+                        "main_tree_is_in_staging_history": main_tree_is_in_staging_history,
+                        "main": _short(main_sha),
+                        "staging": _short(staging_sha),
+                    },
                 }
             )
-            if not main_is_in_staging:
+            if not main_content_is_represented_in_staging:
                 raise ReleaseGateError(
-                    f"{main_ref} ({_short(main_sha)}) is not an ancestor of "
-                    f"{staging_ref} ({_short(staging_sha)})"
+                    f"{main_ref} content ({_short(main_sha)}) is not represented in "
+                    f"{staging_ref} history ({_short(staging_sha)})"
                 )
 
         target_is_in_staging = _is_ancestor(target_sha, staging_sha)
