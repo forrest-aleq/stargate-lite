@@ -24,6 +24,8 @@ from pathlib import Path
 
 CORE_REQUIRED_VARS = (
     "API_SECRET_KEY",
+    "CONTROL_PLANE_API_KEY",
+    "CONTROL_PLANE_BASE_URL",
     "ENCRYPTION_KEY",
     "DATABASE_URL",
     "REDIS_URL",

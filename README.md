@@ -42,6 +42,8 @@ Set the minimum required environment variables before starting the app:
 
 - `ENCRYPTION_KEY`
 - `API_SECRET_KEY`
+- `CONTROL_PLANE_BASE_URL`
+- `CONTROL_PLANE_API_KEY`
 - `DATABASE_URL`
 - Redis settings via `REDIS_URL` or `REDIS_HOST` / `REDIS_PORT`
 
