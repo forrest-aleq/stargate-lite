@@ -26,6 +26,7 @@ REQUIRED_GITHUB = {
             "STAGING_API_KEY",
         },
         "variables": {
+            "RAILWAY_PROJECT_ID",
             "RAILWAY_SERVICE_NAME",
             "RAILWAY_STAGING_ENVIRONMENT",
             "STAGING_MIN_CAPABILITIES",
@@ -39,6 +40,7 @@ REQUIRED_GITHUB = {
         },
         "variables": {
             "PRODUCTION_URL",
+            "RAILWAY_PROJECT_ID",
             "RAILWAY_PRODUCTION_ENVIRONMENT",
             "RAILWAY_SERVICE_NAME",
         },
