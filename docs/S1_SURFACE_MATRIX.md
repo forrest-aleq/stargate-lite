@@ -92,6 +92,11 @@ client.s1.execute.run(input)
 
 Current direct `S1` auth supports:
 
+- Control-plane issued `S1` API keys
+  Runtime mode for SDK consumers. Stargate introspects the presented key against
+  Baby MARS, then requires an applicable tenant allow grant for any request with
+  an `org_id`; deny grants win. This requires `CONTROL_PLANE_BASE_URL` and
+  `CONTROL_PLANE_API_KEY`.
 - `API_SECRET_KEY`
   Legacy shared server-to-server key.
 - `API_CLIENT_KEYS_JSON`
