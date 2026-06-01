@@ -253,6 +253,18 @@ def _grant_applies(
     )
 
 
+def _grant_is_key_scoped_allow(
+    grant: dict[str, object],
+    principal: ApiClientPrincipal,
+    tenant_id: str,
+) -> bool:
+    return (
+        grant.get("grant_type") == "allow"
+        and grant.get("tenant_id") == tenant_id
+        and _as_non_empty_string(grant.get("api_key_id")) == principal.key_id
+    )
+
+
 def _control_plane_key_has_tenant_access(
     principal: ApiClientPrincipal,
     tenant_id: str,
@@ -280,10 +292,7 @@ def _control_plane_key_has_tenant_access(
         if grant.get("grant_type") == "deny" and grant.get("tenant_id") == tenant_id:
             return False
 
-    return any(
-        grant.get("grant_type") == "allow" and grant.get("tenant_id") == tenant_id
-        for grant in applicable
-    )
+    return any(_grant_is_key_scoped_allow(grant, principal, tenant_id) for grant in applicable)
 
 
 async def _enforce_control_plane_tenant_grant(
