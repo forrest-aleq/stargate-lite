@@ -331,6 +331,87 @@ async def test_verify_api_key_rejects_broad_control_plane_allow_grant(
 
 
 @pytest.mark.asyncio
+async def test_verify_api_key_rejects_inactive_control_plane_allow_grant(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _configure_control_plane(monkeypatch)
+    monkeypatch.setattr(
+        auth_module.requests,
+        "post",
+        lambda *_args, **_kwargs: _FakeResponse(_introspection_payload()),
+    )
+    monkeypatch.setattr(
+        auth_module.requests,
+        "get",
+        lambda *_args, **_kwargs: _FakeResponse(
+            [
+                {
+                    "tenant_grant_id": "grant_revoked_allow",
+                    "project_id": "proj_123",
+                    "environment_id": "env_staging",
+                    "client_id": "client_sdk",
+                    "api_key_id": "key_s1",
+                    "tenant_id": "org_allowed",
+                    "grant_type": "allow",
+                    "status": "revoked",
+                }
+            ]
+        ),
+    )
+
+    request = _build_request({"org_id": "org_allowed", "turn_id": "turn-1"})
+
+    with pytest.raises(HTTPException) as exc_info:
+        await verify_api_key(request, x_api_key="s1-secret")
+
+    assert exc_info.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_verify_api_key_ignores_inactive_control_plane_deny_grant(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _configure_control_plane(monkeypatch)
+    monkeypatch.setattr(
+        auth_module.requests,
+        "post",
+        lambda *_args, **_kwargs: _FakeResponse(_introspection_payload()),
+    )
+    monkeypatch.setattr(
+        auth_module.requests,
+        "get",
+        lambda *_args, **_kwargs: _FakeResponse(
+            [
+                {
+                    "tenant_grant_id": "grant_revoked_deny",
+                    "project_id": "proj_123",
+                    "environment_id": "env_staging",
+                    "client_id": "client_sdk",
+                    "api_key_id": "key_s1",
+                    "tenant_id": "org_allowed",
+                    "grant_type": "deny",
+                    "status": "revoked",
+                },
+                {
+                    "tenant_grant_id": "grant_active_allow",
+                    "project_id": "proj_123",
+                    "environment_id": "env_staging",
+                    "client_id": "client_sdk",
+                    "api_key_id": "key_s1",
+                    "tenant_id": "org_allowed",
+                    "grant_type": "allow",
+                    "status": "active",
+                },
+            ]
+        ),
+    )
+
+    request = _build_request({"org_id": "org_allowed", "turn_id": "turn-1"})
+
+    assert await verify_api_key(request, x_api_key="s1-secret") is True
+
+
+@pytest.mark.asyncio
 async def test_verify_api_key_control_plane_deny_grant_wins(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

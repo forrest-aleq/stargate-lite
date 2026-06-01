@@ -265,6 +265,11 @@ def _grant_is_key_scoped_allow(
     )
 
 
+def _grant_is_active(grant: dict[str, object]) -> bool:
+    status = grant.get("status")
+    return status is None or (isinstance(status, str) and status.strip().lower() == "active")
+
+
 def _control_plane_key_has_tenant_access(
     principal: ApiClientPrincipal,
     tenant_id: str,
@@ -286,7 +291,9 @@ def _control_plane_key_has_tenant_access(
         )
 
     applicable = [
-        grant for grant in payload if isinstance(grant, dict) and _grant_applies(grant, principal)
+        grant
+        for grant in payload
+        if isinstance(grant, dict) and _grant_is_active(grant) and _grant_applies(grant, principal)
     ]
     for grant in applicable:
         if grant.get("grant_type") == "deny" and grant.get("tenant_id") == tenant_id:
