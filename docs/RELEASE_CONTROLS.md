@@ -104,8 +104,14 @@ The `production` GitHub environment must contain:
   `PRODUCTION_URL`
 
 Each Railway environment must include the runtime values Stargate needs,
-including `API_SECRET_KEY`, `DATABASE_URL`, `ENABLED_SERVICES`,
+including `API_SECRET_KEY`, `CONTROL_PLANE_API_KEY`,
+`CONTROL_PLANE_BASE_URL`, `DATABASE_URL`, `ENABLED_SERVICES`,
 `ENCRYPTION_KEY`, `ENVIRONMENT`, and `REDIS_URL`.
+
+`CONTROL_PLANE_BASE_URL` must point at the matching Baby MARS environment and
+`CONTROL_PLANE_API_KEY` must be that environment's control-plane admin key.
+Without these values, admin-issued SDK `S1` keys cannot be introspected or
+tenant-grant checked at execution time.
 
 Production preflight is stricter than staging for enabled customer connectors:
 every service listed in `ENABLED_SERVICES` must also have the full provider
