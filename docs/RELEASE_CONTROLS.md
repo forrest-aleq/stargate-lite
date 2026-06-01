@@ -94,14 +94,14 @@ python3 scripts/verify_release_infra.py
 The `staging` GitHub environment must contain:
 
 - secrets: `RAILWAY_TOKEN_STAGING`, `STAGING_API_KEY`
-- variables: `RAILWAY_SERVICE_NAME`, `RAILWAY_STAGING_ENVIRONMENT`,
-  `STAGING_MIN_CAPABILITIES`, `STAGING_URL`
+- variables: `RAILWAY_PROJECT_ID`, `RAILWAY_SERVICE_NAME`,
+  `RAILWAY_STAGING_ENVIRONMENT`, `STAGING_MIN_CAPABILITIES`, `STAGING_URL`
 
 The `production` GitHub environment must contain:
 
 - secrets: `RAILWAY_TOKEN_PRODUCTION`, `PRODUCTION_API_KEY`
-- variables: `RAILWAY_SERVICE_NAME`, `RAILWAY_PRODUCTION_ENVIRONMENT`,
-  `PRODUCTION_URL`
+- variables: `RAILWAY_PROJECT_ID`, `RAILWAY_SERVICE_NAME`,
+  `RAILWAY_PRODUCTION_ENVIRONMENT`, `PRODUCTION_URL`
 
 Each Railway environment must include the runtime values Stargate needs,
 including `API_SECRET_KEY`, `CONTROL_PLANE_API_KEY`,

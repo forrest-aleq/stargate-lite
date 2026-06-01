@@ -85,6 +85,7 @@ jobs:
       - name: Check Railway staging readiness
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
           SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
           STAGING_ENV: ${{ vars.RAILWAY_STAGING_ENVIRONMENT }}
         run: |
