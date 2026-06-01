@@ -295,6 +295,42 @@ async def test_verify_api_key_rejects_control_plane_key_without_tenant_grant(
 
 
 @pytest.mark.asyncio
+async def test_verify_api_key_rejects_broad_control_plane_allow_grant(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _configure_control_plane(monkeypatch)
+    monkeypatch.setattr(
+        auth_module.requests,
+        "post",
+        lambda *_args, **_kwargs: _FakeResponse(_introspection_payload()),
+    )
+    monkeypatch.setattr(
+        auth_module.requests,
+        "get",
+        lambda *_args, **_kwargs: _FakeResponse(
+            [
+                {
+                    "tenant_grant_id": "grant_broad_allow",
+                    "project_id": "proj_123",
+                    "environment_id": "env_staging",
+                    "client_id": "client_sdk",
+                    "api_key_id": None,
+                    "tenant_id": "org_allowed",
+                    "grant_type": "allow",
+                }
+            ]
+        ),
+    )
+
+    request = _build_request({"org_id": "org_allowed", "turn_id": "turn-1"})
+
+    with pytest.raises(HTTPException) as exc_info:
+        await verify_api_key(request, x_api_key="s1-secret")
+
+    assert exc_info.value.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_verify_api_key_control_plane_deny_grant_wins(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
