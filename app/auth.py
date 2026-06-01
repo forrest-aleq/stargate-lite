@@ -217,6 +217,11 @@ async def _resolve_control_plane_api_client(
 
 
 async def _extract_org_id(request: Request) -> str | None:
+    for header_name in ("X-Tenant-ID", "X-Aleq-Tenant-ID", "X-Org-ID"):
+        org_id = _as_non_empty_string(request.headers.get(header_name))
+        if org_id:
+            return org_id
+
     body = await request.body()
 
     if not body:

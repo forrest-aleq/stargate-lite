@@ -7,15 +7,22 @@ import time
 
 import pytest
 from fastapi import HTTPException
+from starlette.datastructures import Headers
 from starlette.requests import Request
 
 from app import auth as auth_module
 from app.auth import verify_api_key
 
 
-def _build_request(body: dict[str, object] | None = None) -> Request:
+def _build_request(
+    body: dict[str, object] | None = None,
+    headers: dict[str, str] | None = None,
+) -> Request:
     payload = json.dumps(body or {}).encode("utf-8")
     delivered = False
+    raw_headers = [(b"content-type", b"application/json")]
+    for key, value in Headers(headers or {}).raw:
+        raw_headers.append((key, value))
 
     async def receive() -> dict[str, object]:
         nonlocal delivered
@@ -29,7 +36,7 @@ def _build_request(body: dict[str, object] | None = None) -> Request:
         "type": "http",
         "method": "POST",
         "path": "/api/v1/execute",
-        "headers": [(b"content-type", b"application/json")],
+        "headers": raw_headers,
     }
     return Request(scope, receive)
 
@@ -88,6 +95,32 @@ async def test_verify_api_key_rejects_org_outside_allowlist(
     )
 
     request = _build_request({"org_id": "org_blocked"})
+
+    with pytest.raises(HTTPException) as exc_info:
+        await verify_api_key(request, x_api_key="restricted-secret")
+
+    assert exc_info.value.status_code == 403
+    assert "org_blocked" in exc_info.value.detail
+
+
+@pytest.mark.asyncio
+async def test_verify_api_key_rejects_org_outside_allowlist_from_tenant_header(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(
+        "API_CLIENT_KEYS_JSON",
+        json.dumps(
+            [
+                {
+                    "key_id": "restricted-client",
+                    "secret": "restricted-secret",
+                    "org_allowlist": ["org_allowed"],
+                }
+            ]
+        ),
+    )
+
+    request = _build_request(headers={"X-Tenant-ID": "org_blocked"})
 
     with pytest.raises(HTTPException) as exc_info:
         await verify_api_key(request, x_api_key="restricted-secret")
@@ -201,6 +234,39 @@ async def test_verify_api_key_enforces_control_plane_key_scoped_tenant_grant(
     assert request.state.api_client["auth_mode"] == "control_plane"
     assert request.state.api_client["project_id"] == "proj_123"
     assert request.state.api_client["client_id"] == "client_sdk"
+
+
+@pytest.mark.asyncio
+async def test_verify_api_key_enforces_control_plane_tenant_grant_from_header(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _configure_control_plane(monkeypatch)
+    monkeypatch.setattr(
+        auth_module.requests,
+        "post",
+        lambda *_args, **_kwargs: _FakeResponse(_introspection_payload()),
+    )
+    monkeypatch.setattr(
+        auth_module.requests,
+        "get",
+        lambda *_args, **_kwargs: _FakeResponse(
+            [
+                {
+                    "tenant_grant_id": "grant_key_scoped",
+                    "project_id": "proj_123",
+                    "environment_id": "env_staging",
+                    "client_id": "client_sdk",
+                    "api_key_id": "key_s1",
+                    "tenant_id": "org_allowed",
+                    "grant_type": "allow",
+                }
+            ]
+        ),
+    )
+
+    request = _build_request(headers={"X-Tenant-ID": "org_allowed"})
+
+    assert await verify_api_key(request, x_api_key="s1-secret") is True
 
 
 @pytest.mark.asyncio
