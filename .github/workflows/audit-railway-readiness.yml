@@ -41,11 +41,12 @@ jobs:
       - name: Check Railway staging readiness
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
           SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
           RAILWAY_ENV: ${{ vars.RAILWAY_STAGING_ENVIRONMENT }}
         run: |
           set -euo pipefail
-          for name in RAILWAY_TOKEN SERVICE_NAME RAILWAY_ENV; do
+          for name in RAILWAY_TOKEN RAILWAY_PROJECT_ID SERVICE_NAME RAILWAY_ENV; do
             if [ -z "${!name:-}" ]; then
               echo "::error::$name is required for a read-only Railway readiness audit."
               exit 1
@@ -86,11 +87,12 @@ jobs:
       - name: Check Railway production readiness
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
           SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
           RAILWAY_ENV: ${{ vars.RAILWAY_PRODUCTION_ENVIRONMENT }}
         run: |
           set -euo pipefail
-          for name in RAILWAY_TOKEN SERVICE_NAME RAILWAY_ENV; do
+          for name in RAILWAY_TOKEN RAILWAY_PROJECT_ID SERVICE_NAME RAILWAY_ENV; do
             if [ -z "${!name:-}" ]; then
               echo "::error::$name is required for a read-only Railway readiness audit."
               exit 1

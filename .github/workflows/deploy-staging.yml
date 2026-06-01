@@ -45,6 +45,7 @@ jobs:
       - name: Check Railway staging readiness
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
           SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
           STAGING_ENV: ${{ vars.RAILWAY_STAGING_ENVIRONMENT }}
         run: |
@@ -57,12 +58,13 @@ jobs:
       - name: Deploy to Railway staging
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
           SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
           STAGING_ENV: ${{ vars.RAILWAY_STAGING_ENVIRONMENT }}
           SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
-          for name in RAILWAY_TOKEN SERVICE_NAME STAGING_ENV SOURCE_SHA; do
+          for name in RAILWAY_TOKEN RAILWAY_PROJECT_ID SERVICE_NAME STAGING_ENV SOURCE_SHA; do
             if [ -z "${!name:-}" ]; then
               echo "::error::$name is required for Railway deploys."
               exit 1
