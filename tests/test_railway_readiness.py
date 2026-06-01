@@ -47,3 +47,8 @@ def test_missing_customer_connect_vars_requires_full_provider_env_set() -> None:
         "stripe:STRIPE_CLIENT_ID",
         "stripe:STRIPE_REDIRECT_URI",
     ]
+
+
+def test_railway_readiness_requires_control_plane_runtime_vars() -> None:
+    assert "CONTROL_PLANE_API_KEY" in readiness.CORE_REQUIRED_VARS
+    assert "CONTROL_PLANE_BASE_URL" in readiness.CORE_REQUIRED_VARS
