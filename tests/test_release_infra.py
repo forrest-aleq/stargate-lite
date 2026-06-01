@@ -22,6 +22,11 @@ def test_result_marks_missing_as_failure() -> None:
     assert result.details["missing"] == ["RAILWAY_SERVICE_NAME"]
 
 
+def test_release_infra_requires_control_plane_runtime_vars() -> None:
+    assert "CONTROL_PLANE_API_KEY" in infra.REQUIRED_RAILWAY_CORE
+    assert "CONTROL_PLANE_BASE_URL" in infra.REQUIRED_RAILWAY_CORE
+
+
 def test_production_url_is_required_for_health_preflight(monkeypatch) -> None:
     calls: list[list[str]] = []
 
